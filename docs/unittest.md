@@ -1,11 +1,10 @@
 # Unit testing
 
-To ensure that our code does what it is supposed to do, we need to test it. 
-It is common to test a function when we first write it and then lose the code we wrote for testing. 
-A better approach is to write a series of tests when developing a functionality and then keep the test to ensure no one break the code later on.
+We are using `unittest` to minimize the chance of having bugs in our code.
 
-We will use `unittest` to test the functionality of `spikeA`.
-The test code can be saved in the `tests` folder. 
+This allows us to write a series of tests when developing a functionality, and store it so that we can re-run these tests anytime.
+
+The test code is saved in the `tests` folder. 
 
 More information about `unittest` is found [here](https://docs.python.org/3/library/unittest.html).
 
