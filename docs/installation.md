@@ -13,6 +13,16 @@ Next time, you just need to use git pull from within the repository directory.
 
 If you are not familiar with git, I would suggest reading a tutorial online.
 
+## Use your python environment
+
+If you don't already have a python environment for your data analysis, create one.
+
+```
+conda deactivate
+python3 -m venv /home/kevin/python_virtual_environments/skikeAenv
+source /home/kevin/python_virtual_environments/skikeAenv/bin/activate
+```
+
 ## Install spikeA in your python environment
 
 You should do your data analysis from a python environment. If you don't know what a virtual environment is read [this](https://docs.python.org/3/library/venv.html#venv-def).
