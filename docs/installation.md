@@ -13,6 +13,19 @@ Next time, you just need to use git pull from within the repository directory.
 
 If you are not familiar with git, I would suggest reading a tutorial online.
 
+## Use your python environment
+
+If you don't already have a python environment for your data analysis, create one.
+
+You might want to change `kevin` for your user name.
+
+```
+conda deactivate
+mkdir /home/kevin/python_virtual_environments
+python3 -m venv /home/kevin/python_virtual_environments/skikeAenv
+source /home/kevin/python_virtual_environments/skikeAenv/bin/activate
+```
+
 ## Install spikeA in your python environment
 
 You should do your data analysis from a python environment. If you don't know what a virtual environment is read [this](https://docs.python.org/3/library/venv.html#venv-def).
@@ -34,7 +47,7 @@ ipython
 
 Then to load the spikeA.SpikeTrain module, run this within ipython
 ```
-from spikeA.SpikeTrain import SpikeTrain
-SpikeTrain("hey")
+from spikeA.Spike_train import Spike_train
+Spike_train("hey")
 ```
 If there is no error, `spikeA` is now installed in your environment.
