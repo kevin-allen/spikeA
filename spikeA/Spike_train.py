@@ -1,7 +1,6 @@
 """
 File containing the definition of the Spike_train class
 """
-
 import numpy as np
 import pandas as pd
 from scipy import stats
@@ -11,10 +10,10 @@ class Spike_train:
     Class representing the spikes recorded from several neurons.
     
     Attributes:
+    
     name: name for the spike train
-    st: list of 1d numpy arrays containing the spike time for each cluster
+    st: list of 1d numpy arrays containing the spike time for each cluster [array_clu1, array_clu2, etc.]
     cluster_ids: list of spike cluster IDs (integer). Each cluster or cell has a unique number.
-
     ifr: numpy array containing the instantaneous firing rate of clusters
     sta: numpy array containing the spike-time autocorrelation of each cluster
     mean_rate: numpy array containing the mean firing rate of the clusters
@@ -26,7 +25,7 @@ class Spike_train:
     instantaneous_firing_rate(): calculate the instantaneous firing rate of the cluster over time
     load_spike_train_from_files(): load the spike trains from files (e.g., res and clu file)
     """
-    def __init__(self,name=None,sampling_rate=20000):
+    def __init__(self,name=None,sampling_rate=20000,start_time=0, end_time=20000):
         """
         Constructor of the Spike_train class
 
@@ -35,15 +34,18 @@ class Spike_train:
         """
         self.sampling_rate = sampling_rate
         self.name = name
-        print("Spike_train object, name:{}, sampling rate: {}".format(self.name,self.sampling_rate))
+        self.start_time = start_time
+        self.end_time = end_time
+        
+        print("Spike_train, name: {}, sampling rate: {}".format(self.name,self.sampling_rate))
 
     def n_spikes_per_cluster(self):
         """
         Calculate the number of spikes per cluster.
 
-        Return a numpy array with the number of spikes per cluster.
+        Return a list with the number of spikes per cluster.
         """
-        pass
+        return [ s.shape[0] for s in self.st ]
     
     def mean_firing_rate(self):
         """
