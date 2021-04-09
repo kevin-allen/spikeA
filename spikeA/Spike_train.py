@@ -45,7 +45,7 @@ class Spike_train:
 
         Return a list with the number of spikes per cluster.
         """
-        return [ s.shape[0] for s in self.st ]
+        return np.array([ s.shape[0] for s in self.st ])
     
     def mean_firing_rate(self):
         """
