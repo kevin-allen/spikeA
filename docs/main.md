@@ -2,7 +2,6 @@
 
 This is the documentation for the python package spikeA. This package can be used to perform data analysis of spike trains in python.
 
-
 ## Clone the repository
 
 You can download the code to your computer using the 
@@ -15,9 +14,7 @@ Next time, you just need to use git pull from within the repository directory.
 
 ## Installing the repository 
 
-First launch your python environment.
-
-Then install the `spikeA` package in your environment using pip.
+First launch your python environment. Then install the `spikeA` package in your environment using pip.
 
 ```
 pip install -e ~/repo/spikeA
@@ -35,3 +32,5 @@ Then to load the spikeA.SpikeTrain module, run this within ipython
 from spikeA.SpikeTrain import SpikeTrain
 SpikeTrain("hey")
 ```
+
+
