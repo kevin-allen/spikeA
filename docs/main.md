@@ -10,7 +10,6 @@ You can download the code to your computer using the
 cd ~/repo
 git clone https://github.com/kevin-allen/spikeA.git
 ```
-Next time, you just need to use git pull from within the repository directory.
 
 ## Installation
 
