@@ -12,25 +12,10 @@ git clone https://github.com/kevin-allen/spikeA.git
 ```
 Next time, you just need to use git pull from within the repository directory.
 
-## Installing the repository 
+## Installation
 
-First launch your python environment. Then install the `spikeA` package in your environment using pip.
+* [Simple installation with pip](installation.md)
 
-```
-pip install -e ~/repo/spikeA
-```
 
-You should then be able to import the different modules of the package from ipython
-
-To get a ipython terminal
-```
-ipython
-```
-
-Then to load the spikeA.SpikeTrain module, run this within ipython
-```
-from spikeA.SpikeTrain import SpikeTrain
-SpikeTrain("hey")
-```
 
 
