@@ -34,7 +34,7 @@ ipython
 
 Then to load the spikeA.SpikeTrain module, run this within ipython
 ```
-from spikeA.SpikeTrain import SpikeTrain
-SpikeTrain("hey")
+from spikeA.Spike_train import Spike_train
+Spike_train("hey")
 ```
 If there is no error, `spikeA` is now installed in your environment.
