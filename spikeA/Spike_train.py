@@ -4,62 +4,77 @@ File containing the definition of the Spike_train class
 import numpy as np
 import pandas as pd
 from scipy import stats
+from spikeA.Intervals import Intervals
 
 class Spike_train:
     """
-    Class representing the spikes recorded from several neurons.
+    Class representing the spikes recorded from one neuron.
+    
+    The class does the analysis of spike train. A spike train is defined as the spike in time emitted by a single neuron
     
     Attributes:
     
     name: name for the spike train
-    st: list of 1d numpy arrays containing the spike time for each cluster [array_clu1, array_clu2, etc.]
-    cluster_ids: list of spike cluster IDs (integer). Each cluster or cell has a unique number.
-    ifr: numpy array containing the instantaneous firing rate of clusters
-    sta: numpy array containing the spike-time autocorrelation of each cluster
-    mean_rate: numpy array containing the mean firing rate of the clusters
+    st: 1d numpy arrays containing the spike time a neuron
+    ifr: 1d numpy array containing the instantaneous firing rate of the neuron
+    isi: 1d numpy array containing the inter-spike intervals between subsequent spikes
+    
+    sta: 1d numpy array containing the spike-time autocorrelation of the neuron
+    m_rate: mean firing rate of the neuron
 
     Methods:
-    n_spikes_per_cluster(): calculate the number of spikes per clusters
-    mean_firing_rate(): calculate the mean firing rate of the clusters
-    spike_time_autocorrelation(): calculate the spike time autocorrelation of each cluster
-    instantaneous_firing_rate(): calculate the instantaneous firing rate of the cluster over time
-    load_spike_train_from_files(): load the spike trains from files (e.g., res and clu file)
+    n_spikes(): return the number of spikes of the neuron
+    mean_firing_rate(): return the mean firing rate of the neuron
+    inter_spike_intervals(): calculate the inter-spike intervals of the neuron
+    instantaneous_firing_rate(): calculate the instantaneous firing rate in time
     """
-    def __init__(self,name=None,sampling_rate=20000,start_time=0, end_time=20000):
+    def __init__(self,name=None, st = None, sampling_rate=20000):
         """
         Constructor of the Spike_train class
 
         Arguments:
         name: Name for the Spike_train object
+        st: 1d numpy array with the spike time of one neuron. Values are in samples
+        sampling_rate: sampling rate in samples per second (Hz) of the recording system
         """
-        self.sampling_rate = sampling_rate
-        self.name = name
-        self.start_time = start_time
-        self.end_time = end_time
+       
+        # check that st is a numpy array
+        if not isinstance(st, np.ndarray):
+            print("st should be a numpy.ndarray but was {}".format(type(st)))
         
-        print("Spike_train, name: {}, sampling rate: {}".format(self.name,self.sampling_rate))
-
-    def n_spikes_per_cluster(self):
+        self.name = name
+        self.st = st
+        self.sampling_rate = sampling_rate
+        
+        # set default time intervals from 0 to just after the last spike
+        self.intervals = Intervals(inter=np.array([[0,self.st.max()+1]]),
+                                   sampling_rate=self.sampling_rate)
+        
+        print("Spike_train, name: {}, sampling rate: {} Hz, number of spikes {}".format(self.name,
+                                                                                  self.sampling_rate,
+                                                                                  self.st.shape[0]))
+        print("Total interval time: {} sec".format(self.intervals.total_interval_duration_seconds()))
+        
+    def n_spikes(self):
         """
-        Calculate the number of spikes per cluster.
-
-        Return a list with the number of spikes per cluster.
+        Return the number of spikes of the cluster
         """
-        return np.array([ s.shape[0] for s in self.st ])
+        return self.st.shape[0]
     
     def mean_firing_rate(self):
         """
         Calculate the mean firing rate (number of spikes / sec) of each cluster
 
-        The results are stored in a numpy array with the same dimension as cluster_ids array
+        Return the mean firing rate
         """
         pass
     
-    def spike_time_autocorreation(self):
+    def inter_spike_intervals(self):
         """
-        Calculate the spike time autocorrelation for each neuron.
+        Calculate the inter spike intervals
 
-        The results are stored in a 2D numpy array with 
+        The results are stored in a 1D numpy called self.isi
+        self.isi should have a length of len(self.st) -1
         """
         pass
     
@@ -67,22 +82,9 @@ class Spike_train:
         """
         Calculate the instantaneous firing rate. This is the firing rate of the neuron over time.
 
-        The spikes are counted in equal sized time windows. 
-        Then the spike count array is smooth with a gaussian kernel.
-        The result is a 2D numpy array with the dimensions cluster and time_window.
-        The results are saved in the attribute ifr
+        The spikes are counted in equal sized time windows. (histogram)
+        Then the spike count array is smooth with a gaussian kernel. (convolution)
+        The result is a 1D numpy array called self.ifr with the firing rate per time window
         """    
-        pass
-    
-    def load_spike_train_from_files(self,res_file_name, clu_file_name):
-        """
-        Load the spike trains from file
-
-        Check that the 2 files are there.
-        Read the content of the files
-            Read the number of clusters from the clu file.
-            Read the res file with the spike time.
-        Create a list of numpy arrays, one array per cluster. Each array contains the spike time for one neuron.
-        """
         pass
     

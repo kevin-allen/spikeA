@@ -15,11 +15,9 @@ class Intervals:
     
     inter: 2D numpy array containing the start and end of each interval
     sampling_rate: number of samples per second
-    total_interval_duration_samples
-    total_interval_duration_seconds
-
+    
     Methods:
-    total_interval_duration(): calculate the interval duration
+    total_interval_duration_samples(): calculate the interval duration
     """
     def __init__(self,inter,sampling_rate=20000):
         """
@@ -29,15 +27,19 @@ class Intervals:
         inter: 2D numpy array containing the start and end of each interval, one row per interval
         sampling_rate: number of samples per seconds
         """
+        # check that inter is a numpy array
+        if not isinstance(inter, np.ndarray):
+            print("inter should be a numpy.ndarray but was {}".format(type(inter)))
+        
         self.inter = inter
         self.sampling_rate = sampling_rate
        
-        print("Intervals, sampling rate: {}".format(self.sampling_rate))
-        print(self.inter)
-
-    def total_interval_duration(self):
+        print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
+    def total_interval_duration_samples(self):
         """
         Calculate the duration of the time in the intervals
 
         """
-        pass
+        return np.sum(self.inter[:,1]-self.inter[:,0])
+    def total_interval_duration_seconds(self):
+        return self.total_interval_duration_samples()/self.sampling_rate
