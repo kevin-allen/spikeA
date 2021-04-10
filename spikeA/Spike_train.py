@@ -64,6 +64,7 @@ class Spike_train:
     def mean_firing_rate(self):
         """
         Calculate the mean firing rate (number of spikes / sec) of each cluster
+        Use the total time in seconds from self.intervals
 
         Return the mean firing rate
         """
