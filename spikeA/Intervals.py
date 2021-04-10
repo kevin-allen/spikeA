@@ -17,7 +17,8 @@ class Intervals:
     sampling_rate: number of samples per second
     
     Methods:
-    total_interval_duration_samples(): calculate the interval duration
+    total_interval_duration_samples(), calculate the interval duration
+    spike_train_within_intervals(), return a spike train containing only the spikes within the intervals
     """
     def __init__(self,inter,sampling_rate=20000):
         """
@@ -37,9 +38,30 @@ class Intervals:
         print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
     def total_interval_duration_samples(self):
         """
-        Calculate the duration of the time in the intervals
+        Calculate the duration of the time in the intervals in samples
 
         """
         return np.sum(self.inter[:,1]-self.inter[:,0])
     def total_interval_duration_seconds(self):
+        """
+        Return the total interval duration in seconds
+        """
         return self.total_interval_duration_samples()/self.sampling_rate
+    
+    def spike_train_within_intervals(self, st):
+        """
+        Return a 1D numpy array containing only the spike times that are within the intervals
+        
+        Argument
+        st, 1D numpy array containing spike times
+        
+        Return
+        1D numpy array containing spike times within the intervals
+        """
+        
+        # this for loop is probabl
+        #
+        to_keep = np.empty_like(st,dtype=np.bool)
+        for i, s in enumerate(st):
+            to_keep[i] = np.any((self.inter[:,0] <= s) & (s <=self.inter[:,1]))
+        return st[to_keep]
