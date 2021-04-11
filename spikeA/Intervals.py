@@ -30,7 +30,7 @@ class Intervals:
         """
         # check that inter is a numpy array
         if not isinstance(inter, np.ndarray):
-            print("inter should be a numpy.ndarray but was {}".format(type(inter)))
+            raise TypeError("inter argument of the Interval constructor should be a numpy.ndarray but was {}".format(type(inter)))
         
         self.inter = inter
         self.sampling_rate = sampling_rate
@@ -59,8 +59,8 @@ class Intervals:
         1D numpy array containing spike times within the intervals
         """
         
-        # this for loop is probabl
-        #
+        # this for loop is probably not the fastest
+        # Ideally, we learn to do this with numpy function
         to_keep = np.empty_like(st,dtype=np.bool)
         for i, s in enumerate(st):
             to_keep[i] = np.any((self.inter[:,0] <= s) & (s <=self.inter[:,1]))

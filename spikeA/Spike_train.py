@@ -37,11 +37,18 @@ class Spike_train:
         st: 1d numpy array with the spike time of one neuron. Values are in samples
         sampling_rate: sampling rate in samples per second (Hz) of the recording system
         """
-       
-        # check that st is a numpy array
-        if not isinstance(st, np.ndarray):
-            print("st should be a numpy.ndarray but was {}".format(type(st)))
         
+        # check that st is a numpy array of 1 dimension
+        if not isinstance(st, np.ndarray):
+            raise TypeError("st argument of the Spike_time constructor should be a numpy.ndarray but was {}".format(type(st)))
+        if st.ndim != 1:
+            raise ValueError("st arguemnt of the Spike_time constructor should be a numpy array with 1 dimension but had {}".format(st.ndim))
+        # check that sampling_rate value makes sense
+        if sampling_rate <= 0 or sampling_rate > 100000:
+            raise ValueError("sampling_rate arguemnt of the Spike_time constructor should be larger than 0 and smaller than 100000 but was {}".format(sampling_rate))
+        
+
+        # assign argument of function to the object attributes
         self.name = name
         self.st = st
         self.sampling_rate = sampling_rate
