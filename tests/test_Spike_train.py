@@ -5,11 +5,10 @@ from spikeA.Spike_train import Spike_train
 class TestSpikeTrain(unittest.TestCase):
 
     def setUp(self):
-        self.spikes = Spike_train("hey",start_time=0, end_time=40000)
-        self.spikes.st = [np.array(range(10)) , np.array(range(20))]
+        self.spikes = Spike_train(name = "my spike train",st=np.arange(200),sampling_rate=20000)
         
-    def test_n_spikes_per_cluster(self):
-        self.assertTrue(np.all(self.spikes.n_spikes_per_cluster() == np.array([10,20])))
+    def test_n_spikes(self):
+        self.assertTrue(self.spikes.n_spikes() == np.arange(200).shape[0])   
                      
 if __name__ == "__main__" :
     unittest.main()
