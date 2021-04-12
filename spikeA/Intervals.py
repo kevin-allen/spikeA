@@ -34,8 +34,7 @@ class Intervals:
         
         self.inter = inter
         self.sampling_rate = sampling_rate
-       
-        print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
+        #print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
     def total_interval_duration_samples(self):
         """
         Calculate the duration of the time in the intervals in samples
