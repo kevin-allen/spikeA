@@ -106,7 +106,11 @@ class Spike_train:
         """
         Return the number of spikes of the cluster
         """
+        if self.st is None:
+            raise ValueError("set the spike train before using Spike_train.n_spike()")
         return self.st.shape[0]
+        
+        
     
     def mean_firing_rate(self):
         """
@@ -115,8 +119,10 @@ class Spike_train:
 
         Return the mean firing rate
         """
+        if self.st is None:
+            raise ValueError("set the spike train before using Spike_train.mean_firing_rate()")
         return self.n_spikes() / self.intervals.total_interval_duration_seconds()
-    
+        
     def inter_spike_intervals(self):
         """
         Calculate the inter spike intervals
@@ -124,6 +130,8 @@ class Spike_train:
         The results are stored in a 1D numpy called self.isi
         self.isi should have a length of len(self.st) -1
         """
+        if self.st is None:
+            raise ValueError("set the spike train before using Spike_train.inter_spike_intervals()")
         self.isi = np.diff(self.st)
         
     def inter_spike_intervals_histogram(bin_size_ms=1,max_time_ms=10):
@@ -131,7 +139,7 @@ class Spike_train:
         Calculate an inter spike interval histogram
         Save in self.isi_histogram
         """
-        
+        pass
     
     def instantaneous_firing_rate(self,bin_size_ms):
         """
@@ -149,3 +157,4 @@ class Spike_train:
         
         Save the results in self.ifr_autocorrelation
         """
+        pass
