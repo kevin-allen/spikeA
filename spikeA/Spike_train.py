@@ -75,7 +75,7 @@ class Spike_train:
 
         Return the mean firing rate
         """
-        pass
+        return self.n_spikes() / self.intervals.total_interval_duration_seconds()
     
     def inter_spike_intervals(self):
         """
@@ -84,9 +84,16 @@ class Spike_train:
         The results are stored in a 1D numpy called self.isi
         self.isi should have a length of len(self.st) -1
         """
-        pass
+        self.isi = np.diff(self.st)
+        
+    def inter_spike_intervals_histogram(bin_size_ms=1,max_time_ms=10):
+        """
+        Calculate an inter spike interval histogram
+        Save in self.isi_histogram
+        """
+        
     
-    def instantaneous_firing_rate(self):
+    def instantaneous_firing_rate(self,bin_size_ms):
         """
         Calculate the instantaneous firing rate. This is the firing rate of the neuron over time.
 
@@ -96,3 +103,9 @@ class Spike_train:
         """    
         pass
     
+    def instantaneous_firing_rate_autocorrelation(self):
+        """
+        Calculate the autocorrelation of the instantaneous firing rate array (self.isi)
+        
+        Save the results in self.ifr_autocorrelation
+        """
