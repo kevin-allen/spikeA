@@ -34,11 +34,12 @@ class Intervals:
         
         self.inter = inter
         self.sampling_rate = sampling_rate
+        self.inter_ms = self.inter/self.sampling_rate*1000.0 
+        
         #print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
     def total_interval_duration_samples(self):
         """
         Calculate the duration of the time in the intervals in samples
-
         """
         return np.sum(self.inter[:,1]-self.inter[:,0])
     def total_interval_duration_seconds(self):
@@ -64,3 +65,16 @@ class Intervals:
         for i, s in enumerate(st):
             to_keep[i] = np.any((self.inter[:,0] <= s) & (s <=self.inter[:,1]))
         return st[to_keep]
+
+    def instantaneous_firing_rate_within_intervals(self, ifr, bin_size_ms)
+        """
+        Return a 1D numpy array containing only the rate values that are within the intervals
+        
+        self.inter_ms contains intervals in ms that can be used to establish if a bin is within the intervals.
+        
+        Argument
+        ifr, 1D numpy array containing the instantaneous firing rate
+        bin_size_ms, ms per bin
+        ...
+        """
+        pass

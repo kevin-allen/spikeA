@@ -82,6 +82,11 @@ class Spike_train:
         """
         Generate a spike train from a random poisson distribution
         
+        Arguments
+        rate_hz: Firing rate of the spike train
+        sampling_Rate: sampling rate for the poisson process
+        length_sec: length of the spike train (sampling process in the poisson distribution)
+        
         Results are stored in self.st
         """
         # check that sampling_rate value makes sense
@@ -96,11 +101,26 @@ class Spike_train:
         # variables to sample the poisson distribution
         length = sampling_rate*length_sec
         mu = rate_hz/sampling_rate # rate for each sample from the poisson distribution
-        st = np.nonzero(poisson.rvs(mu, size=length))[0] # np.nonzero returns a tuple of arrays
+        st = np.nonzero(poisson.rvs(mu, size=length))[0] # np.nonzero returns a tuple of arrays, we get the first element of the tuple
        
-        #print("Generating poisson spike train")
-        #print("length: {}, mu: {}".format(length,mu))
         self.set_spike_train(sampling_rate=sampling_rate, st = st)
+        
+        
+    def generate_modulated_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 0.5,bins_per_cycle):
+        """
+        Generate a spike train from a random poisson distribution in which the firing rate to follow a sine wave
+        
+        Arguments
+        rate_hz: Firing rate of the spike train
+        sampling_Rate: sampling rate for the poisson process
+        length_sec: length of the spike train (sampling process in the poisson distribution)
+        modulation_hz: frequency of the modulation
+        modulation_depth: depth of the firing rate modulation by the sine wave, 1 = will go from rate_hz*0 to rate_hz*2, 0.5 = will go from rate_hz*0.5 to rate_hz*1.5
+        bins_per_cycle: how many times we are changing the firing rate frequency per cycle.
+        
+        Results are stored in self.st
+        """   
+        pass
         
     def n_spikes(self):
         """
@@ -109,8 +129,6 @@ class Spike_train:
         if self.st is None:
             raise ValueError("set the spike train before using Spike_train.n_spike()")
         return self.st.shape[0]
-        
-        
     
     def mean_firing_rate(self):
         """
@@ -158,3 +176,11 @@ class Spike_train:
         Save the results in self.ifr_autocorrelation
         """
         pass
+    def instantaneous_firing_rate_power_spectrum(self):
+        """
+        Calculate the power spectrum of the instantaneous firing rate array (self.isi)
+        
+        Save the results in self.ifr_power_spectrum
+        """
+        pass 
+    
