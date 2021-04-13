@@ -141,7 +141,7 @@ class Spike_train:
         """
         pass
     
-    def instantaneous_firing_rate(self,bin_size_ms):
+    def instantaneous_firing_rate(self,bin_size_ms = 1):
         """
         Calculate the instantaneous firing rate. This is the firing rate of the neuron over time.
 
@@ -149,7 +149,12 @@ class Spike_train:
         Then the spike count array is smooth with a gaussian kernel. (convolution)
         The result is a 1D numpy array called self.ifr with the firing rate per time window
         """    
-        pass
+        from scipy.ndimage import gaussian_filter1d
+        dist = np.histogram(self.st, bins = int(self.intervals.total_interval_duration_seconds() * 1000/bin_size_ms))[0]
+        ifr = gaussian_filter1d(dist, sigma = 1)
+        self.ifr = ifr
+        
+  
     
     def instantaneous_firing_rate_autocorrelation(self):
         """
