@@ -164,7 +164,7 @@ class Spike_train:
         Calculate an inter spike interval histogram
         Save in self.isi_histogram
         """
-        self.isi_histogram = np.histogram( self.st, bin_size_ms, max_time_ms,density= True)
+        self.isi_histogram = np.histogram( self.st, bin= bin_size_ms, range= max_time_ms,density= True)
     
     def instantaneous_firing_rate(self,bin_size_ms = 1):
         """
