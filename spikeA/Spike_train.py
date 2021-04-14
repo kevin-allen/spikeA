@@ -41,7 +41,7 @@ class Spike_train:
         # check that st is a numpy array of 1 dimension
         if not isinstance(st, np.ndarray):
             raise TypeError("st argument of the Spike_time constructor should be a numpy.ndarray but was {}".format(type(st)))
-        if st.ndim != 1:
+        if st.ndim != 1: # it should be one neuron so one dimention
             raise ValueError("st arguemnt of the Spike_time constructor should be a numpy array with 1 dimension but had {}".format(st.ndim))
         # check that sampling_rate value makes sense
         if sampling_rate <= 0 or sampling_rate > 100000:
@@ -61,7 +61,7 @@ class Spike_train:
                                                                                   self.sampling_rate,
                                                                                   self.st.shape[0]))
         print("Total interval time: {} sec".format(self.intervals.total_interval_duration_seconds()))
-        
+        # func in classes are methods 
     def n_spikes(self):
         """
         Return the number of spikes of the cluster
@@ -75,8 +75,8 @@ class Spike_train:
 
         Return the mean firing rate
         """
-        pass
-    
+        return  self.n_spikes()/ self.intervals.total_interval_duration_seconds()
+           
     def inter_spike_intervals(self):
         """
         Calculate the inter spike intervals
@@ -84,8 +84,11 @@ class Spike_train:
         The results are stored in a 1D numpy called self.isi
         self.isi should have a length of len(self.st) -1
         """
-        pass
-    
+        self.ist= np.diff(self.st)
+        
+    def inter_spike_interval_histogram():
+        
+        
     def instantaneous_firing_rate(self):
         """
         Calculate the instantaneous firing rate. This is the firing rate of the neuron over time.
