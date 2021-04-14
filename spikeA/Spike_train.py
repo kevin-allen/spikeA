@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import poisson
 from spikeA.Intervals import Intervals
+from scipy.ndimage import gaussian_filter1d
 
 class Spike_train:
     """
@@ -15,7 +16,7 @@ class Spike_train:
     Attributes:
     
     name: name for the spike train
-    st: 1d numpy arrays containing the spike time a neuron
+    st: 1d numpy arrays containing the spike time a neuron. The time is in sample number.
     ifr: 1d numpy array containing the instantaneous firing rate of the neuron
     isi: 1d numpy array containing the inter-spike intervals between subsequent spikes
     
@@ -106,7 +107,7 @@ class Spike_train:
         self.set_spike_train(sampling_rate=sampling_rate, st = st)
         
         
-    def generate_modulated_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 0.5,bins_per_cycle):
+    def generate_modulated_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 0.5,bins_per_cycle=10):
         """
         Generate a spike train from a random poisson distribution in which the firing rate to follow a sine wave
         
@@ -137,9 +138,6 @@ class Spike_train:
 
         Return the mean firing rate
         """
-
-        return  self.n_spikes()/ self.intervals.total_interval_duration_seconds()
-
         if self.st is None:
             raise ValueError("set the spike train before using Spike_train.mean_firing_rate()")
         return self.n_spikes() / self.intervals.total_interval_duration_seconds()
@@ -151,43 +149,46 @@ class Spike_train:
         The results are stored in a 1D numpy called self.isi
         self.isi should have a length of len(self.st) -1
         """
-        self.ist= np.diff(self.st)
-           
-    def instantaneous_firing_rate(self):
-
         if self.st is None:
             raise ValueError("set the spike train before using Spike_train.inter_spike_intervals()")
         self.isi = np.diff(self.st)
         
-    def inter_spike_intervals_histogram(self, bin_size_ms=1,max_time_ms=10, density= None):
+    def inter_spike_intervals_histogram(self, bin_size_ms=5,max_time_ms=200, density= False):
         """
         Calculate an inter spike interval histogram
         Save in self.isi_histogram
         """
-        self.isi_histogram = np.histogram( self.st, bin= bin_size_ms, range= max_time_ms,density= True)
+        self.inter_spike_intervals()
+        isi_ms = self.isi/self.sampling_rate*1000
+        self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
+
+    def plot_inter_spike_interval_histogram(self):
+        """
+        Plot the inter spike interval histogram using matplotlib
+        """
+        pass
     
-    def instantaneous_firing_rate(self,bin_size_ms = 1):
+    def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
         Calculate the instantaneous firing rate. This is the firing rate of the neuron over time.
 
         The spikes are counted in equal sized time windows. (histogram)
         Then the spike count array is smooth with a gaussian kernel. (convolution)
-        The result is a 1D numpy array called self.ifr with the firing rate per time window
+        The result is a tuple containing the ifr, count and edges. These are 1D numpy arrays
         """    
-        from scipy.ndimage import gaussian_filter1d
-        dist = np.histogram(self.st, bins = int(self.intervals.total_interval_duration_seconds() * 1000/bin_size_ms))[0]
-        ifr = gaussian_filter1d(dist, sigma = 1)
-        self.ifr = ifr
+        st_ms=self.st/self.sampling_rate*1000
+        count, edges = np.histogram(st_ms, bins = np.arange(0, self.intervals.total_interval_duration_seconds() * 1000+bin_size_ms, bin_size_ms))
+        ifr = gaussian_filter1d(count.astype(np.float32), sigma = sigma)
+        self.ifr = ifr,count,edges
         
-  
-    
+      
     def instantaneous_firing_rate_autocorrelation(self):
         """
         Calculate the autocorrelation of the instantaneous firing rate array (self.isi)
         
         Save the results in self.ifr_autocorrelation
         """
-        
+        pass
         
     def instantaneous_firing_rate_power_spectrum(self):
         """

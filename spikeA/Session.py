@@ -25,7 +25,7 @@ class Session:
     Methods:
         checkSessionDirectory()
     """
-    def __init__(self,name,path, dataFileCheck=True):
+    def __init__(self,name, path, dataFileCheck=True):
         self.name = name
         self.path = path
         self.subject = self.name.split("-")[0]
@@ -45,7 +45,6 @@ class Session:
         # create a dictonary to quickly get the file names ##
         # easier to get the file names                     ##
         #####################################################
-        
         self.fileNames = {"par": self.fileBase+".par",
                          "desen": self.fileBase+".desen",
                          "desel": self.fileBase+".desel",

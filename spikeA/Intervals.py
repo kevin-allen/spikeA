@@ -66,7 +66,7 @@ class Intervals:
             to_keep[i] = np.any((self.inter[:,0] <= s) & (s <=self.inter[:,1]))
         return st[to_keep]
 
-    def instantaneous_firing_rate_within_intervals(self, ifr, bin_size_ms)
+    def instantaneous_firing_rate_within_intervals(self, ifr, bin_size_ms):
         """
         Return a 1D numpy array containing only the rate values that are within the intervals
         
