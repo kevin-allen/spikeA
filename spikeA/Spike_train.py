@@ -164,7 +164,7 @@ class Spike_train:
         Calculate an inter spike interval histogram
         Save in self.isi_histogram
         """
-        self.isi_histogram = np.histogram( bin_size_ms, max_time_ms,density= True)
+        self.isi_histogram = np.histogram( self.st, bin_size_ms, max_time_ms,density= True)
     
     def instantaneous_firing_rate(self,bin_size_ms = 1):
         """
@@ -187,7 +187,8 @@ class Spike_train:
         
         Save the results in self.ifr_autocorrelation
         """
-        pass
+        
+        
     def instantaneous_firing_rate_power_spectrum(self):
         """
         Calculate the power spectrum of the instantaneous firing rate array (self.isi)
