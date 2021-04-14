@@ -15,6 +15,9 @@ git clone https://github.com/kevin-allen/spikeA.git
 
 * [Simple installation with pip](installation.md)
 
+## Code organization
+* [Main classes](classes.md)
+
 ## Development
 
 * [For developpers](development.md)
