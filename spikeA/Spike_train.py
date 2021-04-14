@@ -159,12 +159,12 @@ class Spike_train:
             raise ValueError("set the spike train before using Spike_train.inter_spike_intervals()")
         self.isi = np.diff(self.st)
         
-    def inter_spike_intervals_histogram(self, bin_size_ms=1,max_time_ms=10):
+    def inter_spike_intervals_histogram(self, bin_size_ms=1,max_time_ms=10, density= None):
         """
         Calculate an inter spike interval histogram
         Save in self.isi_histogram
         """
-        self.isi_histogram = np.histogram()
+        self.isi_histogram = np.histogram(bin = bin_size_ms,range= max_time_ms,density= True)
     
     def instantaneous_firing_rate(self,bin_size_ms = 1):
         """
