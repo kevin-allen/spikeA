@@ -108,7 +108,7 @@ class Spike_train:
         self.set_spike_train(sampling_rate=sampling_rate, st = st)
         
         
-    def generate_modulated_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 0.5,bins_per_cycle=10):
+    def generate_modulated_poisson_spike_train(self,rate_hz=50, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 1,min_rate_bins_per_cycle=10):
         """
         Generate a spike train from a random poisson distribution in which the firing rate to follow a sine wave
         
@@ -124,7 +124,40 @@ class Spike_train:
         
         Results are stored in self.st
         """   
-        pass
+        
+        # check that sampling_rate value makes sense
+        if sampling_rate <= 0 or sampling_rate > 100000:
+            raise ValueError("sampling_rate arguemnt of the Spike_time constructor should be larger than 0 and smaller than 100000 but was {}".format(sampling_rate))
+        # check that sampling_rate value makes sense
+        if rate_hz < 0:
+            raise ValueError("rate_hz argument of Spike_train.generate_poisson_spike_train() should not be negative but was {}".format(rate_hz))
+        if length_sec < 0:
+            raise ValueError("length_sec argument of Spike_train.generate_poisson_spike_train() should not be negative but was {}".format(length_sec))
+        if sampling_rate < modulation_hz*min_rate_bins_per_cycle :
+            raise ValueError("sampling_rate is too low for the modulation frequency")
+        if modulation_depth > 1:
+            print("modulation_depth in generate_modulated_poisson_spike_train() should not be larger than 1, value set to 1")
+            modulation_depth=1
+        if modulation_depth < 0:
+            print("modulation_depth in generate_modulated_poisson_spike_train() should not be negative, value set to 0")
+            modulation_depth=0
+
+        # how many samples per cycles
+        samples_per_cycle = sampling_rate/modulation_hz
+        # how many cycles in the spike train
+        n_cycles = length_sec*modulation_hz
+        
+        # calculate the rate for all the samples within a cycle
+        rates = (np.sin(np.arange(0,2*np.pi,2*np.pi/samples_per_cycle))*modulation_depth+1)*rate_hz
+
+        # sample from poisson distribution using our array of rates, stack the list of array into a matrix, then flatten matrix to 1D array
+        res = np.stack([ poisson.rvs(r/sampling_rate,size=n_cycles) for r in rates]).flatten('F')
+
+        # go from an array of 0 and 1 to an array with the spike times
+        # note that we are throwing away spikes if there are more than one per sample!
+        st = np.nonzero(res)[0]
+        
+        self.set_spike_train(sampling_rate=sampling_rate, st = st)
         
     def n_spikes(self):
         """
