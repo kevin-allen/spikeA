@@ -17,7 +17,8 @@ Most of the code will be in python. This means that some knowledge of python wil
 We will use the main python packages used for scientific computing: `numpy`, `scipy`, `pandas`, `matplotlib` and `scikit-learn`. 
 These package are well-established and you can find usefull tutoirals and help online.
 If you are not familiar with python, you might want to do a small online course before getting going.
-Alternatively, you can read `Python for Data Analysis` by Wes McKinney.
+
+Alternatively, you can read [`Python for Data Analysis`](https://www.oreilly.com/library/view/python-for-data/9781491957653/) by Wes McKinney.
 
 ### Python environment
 
