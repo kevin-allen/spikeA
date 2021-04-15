@@ -111,6 +111,8 @@ class Spike_train:
         """
         Generate a spike train from a random poisson distribution in which the firing rate to follow a sine wave
         
+        This can be used to test the method calculating a power spectrum from the instantaenous firing rate.
+        
         Arguments
         rate_hz: Firing rate of the spike train
         sampling_Rate: sampling rate for the poisson process
