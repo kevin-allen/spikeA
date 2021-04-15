@@ -6,6 +6,7 @@ import pandas as pd
 from scipy.stats import poisson
 from spikeA.Intervals import Intervals
 from scipy.ndimage import gaussian_filter1d
+from scipy import signal
 
 class Spike_train:
     """
@@ -196,5 +197,6 @@ class Spike_train:
         
         Save the results in self.ifr_power_spectrum
         """
-        pass 
+        f, ps = signal.periodogram(self.isi)
+        self.ifr_power_spectrum = f, ps
     
