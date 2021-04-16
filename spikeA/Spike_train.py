@@ -200,7 +200,7 @@ class Spike_train:
         self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
         
     
-    def plot_inter_spike_interval_histogram(self):
+    def inter_spike_interval_histogram_plot(self):
         """
         Plot the inter spike interval histogram using matplotlib
         """
@@ -241,6 +241,6 @@ class Spike_train:
         
         Save the results in self.ifr_power_spectrum
         """
-        f, ps = signal.periodogram(self.ifr)
+        f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
         self.ifr_power_spectrum = f, ps
     
