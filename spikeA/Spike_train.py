@@ -226,7 +226,7 @@ class Spike_train:
         
         Save the results in self.ifr_autocorrelation
         """
-        autocorr= np.correlate(self.ifr,self.ifr,mode='full')
+        autocorr= np.correlate(self.ifr[0],self.ifr[0],mode='full')
         
         
     def instantaneous_firing_rate_power_spectrum(self):
