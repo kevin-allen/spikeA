@@ -7,6 +7,7 @@ from scipy.stats import poisson
 from spikeA.Intervals import Intervals
 from scipy.ndimage import gaussian_filter1d
 from scipy import signal
+import matplotlib.pyplot as plt 
 
 class Spike_train:
     """
@@ -196,13 +197,14 @@ class Spike_train:
         """
         self.inter_spike_intervals()
         isi_ms = self.isi/self.sampling_rate*1000
-        self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
-
+        self.count, self.edge = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
+        
+    
     def plot_inter_spike_interval_histogram(self):
         """
         Plot the inter spike interval histogram using matplotlib
         """
-        pass
+        plt.plot(self.edge[0:len(self.edge)-1],self.count)
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
@@ -224,7 +226,8 @@ class Spike_train:
         
         Save the results in self.ifr_autocorrelation
         """
-        pass
+        autocorr= np.correlate(self.ifr,self.ifr,mode='full')
+        
         
     def instantaneous_firing_rate_power_spectrum(self):
         """
