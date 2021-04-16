@@ -197,7 +197,7 @@ class Spike_train:
         """
         self.inter_spike_intervals()
         isi_ms = self.isi/self.sampling_rate*1000
-        self.count, self.edge = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
+        self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
         
     
     def plot_inter_spike_interval_histogram(self):
@@ -216,9 +216,14 @@ class Spike_train:
         """    
         st_ms=self.st/self.sampling_rate*1000
         count, edges = np.histogram(st_ms, bins = np.arange(0, self.intervals.total_interval_duration_seconds() * 1000+bin_size_ms, bin_size_ms))
-        ifr = gaussian_filter1d(count.astype(np.float32), sigma = sigma)
-        self.ifr = ifr,count,edges
         
+        # from spike count to rate 
+        hz = count / (bin_size_ms / 1000)
+        
+        ifr = gaussian_filter1d(hz.astype(np.float32), sigma = sigma)
+        self.ifr = ifr,count,edges
+        self.ifr_rate = 1000/bin_size_ms
+                
       
     def instantaneous_firing_rate_autocorrelation(self):
         """
@@ -235,6 +240,6 @@ class Spike_train:
         
         Save the results in self.ifr_power_spectrum
         """
-        f, ps = signal.periodogram(self.isi)
+        f, ps = signal.periodogram(self.ifr)
         self.ifr_power_spectrum = f, ps
     
