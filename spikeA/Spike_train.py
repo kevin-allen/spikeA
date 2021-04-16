@@ -204,7 +204,8 @@ class Spike_train:
         """
         Plot the inter spike interval histogram using matplotlib
         """
-        plt.plot(self.edge[0:len(self.edge)-1],self.count)
+        #plt.plot(self.isi_histogram[0:len(self.edge)-1],self.count)
+        pass
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
