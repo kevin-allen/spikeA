@@ -109,7 +109,7 @@ class Spike_train:
         self.set_spike_train(sampling_rate=sampling_rate, st = st)
         
         
-    def generate_modulated_poisson_spike_train(self,rate_hz=50, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 1,min_rate_bins_per_cycle=10):
+    def generate_modulated_poisson_spike_train(self,rate_hz=50, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 1,min_rate_bins_per_cycle=10,phase_shift=0):
         """
         Generate a spike train from a random poisson distribution in which the firing rate to follow a sine wave
         
@@ -122,6 +122,7 @@ class Spike_train:
         modulation_hz: frequency of the modulation
         modulation_depth: depth of the firing rate modulation by the sine wave, 1 = will go from rate_hz*0 to rate_hz*2, 0.5 = will go from rate_hz*0.5 to rate_hz*1.5
         bins_per_cycle: how many times we are changing the firing rate frequency per cycle.
+        phase_shift: to shift the phase of the modulation, 0 = no shift, np.pi/2 = 90 degree shift, np.pi = 180 degree shift.
         
         Results are stored in self.st
         """   
@@ -149,7 +150,7 @@ class Spike_train:
         n_cycles = length_sec*modulation_hz
         
         # calculate the rate for all the samples within a cycle
-        rates = (np.sin(np.arange(0,2*np.pi,2*np.pi/samples_per_cycle))*modulation_depth+1)*rate_hz
+        rates = (np.sin(np.arange(0,2*np.pi,2*np.pi/samples_per_cycle)+phase_shift) *modulation_depth+1)*rate_hz
 
         # sample from poisson distribution using our array of rates, stack the list of array into a matrix, then flatten matrix to 1D array
         res = np.stack([ poisson.rvs(r/sampling_rate,size=n_cycles) for r in rates]).flatten('F')
