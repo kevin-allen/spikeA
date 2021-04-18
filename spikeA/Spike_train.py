@@ -15,7 +15,7 @@ class Spike_train:
     
     The class does the analysis of spike train. A spike train is defined as the spike in time emitted by a single neuron
     
-    The time values of the spike trains are in seconds
+    The time values of the spike trains are in seconds.
     
     Attributes:
     
@@ -39,8 +39,8 @@ class Spike_train:
 
         Arguments:
         name: Name for the Spike_train object
-        sampling_rate: sampling rate of recordings, only used when we want the sample value of spikes
-        st: 1d numpy array with the spike time of one neuron. Values are in seconds
+        sampling_rate: sampling rate of recording. This is used when you want the sample value of spikes
+        st: 1d numpy array with the spike time of one neuron. The values you pass in should be in seconds.
         """      
 
         # assign argument of function to the object attributes
