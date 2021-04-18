@@ -19,6 +19,7 @@ class Spike_train_loader:
     
     spike_times: A list of 1D np.arrays, one per neuron. It contains the spike times in seconds
     clu_ids: A list of items (usually integers) representing the cluster identification for each neuron
+    sampling_rate: The sampling rate to transform some spike time inputs (from Klustakwik) from sample number to seconds
     
     Methods:
     generate_klustakwik_clu_res()
@@ -78,13 +79,21 @@ class Spike_train_loader:
     
     def load_spike_train_klustakwik(self,clu_file_name, res_file_name):
         """
-        Load spike trains from KlustaKwik output
+        Load spike trains from KlustaKwik output and store it in the correct format for spikeA
         
+        Klustakwik format:
         The time values are stored as sample number in a .res file.
         The cluster id of each spike in the .res file is found in the .clu file
         The first number in the .clu file is the number of clusters in the data set.
         The other numbers in the .clu file is the clu_id of each spike.
         So the .clu file has one more data point than the .res file.
+        
+        Arguments
+        clu_file_name: the name of the clu file
+        res_file_name: the name of the res file
+        
+        Results
+        The spike trains loaded is stored in self.clu_ids and self.spike_times 
         """
         clu,res = self.load_spike_train_from_files_klustakwik(clu_file_name,res_file_name)
         self.format_klustakwik_data(clu,res)
