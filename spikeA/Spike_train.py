@@ -187,6 +187,9 @@ class Spike_train:
 
         The results are stored in a 1D numpy called self.isi
         self.isi should have a length of len(self.st) -1
+        
+        Return
+        The results is stored in self.isi
         """
         if self.st is None:
             raise ValueError("set the spike train before using Spike_train.inter_spike_intervals()")
@@ -196,6 +199,9 @@ class Spike_train:
         """
         Calculate an inter spike interval histogram
         Save in self.isi_histogram
+        
+        Return
+        The results are stored in self.isi_histogram, which is the output of np.histogram
         """
         self.inter_spike_intervals()
         isi_ms = self.isi*1000
@@ -205,11 +211,10 @@ class Spike_train:
     def inter_spike_interval_histogram_plot(self):
         """
         Plot the inter spike interval histogram using matplotlib
-        """
-        
-        plt.plot(self.isi_histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)[0],[1])
-      
-        pass
+        """        
+        plt.plot(self.isi_histogram[1][1:],self.isi_histogram[0])
+        plt.xlabel("Time (ms)")
+        plt.ylabel("Count")
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
