@@ -57,8 +57,6 @@ class Spike_train_loader:
         res = np.linspace(start = 0, stop = 20000, num = n_spikes,dtype=np.int64)
         print("Number of clusters: {}, number of spikes: {}".format(n_clusters, n_spikes))
         print(clu.shape,res.shape)
-        print(clu)
-        print(res)
         return (clu,res)
     
     def save_klustakwik_clu_res_files(self,clu_file_name,res_file_name,clu,res):
