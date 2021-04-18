@@ -198,14 +198,26 @@ class Spike_train:
         self.inter_spike_intervals()
         isi_ms = self.isi/self.sampling_rate*1000
         self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
-        
+        self.isi_histogram_density = density
     
-    def inter_spike_interval_histogram_plot(self):
+    def inter_spike_interval_histogram_plot(self, width = 6):
         """
         Plot the inter spike interval histogram using matplotlib
+        Call this method by self.inter_spike_interval_histogram_plot()
         """
+        if self.isi_histogram is None:
+            self.inter_spike_intervals_histogram()
+        
+        plt.bar(self.isi_histogram[1][:-1], self.isi_histogram[0], width = width)
+        plt.xlabel("ms")
+        
+        if self.isi_histogram_density is True:
+            plt.ylabel("density")
+        else:
+            plt.ylabel("spikes")
+            
         #plt.plot(self.isi_histogram[0:len(self.edge)-1],self.count)
-        pass
+        #pass
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
