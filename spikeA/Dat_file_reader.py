@@ -36,7 +36,7 @@ class Dat_file_reader:
         # assign argument of function to the object attributes
 
         self.nchannels = n_channels
-        self.session = [session_name]
+        self.session = session_name
         self.sampling_rate = sampling_rate
 
         # check that the n_channels make sense
@@ -46,27 +46,33 @@ class Dat_file_reader:
 
         # make sure the files exist
         
-        
-
+        for f in range(0,len(self.session)):
+            
+            exist = os.path.isfile(self.session[f])
+            if exist is False:
+                raise ValueError("File not exist")
+        print("All files are here")
+                
         # get the file size
-        size_of_files = np.array([])
-
+        
+        size_of_files = []
         for f in range(0,len(self.session)):
             tmp = str(self.session[f])
-            size_of_files = np.append(size_of_files, os.path.getsize(tmp))
+            size_of_files = size_of_files + [os.path.getsize(tmp)]
             
-        self.size_of_files = size_of_files
+        self.size_of_files = np.array(size_of_files)
+
         
 
         # make sure the file size is a multiple of n_channels*2
         
-        #tmp = file_size % n_channels*2
-        #if tmp != 0:
-        #    raise ValueError("Size can not be devided by {}".format(n_channels) + ". Number of bytes doesn't match the number of channes")
+        tmp = self.size_of_files % n_channels*2
+        if sum(tmp != 0) > 1:
+            raise ValueError("Size can not be devided by {}".format(n_channels) + ". Number of bytes doesn't match the number of channes")
 
-        # get the number of samples per file
+        # get the number of samples per channel in each file
         
-
+        self.sample_number_per_file = self.size_of_files / (2*self.nchannels)
        
         
     def read_data_blocks(self,channels,start_samples,n_samples):
