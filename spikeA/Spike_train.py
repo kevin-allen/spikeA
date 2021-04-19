@@ -238,14 +238,8 @@ class Spike_train:
         else:
             plt.ylabel("spikes")
             
-        #plt.plot(self.isi_histogram[0:len(self.edge)-1],self.count)
         #pass
 
-            
-        #plt.plot(self.isi_histogram[1][1:],self.isi_histogram[0])
-        #plt.xlabel("Time (ms)")
-        #plt.ylabel("Count")
-       
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
