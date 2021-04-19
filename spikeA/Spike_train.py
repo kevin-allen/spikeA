@@ -15,10 +15,12 @@ class Spike_train:
     
     The class does the analysis of spike train. A spike train is defined as the spike in time emitted by a single neuron
     
+    The time values of the spike trains are in seconds
+    
     Attributes:
     
     name: name for the spike train
-    st: 1d numpy arrays containing the spike time a neuron. The time is in sample number.
+    st: 1d numpy arrays containing the spike time a neuron. The time is in seconds.
     ifr: 1d numpy array containing the instantaneous firing rate of the neuron
     isi: 1d numpy array containing the inter-spike intervals between subsequent spikes
     
@@ -31,53 +33,50 @@ class Spike_train:
     inter_spike_intervals(): calculate the inter-spike intervals of the neuron
     instantaneous_firing_rate(): calculate the instantaneous firing rate in time
     """
-    def __init__(self,name=None, st = None, sampling_rate=20000):
+    def __init__(self,name=None, sampling_rate = 20000, st = None):
         """
         Constructor of the Spike_train class
 
         Arguments:
         name: Name for the Spike_train object
-        st: 1d numpy array with the spike time of one neuron. Values are in samples
-        sampling_rate: sampling rate in samples per second (Hz) of the recording system
-        
+        sampling_rate: sampling rate of recordings, only used when we want the sample value of spikes
+        st: 1d numpy array with the spike time of one neuron. Values are in seconds
         """      
 
         # assign argument of function to the object attributes
         self.name = name
+        self.sampling_rate = sampling_rate
         
         # if a spike train was passed to the constructor, set the spike train
         if st is not None:
-            self.set_spike_train(sampling_rate=sampling_rate,st=st)
+            self.set_spike_train(st=st)
         else:
             self.st = None # we can use this to know if st has been set or not (whether it is None or none)
             
     
-    def set_spike_train(self,sampling_rate,st):
+    def set_spike_train(self,st):
         """
         Set the st and sampling_rate attribute of the Spike_train object
         
         Arguments
-        sampling_rate
-        st: 1D numpy array containing spike times in sample values
+        st: 1D numpy array containing spike times in seconds 
         """
         # check that st is a numpy array of 1 dimension
         if not isinstance(st, np.ndarray):
             raise TypeError("st argument of the Spike_time constructor should be a numpy.ndarray but was {}".format(type(st)))
         if st.ndim != 1: # it should be one neuron so one dimention
             raise ValueError("st arguemnt of the Spike_time constructor should be a numpy array with 1 dimension but had {}".format(st.ndim))
-        # check that sampling_rate value makes sense
-        if sampling_rate <= 0 or sampling_rate > 100000:
-            raise ValueError("sampling_rate arguemnt of the Spike_time constructor should be larger than 0 and smaller than 100000 but was {}".format(sampling_rate))
-        
+            
         self.st = st
-        self.sampling_rate = sampling_rate
+        
+        print("Spike_train, name: {}, number of spikes {}, first: {}, last: {}".format(self.name, self.st.shape[0],self.st.min(),self.st.max()))
+        
+        
         # set default time intervals from 0 to just after the last spike
-        self.intervals = Intervals(inter=np.array([[0,self.st.max()+1]]),
+        self.intervals = Intervals(inter=np.array([[0,self.st.max()+1/self.sampling_rate]]),
                                            sampling_rate=self.sampling_rate)
         
-        print("Spike_train, name: {}, sampling rate: {} Hz, number of spikes {}".format(self.name,
-                                                                                      self.sampling_rate,
-                                                                                      self.st.shape[0]))
+       
         print("Total interval time: {} sec".format(self.intervals.total_interval_duration_seconds()))
         
         
@@ -106,10 +105,12 @@ class Spike_train:
         mu = rate_hz/sampling_rate # rate for each sample from the poisson distribution
         st = np.nonzero(poisson.rvs(mu, size=length))[0] # np.nonzero returns a tuple of arrays, we get the first element of the tuple
        
-        self.set_spike_train(sampling_rate=sampling_rate, st = st)
+        st = st/sampling_rate # to get the time in seconds
+       
+        self.set_spike_train(st = st)
         
         
-    def generate_modulated_poisson_spike_train(self,rate_hz=50, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 1,min_rate_bins_per_cycle=10):
+    def generate_modulated_poisson_spike_train(self,rate_hz=50, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 1,min_rate_bins_per_cycle=10,phase_shift=0):
         """
         Generate a spike train from a random poisson distribution in which the firing rate to follow a sine wave
         
@@ -122,6 +123,7 @@ class Spike_train:
         modulation_hz: frequency of the modulation
         modulation_depth: depth of the firing rate modulation by the sine wave, 1 = will go from rate_hz*0 to rate_hz*2, 0.5 = will go from rate_hz*0.5 to rate_hz*1.5
         bins_per_cycle: how many times we are changing the firing rate frequency per cycle.
+        phase_shift: to shift the phase of the modulation, 0 = no shift, np.pi/2 = 90 degree shift, np.pi = 180 degree shift.
         
         Results are stored in self.st
         """   
@@ -149,7 +151,7 @@ class Spike_train:
         n_cycles = length_sec*modulation_hz
         
         # calculate the rate for all the samples within a cycle
-        rates = (np.sin(np.arange(0,2*np.pi,2*np.pi/samples_per_cycle))*modulation_depth+1)*rate_hz
+        rates = (np.sin(np.arange(0,2*np.pi,2*np.pi/samples_per_cycle)+phase_shift) *modulation_depth+1)*rate_hz
 
         # sample from poisson distribution using our array of rates, stack the list of array into a matrix, then flatten matrix to 1D array
         res = np.stack([ poisson.rvs(r/sampling_rate,size=n_cycles) for r in rates]).flatten('F')
@@ -157,8 +159,8 @@ class Spike_train:
         # go from an array of 0 and 1 to an array with the spike times
         # note that we are throwing away spikes if there are more than one per sample!
         st = np.nonzero(res)[0]
-        
-        self.set_spike_train(sampling_rate=sampling_rate, st = st)
+        st= st/sampling_rate
+        self.set_spike_train(st = st)
         
     def n_spikes(self):
         """
@@ -196,7 +198,7 @@ class Spike_train:
         Save in self.isi_histogram
         """
         self.inter_spike_intervals()
-        isi_ms = self.isi/self.sampling_rate*1000
+        isi_ms = self.isi*1000
         self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
         self.isi_histogram_density = density
     
@@ -227,7 +229,7 @@ class Spike_train:
         Then the spike count array is smooth with a gaussian kernel. (convolution)
         The result is a tuple containing the ifr, count and edges. These are 1D numpy arrays
         """    
-        st_ms=self.st/self.sampling_rate*1000
+        st_ms=self.st*1000
         count, edges = np.histogram(st_ms, bins = np.arange(0, self.intervals.total_interval_duration_seconds() * 1000+bin_size_ms, bin_size_ms))
         
         # from spike count to rate 

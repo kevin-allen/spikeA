@@ -31,5 +31,12 @@ I would recommand to create a python environment to do your data analysis. More 
 3. For attributes and methods: lowercase with words separated by underscores.
 4. Document all Class, methods and function with a [docstring](https://www.python.org/dev/peps/pep-0257/).
 
+## Adding new functionalities
 
+When adding new functionalities to spikeA, you should provide the following.
+
+1. Write a brief description of what your code is doing (for docstring).
+2. Provide some examples of how to use this code (for docstring).
+3. If possible, provide an example in which you visualize the input and output of your code (for docstring).
+4. Try to write some tests to make sure that your code is doing what you think it is doing (for tests directory).
 

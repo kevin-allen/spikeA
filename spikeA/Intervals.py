@@ -11,6 +11,8 @@ class Intervals:
     
     Intervals are used to limit analysis to some time intervals in the recording. Instead of analyzing all the data, only some time windows are considered.
     
+    The time is in seconds stored as np.float32
+    
     Attributes:
     
     inter: 2D numpy array containing the start and end of each interval
@@ -25,7 +27,7 @@ class Intervals:
         Constructor of the Interval class
 
         Arguments:
-        inter: 2D numpy array containing the start and end of each interval, one row per interval
+        inter: 2D numpy array containing the start and end of each interval, one row per interval. Time is in seconds as np.float32
         sampling_rate: number of samples per seconds
         """
         # check that inter is a numpy array
@@ -34,19 +36,14 @@ class Intervals:
         
         self.inter = inter
         self.sampling_rate = sampling_rate
-        self.inter_ms = self.inter/self.sampling_rate*1000.0 
+                
+        print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
         
-        #print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
-    def total_interval_duration_samples(self):
+    def total_interval_duration_seconds(self):
         """
         Calculate the duration of the time in the intervals in samples
         """
         return np.sum(self.inter[:,1]-self.inter[:,0])
-    def total_interval_duration_seconds(self):
-        """
-        Return the total interval duration in seconds
-        """
-        return self.total_interval_duration_samples()/self.sampling_rate
     
     def spike_train_within_intervals(self, st):
         """
