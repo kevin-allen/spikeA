@@ -264,19 +264,22 @@ class Spike_train:
         
         self.ifr = ifr,count,edges
         self.ifr_rate = 1000/bin_size_ms
+        self.ifr_bin_size_ms= bin_size_ms
                 
       
-    def instantaneous_firing_rate_autocorrelation(self, normed= False, maxlags= 200):
+    def instantaneous_firing_rate_autocorrelation(self, normed= False, max_lag_ms= 200):
         """
         Calculate the autocorrelation of the instantaneous firing rate array (self.isi)
         
         Save the results in self.ifr_autocorrelation
         """
         res= np.correlate(self.ifr[0],self.ifr[0],mode='full')
+        maxlag= max_lag_ms/self.ifr_bin_size_ms
+        res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
         if normed== False:
-            self.ifr_autocorrelation= res[int(res.size/2-maxlags):int(res.size/2+maxlags)]
+            self.ifr_autocorrelation= res
         else: 
-            self.ifr_autocorrelation= self.ifr_autocorrelation/np.max(self.ifr_autocorrelation)
+            self.ifr_autocorrelation= res/np.max(res)
         
     def instantaneous_firing_rate_power_spectrum(self, nfft = None, scaling = "density"):
         """
