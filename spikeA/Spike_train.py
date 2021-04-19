@@ -216,16 +216,21 @@ class Spike_train:
         self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
         self.isi_histogram_density = density
     
-    def inter_spike_interval_histogram_plot(self):
+    def inter_spike_interval_histogram_plot(self, type = "line"):
         """
         Plot the inter spike interval histogram using matplotlib
 
         Call this method by self.inter_spike_interval_histogram_plot()
         """
         if self.isi_histogram is None:
-            self.inter_spike_intervals_histogram()
+            raise ValueError("please run inter_spike_intervals_histogram() first")            
+        timestamp = "Moritz please do this"
         
-        plt.bar(self.isi_histogram[1][:-1], self.isi_histogram[0], width = width) #Change the width to a fixed value that represents the edges.
+        if type == "bar":
+            plt.bar(timestamp, spikes.isi_histogram[0], width = "bin_size_ms") 
+        else:
+            plt.plot(timestamp, spikes.isi_histogram[0])
+
         plt.xlabel("ms")
         
         if self.isi_histogram_density is True:
@@ -274,7 +279,7 @@ class Spike_train:
         else: 
             self.ifr_autocorrelation= self.ifr_autocorrelation/np.max(self.ifr_autocorrelation)
         
-    def instantaneous_firing_rate_power_spectrum(self, nfft = None):
+    def instantaneous_firing_rate_power_spectrum(self, nfft = None, scaling = "density"):
         """
         Calculate the power spectrum of the instantaneous firing rate array (self.ifr)
         
@@ -283,9 +288,9 @@ class Spike_train:
         if self.ifr is None:
             raise ValueError("Please run the instantaneous_firing_rate() first")
         
-        f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate, nfft = nfft)
-        self.ifr_power_spectrum = f, ps
-
+        f, psd = signal.periodogram(self.ifr[0],fs=self.ifr_rate, nfft = nfft)
+        self.ifr_power_spectrum = f, psd
+  
         
     def instantaneous_firing_rate_power_spectrum_plot(self):
         """
@@ -293,5 +298,10 @@ class Spike_train:
         
         """
         if self.ifr_power_spectrum is None:
-            print("Need to calculate the power spectrum first")
-        pass
+            print("Need to run instantaneous_firing_rate_power_spectrum first")
+            
+        plt.plot(self.ifr_power_spectrum[0], self.ifr_power_spectrum[1])
+        plt.xlabel("Hz")
+        plt.ylabel("PSD (s**2/Hz)")
+        
+        
