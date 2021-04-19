@@ -223,13 +223,18 @@ class Spike_train:
         Call this method by self.inter_spike_interval_histogram_plot()
         """
         if self.isi_histogram is None:
-            raise ValueError("please run inter_spike_intervals_histogram() first")            
-        timestamp = "Moritz please do this"
+            raise ValueError("please run inter_spike_intervals_histogram() first")  
         
+        x = self.isi_histogram[1]
+        diff = x[1] - x[0]
+        median = diff/2
+        
+        timestamp = x[:-1] + median    
+    
         if type == "bar":
-            plt.bar(timestamp, spikes.isi_histogram[0], width = "bin_size_ms") 
+            plt.bar(timestamp, self.isi_histogram[0], width = diff) 
         else:
-            plt.plot(timestamp, spikes.isi_histogram[0])
+            plt.plot(timestamp, self.isi_histogram[0])
 
         plt.xlabel("ms")
         
