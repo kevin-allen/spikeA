@@ -28,10 +28,17 @@ class Spike_train:
     m_rate: mean firing rate of the neuron
 
     Methods:
+    set_spike_train(): set a spike train 
+    generate_poisson_spike_train(): 
+    generate_modulated_poisson_spike_train():
     n_spikes(): return the number of spikes of the neuron
     mean_firing_rate(): return the mean firing rate of the neuron
     inter_spike_intervals(): calculate the inter-spike intervals of the neuron
+    inter_spike_intervals_histogram()
+    inter_spike_interval_histogram_plot()
     instantaneous_firing_rate(): calculate the instantaneous firing rate in time
+    instantaneous_firing_rate_autocorrelation():
+    instantaneous_firing_rate_power_spectrum():
     """
     def __init__(self,name=None, sampling_rate = 20000, st = None):
         """
@@ -71,12 +78,10 @@ class Spike_train:
         
         print("Spike_train, name: {}, number of spikes {}, first: {}, last: {}".format(self.name, self.st.shape[0],self.st.min(),self.st.max()))
         
-        
         # set default time intervals from 0 to just after the last spike
         self.intervals = Intervals(inter=np.array([[0,self.st.max()+1/self.sampling_rate]]),
                                            sampling_rate=self.sampling_rate)
         
-       
         print("Total interval time: {} sec".format(self.intervals.total_interval_duration_seconds()))
         
         
