@@ -49,7 +49,8 @@ class Session:
                          "desen": self.fileBase+".desen",
                          "desel": self.fileBase+".desel",
                          "resofs": self.fileBase+".resofs",
-                         "pxPerCm": self.fileBase+".pxPerCm"}
+                         "pxPerCm": self.fileBase+".pxPerCm",
+                         "samplingRAte": self.fileBase+".samplingRate"}
         return
 
     def checkSessionDirectory(self):
