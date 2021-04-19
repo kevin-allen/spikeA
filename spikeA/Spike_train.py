@@ -221,7 +221,7 @@ class Spike_train:
         #plt.plot(self.isi_histogram[0:len(self.edge)-1],self.count)
         #pass
     
-    def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
+    def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1, rewrite = True):
         """
         Calculate the instantaneous firing rate. This is the firing rate of the neuron over time.
 
@@ -236,8 +236,9 @@ class Spike_train:
         hz = count / (bin_size_ms / 1000)
         
         ifr = gaussian_filter1d(hz.astype(np.float32), sigma = sigma)
-        self.ifr = ifr,count,edges
-        self.ifr_rate = 1000/bin_size_ms
+        if rewrite is True:
+            self.ifr = ifr,count,edges
+            self.ifr_rate = 1000/bin_size_ms
                 
       
     def instantaneous_firing_rate_autocorrelation(self):
@@ -249,12 +250,25 @@ class Spike_train:
         autocorr= np.correlate(self.ifr[0],self.ifr[0],mode='full')
         
         
-    def instantaneous_firing_rate_power_spectrum(self):
+    def instantaneous_firing_rate_power_spectrum(self, bin_size_ms = 1, sigma = 1, rewrite = False):
         """
-        Calculate the power spectrum of the instantaneous firing rate array (self.isi)
+        Calculate the power spectrum of the instantaneous firing rate array (self.ifr)
+        with the bin size we want. 
         
         Save the results in self.ifr_power_spectrum
         """
+        if rewrite is True:
+            self.instantaneous_firing_rate(self, bin_size_ms = bin_size_ms, sigma = sigma, rewrite = rewrite)
+        
         f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
         self.ifr_power_spectrum = f, ps
-    
+        
+    def instantaneous_firing_rate_power_spectrum_plot(self):
+        """
+        Plot the power spectrum of the instantaneous firing rate (self.ifr_power_spectrum)
+        
+        """
+        if self.ifr_power_spectrum is None:
+            print("Need to calculate the power spectrum first")
+            
+        
