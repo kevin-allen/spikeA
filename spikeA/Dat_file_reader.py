@@ -3,6 +3,7 @@ File containing the definition of the Dat_file_reader class
 """
 import numpy as np
 import pandas as pd
+import os
 from scipy import stats
 
 class Dat_file_reader:
@@ -22,25 +23,51 @@ class Dat_file_reader:
     read_one_block, return 2D np array with the data from one block
 
     """
-    def __init__(self,file_names,n_channels):
+    def __init__(self,session_name,n_channels, sampling_rate):
         """
         Constructor of the Dat_file_reader class
 
         Arguments:
-        file_names: List containing the full path of the .dat files
+        session_name: List containing the full path of the .dat files
         n_channels: number of channels in the files
+        sampling_rate: sampling rate of the data
         """
+        
+        # assign argument of function to the object attributes
+
+        self.nchannels = n_channels
+        self.session = [session_name]
+        self.sampling_rate = sampling_rate
 
         # check that the n_channels make sense
+        
+        if isinstance(self.nchannels, float):
+            raise ValueError("Number of channels should be integer but had float numbers")
 
         # make sure the files exist
+        
+        
 
         # get the file size
+        size_of_files = np.array([])
+
+        for f in range(0,len(self.session)):
+            tmp = str(self.session[f])
+            size_of_files = np.append(size_of_files, os.path.getsize(tmp))
+            
+        self.size_of_files = size_of_files
+        
 
         # make sure the file size is a multiple of n_channels*2
+        
+        #tmp = file_size % n_channels*2
+        #if tmp != 0:
+        #    raise ValueError("Size can not be devided by {}".format(n_channels) + ". Number of bytes doesn't match the number of channes")
 
         # get the number of samples per file
         
+
+       
         
     def read_data_blocks(self,channels,start_samples,n_samples):
         """
