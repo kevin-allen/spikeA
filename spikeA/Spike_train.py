@@ -15,6 +15,9 @@ class Spike_train:
     
     The class does the analysis of spike train. A spike train is defined as the spike in time emitted by a single neuron
     
+    The spike train data can come from data files (e.g., outputs of Klustakwik) or generated data (e.g., generate_poisson_spike_train() function).
+    To get data from files, have a look at the Spike_train_loader class.
+    
     The time values of the spike trains are in seconds.
     
     Attributes:
