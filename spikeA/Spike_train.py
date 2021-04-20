@@ -357,7 +357,7 @@ class Spike_train:
 
         # we remove the first column (always 0), and transform sec into ms
         res1 = res1[:,1:]*1000
-
+        
         # check that for every reference spike, we had enough spikes to cover the range of the histogram 
         min_largest_isi = np.min(res1[:,-1])
         if min_largest_isi < range_ms :
