@@ -70,9 +70,9 @@ class Dat_file_reader:
         if sum(tmp != 0) > 1:
             raise ValueError("Size can not be devided by {}".format(n_channels) + ". Number of bytes doesn't match the number of channes")
 
-        # get the number of samples per channel in each file
+        # get the number of samples in each file
         
-        self.sample_number_per_file = self.size_of_files / (2*self.nchannels)
+        self.sample_number_per_file = self.size_of_files / 2
        
         
     def read_data_blocks(self,channels,start_samples,n_samples):
