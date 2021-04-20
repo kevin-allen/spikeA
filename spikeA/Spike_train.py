@@ -306,4 +306,67 @@ class Spike_train:
         plt.xlabel("Hz")
         plt.ylabel("PSD (s**2/Hz)")
         
+    def spike_time_autocorrelation(self,bin_size_ms=0.5,range_ms=300,max_possible_rate_hz = 500):
+        """
+        This function calculate the spike-time autocorrelation by comparing the inter-spike intervals between all possible pair of spikes that fall in the 0-range_ms. 
+        Each spike is treated in turn as the reference spike.
+        The intervals between the reference spike and the subsequent spikes are calculated and binned in an histogram.
+        It only calculates time intervals between the reference spike and spikes that occurred later in time.
         
+        To avoid for loops, we will use stride_trick
+        
+        Arguments
+        bin_size_ms: bin size of the histogram
+        range_ms: range of the histogram
+        max_possible_rate_hz: value used to set how many spikes will be checked after the reference spike
+        
+        Return
+        The np.histogram is stored in self.st_autocorrelation_histogram
+        """        
+        spike_seq_length= int(max_possible_rate_hz*range_ms/1000)
+        last_spike = self.st[-1]
+
+        # the calculation uses matrix operation that my take a lot of RAM if we have many spikes
+        # and a large range_ms
+        if range_ms > 1000:
+            print("range_ms is larger than 1000, this will use a lot of RAM")
+
+        # check RAM usage needed
+        RAM_needed_MB = self.st.shape[0]*spike_seq_length*self.st.itemsize/1000000
+        print("RAM needed: {} MB".format(RAM_needed_MB))
+
+        if RAM_needed_MB > 8000:
+            "The spike_time_autocorrelation() method needs {} MB of RAM".format(RAM_needed_MB)
+
+
+        # we need to add fake spikes at the end of our st vector, these spikes will fall outside of range considered
+        # fake spikes are padding the st array so that every spikes can be used as a reference spike, stride trick
+        padding_array = np.linspace(last_spike+range_ms+1,last_spike+range_ms+1+
+                                    ((range_ms+1)/1000)*spike_seq_length,spike_seq_length-1,endpoint=False)
+        st_padded = np.concatenate([self.st,padding_array])
+
+        # clever trick to consider each spike as a reference spike.
+        # we create a matrix, where each row has a different reference spike placed in the first column
+        res=np.lib.stride_tricks.as_strided(x = st_padded, 
+                                            shape = (self.st.shape[0],spike_seq_length),
+                                            strides = (st_padded.itemsize,st_padded.itemsize ))
+
+        # by subtracting the values of first column to other columns, we get the time difference to reference spike
+        # np.newaxis is needed so that the broadcast works
+        res1 = res[:]-res[:,0,np.newaxis]
+
+        # we remove the first column (always 0), and transform sec into ms
+        res1 = res1[:,1:]*1000
+
+        # check that for every reference spike, we had enough spikes to cover the range of the histogram 
+        min_largest_isi = np.min(res1[:,-1])
+        if min_largest_isi < range_ms :
+            print("min of largest isi for reference spikess: {}, should be larger than {}".format(min_largest_isi,range_ms))
+            print("We are probably missing some inter-spikes intervals in spike_time_autocorrelation()")
+            print("Considered increasing the value of max_possible_rate_hz")
+                  
+        #print("max_possible_rate_hz: {}, spike_seq_length: {}".format(max_possible_rate_hz,spike_seq_length))
+        #print("last_spike: {}".format(last_spike))
+       
+        # save the results in self.st_autocorrelation_histogram
+        self.st_autocorrelation_histogram = np.histogram(res1,np.arange(0,range_ms+bin_size_ms,bin_size_ms))
