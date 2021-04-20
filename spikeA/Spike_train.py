@@ -216,14 +216,14 @@ class Spike_train:
         self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
         self.isi_histogram_density = density
     
-    def inter_spike_interval_histogram_plot(self, type = "line"):
+    def inter_spike_interval_histogram_plot(self, plot_type = "line"):
         """
         Plot the inter spike interval histogram using matplotlib
 
         Call this method by self.inter_spike_interval_histogram_plot()
         """
         if self.isi_histogram is None:
-            raise ValueError("please run inter_spike_intervals_histogram() first")  
+            raise ValueError("please run inter_spike_intervals_histogram() before inter_spike_interval_histogram_plot() ")  
         
         x = self.isi_histogram[1]
         diff = x[1] - x[0]
@@ -231,7 +231,7 @@ class Spike_train:
         
         timestamp = x[:-1] + median    
     
-        if type == "bar":
+        if plot_type == "bar":
             plt.bar(timestamp, self.isi_histogram[0], width = diff) 
         else:
             plt.plot(timestamp, self.isi_histogram[0])
