@@ -15,9 +15,6 @@ class Spike_train:
     
     The class does the analysis of spike train. A spike train is defined as the spike in time emitted by a single neuron
     
-    The spike train data can come from data files (e.g., outputs of Klustakwik) or generated data (e.g., generate_poisson_spike_train() function).
-    To get data from files, have a look at the Spike_train_loader class.
-    
     The time values of the spike trains are in seconds.
     
     Attributes:
@@ -31,17 +28,10 @@ class Spike_train:
     m_rate: mean firing rate of the neuron
 
     Methods:
-    set_spike_train(): set a spike train 
-    generate_poisson_spike_train(): 
-    generate_modulated_poisson_spike_train():
     n_spikes(): return the number of spikes of the neuron
     mean_firing_rate(): return the mean firing rate of the neuron
     inter_spike_intervals(): calculate the inter-spike intervals of the neuron
-    inter_spike_intervals_histogram()
-    inter_spike_interval_histogram_plot()
     instantaneous_firing_rate(): calculate the instantaneous firing rate in time
-    instantaneous_firing_rate_autocorrelation():
-    instantaneous_firing_rate_power_spectrum():
     """
     def __init__(self,name=None, sampling_rate = 20000, st = None):
         """
@@ -81,10 +71,12 @@ class Spike_train:
         
         print("Spike_train, name: {}, number of spikes {}, first: {}, last: {}".format(self.name, self.st.shape[0],self.st.min(),self.st.max()))
         
+        
         # set default time intervals from 0 to just after the last spike
         self.intervals = Intervals(inter=np.array([[0,self.st.max()+1/self.sampling_rate]]),
                                            sampling_rate=self.sampling_rate)
         
+       
         print("Total interval time: {} sec".format(self.intervals.total_interval_duration_seconds()))
         
         
@@ -203,7 +195,7 @@ class Spike_train:
             raise ValueError("set the spike train before using Spike_train.inter_spike_intervals()")
         self.isi = np.diff(self.st)
         
-    def inter_spike_intervals_histogram(self, bin_size_ms=5,max_time_ms=2000, density= False):
+    def inter_spike_intervals_histogram(self, bin_size_ms=5,max_time_ms=500, density= False):
         """
         Calculate an inter spike interval histogram
         Save in self.isi_histogram
@@ -281,12 +273,49 @@ class Spike_train:
         else: 
             self.ifr_autocorrelation= res/np.max(res)
         
+
+    def instantaneous_firing_rate_autocorrelation_plot(self,timewindow=None):
+        if timewindow== None:
+            plt.plot(self.ifr_autocorrelation)
+        else:
+            plt.plot(np.arange(-timewindow,timewindow,1),self.ifr_autocorrelation)
+                
+                
     def instantaneous_firing_rate_power_spectrum(self, nfft = None, scaling = "density"):
         """
         Calculate the power spectrum of the instantaneous firing rate array (self.ifr)
         
         Save the results in self.ifr_power_spectrum
         """
+
+        f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
+        self.ifr_power_spectrum = f, ps
+    
+    def instantaneous_firing_rate_crosscorelation(self,spike2=None,normed= False, max_lag_ms= 200):
+        
+        if spike2 is None:
+            spike2 = Spike_train(name= "spike2", sampling_rate= 20000,st=np.arange(0,10000))
+        
+        spike2.set_spike_train(spike2.st)
+        spike2.inter_spike_intervals()
+        spike2.instantaneous_firing_rate()
+        
+        if normed== False:  
+            res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
+            maxlag= max_lag_ms/self.ifr_bin_size_ms
+            res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
+            self.ifr_crosscorrelation=res
+        elif normed==True:
+            self.ifr_corsscorrelation= res/np.max(res)
+            
+    def instantaneous_firing_rate_crosscorelation_plot(self,timewindow=None):
+        
+        if timewindow== None:
+            plt.plot(self.ifr_crosscorrelation)
+        else:
+            plt.plot(np.arange(-timewindow,timewindow,1),self.ifr_crosscorrelation)
+        
+
         if self.ifr is None:
             raise ValueError("Please run the instantaneous_firing_rate() first")
         
@@ -370,3 +399,4 @@ class Spike_train:
        
         # save the results in self.st_autocorrelation_histogram
         self.st_autocorrelation_histogram = np.histogram(res1,np.arange(0,range_ms+bin_size_ms,bin_size_ms))
+
