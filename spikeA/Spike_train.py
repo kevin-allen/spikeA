@@ -241,7 +241,7 @@ class Spike_train:
         if self.isi_histogram_density is True:
             plt.ylabel("density")
         else:
-            plt.ylabel("spikes")
+            plt.ylabel("Count")
             
         #pass
 
