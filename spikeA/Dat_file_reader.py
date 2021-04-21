@@ -109,4 +109,12 @@ class Dat_file_reader:
         
         # if in a single file, get the data in one go
         # if in many file, create a loop to get the data in several steps
-        pass
+        
+       
+        df = np.empty((self.nchannels, 1))
+        for i in range(len(self.file_names)): 
+            tmp = np.memmap(self.file_names[i], dtype = "int16", mode = "r", 
+                                 shape = (self.nchannels, int(self.size_of_files[i]/(2*self.nchannels))), order = "F")
+            df = np.concatenate((df,tmp), axis = 1)
+        dff = df[channels, start_sample:n_samples]
+        return dff
