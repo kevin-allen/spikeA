@@ -38,6 +38,7 @@ class Dat_file_reader:
         self.nchannels = n_channels
         self.file_names = file_names
         self.sampling_rate = sampling_rate
+        self.sample_index = ()
 
         # check that the n_channels make sense
         
@@ -55,6 +56,7 @@ class Dat_file_reader:
                 
         # get the file size
         
+       
         self.size_of_files = [os.path.getsize(f) for f in self.file_names]
         
 
@@ -68,26 +70,42 @@ class Dat_file_reader:
         self.sample_number_per_file = np.array(self.size_of_files) / 2
         
         # refer the sample number to an index that reflex the continueous sample number
-        #self.sample_index = {self.session:self.sample_number_per_file}
+
+        
+        for k in range(0,len(self.file_names)):
+            if k == 0:
+                start = 0
+                end = self.size_of_files[k]
+            elif k >= 1:
+                start = 0 + self.size_of_files[k-1]
+                end = start + self.size_of_files[k]
+            
+            tmp = (self.file_names[k], start, end)
+            
+            self.sample_index = self.sample_index + tmp
+        self.sample_index = np.reshape(self.sample_index, (len(self.file_names),3))
+
        
     def __str__(self):
         
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
     
-    def read_data_blocks(self,channels,start_samples,n_samples):
+    def read_data_blocks(self,channels,start_samples,end_samples):
         """
         Read data blocks from the dat files
 
         Arguments
         channels: np.array containing the channels to get
         start_samples: np.array containing the start sample for each block
-        n_samples: how many samples per block
+        end_samples: np.array containing the corresponding end sample (to the start sample). The length of end_samples and start_samples should be the same
 
         Return
         3D np.array containing the blocks of data from the dat files
         """
         # create the 3D np.array
         # loop and retrieve the individual blocks
+        
+        
         pass
     
   
@@ -110,11 +128,31 @@ class Dat_file_reader:
         # if in a single file, get the data in one go
         # if in many file, create a loop to get the data in several steps
         
-       
+        if np.any(channels) >= self.nchannels:
+            raise ValueError("The channel number is not in {}".format(range(0,self.nchannels-1)))
+            
         df = np.empty((self.nchannels, 1))
         for i in range(len(self.file_names)): 
             tmp = np.memmap(self.file_names[i], dtype = "int16", mode = "r", 
                                  shape = (self.nchannels, int(self.size_of_files[i]/(2*self.nchannels))), order = "F")
             df = np.concatenate((df,tmp), axis = 1)
-        dff = df[channels, start_sample:n_samples]
+            
+        dff = df[channels, start_sample:start_sample + n_samples]
         return dff
+    
+    def which_dat(self, start_samples, end_samples):
+        """
+        Determine which .dat file to read based on the start_samples and the end_samples
+        
+        Arguments
+        start_samples: np.array containing the first sample number of each block
+        end_samples: np.array containing the last sample number of each block. 
+        The length of these two arguments should be the same
+        
+        Return
+        The name of the .dat file that should be used to access those sample blocks
+        """
+        
+        #### Will it be better to read the whole length of all the .dat file and pick the time interval that we want? The critical point is that whether it's possible to read only
+        #### a segment of the .dat file. What I did with read_one_block is that I read everything and then pick out the specified segment.
+    
