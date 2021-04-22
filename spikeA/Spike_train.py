@@ -216,27 +216,39 @@ class Spike_train:
         """
         if self.isi_histogram is None:
             raise ValueError("please run inter_spike_intervals_histogram() before inter_spike_interval_histogram_plot() ")  
-        
-        x = self.isi_histogram[1]
-        diff = x[1] - x[0]
-        median = diff/2
-        
-        timestamp = x[:-1] + median    
+       
+        timestamp = self.mid_point_from_edges(self.isi_histogram[1])
     
         if plot_type == "bar":
             plt.bar(timestamp, self.isi_histogram[0], width = diff) 
         else:
             plt.plot(timestamp, self.isi_histogram[0])
 
-        plt.xlabel("ms")
+        plt.xlabel("Time (ms)")
         
         if self.isi_histogram_density is True:
-            plt.ylabel("density")
+            plt.ylabel("Density")
         else:
             plt.ylabel("Count")
             
         #pass
-
+        
+    def mid_point_from_edges(self, edges):
+        """
+        Find the middle point of the edges of bins (output of np.histogram) and therefore reduce the number of edges by 1.
+        
+        Arguments:
+        edges: np.array containing the edges from np.histogram()
+        
+        Returns a np.array containing the midpoint of every bin.
+        """
+        x = edges
+        diff = x[1] - x[0]
+        median = diff/2
+        
+        timestamp = x[:-1] + median
+        
+        return timestamp
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """

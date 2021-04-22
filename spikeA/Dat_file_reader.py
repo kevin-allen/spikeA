@@ -23,12 +23,12 @@ class Dat_file_reader:
     read_one_block, return 2D np array with the data from one block
 
     """
-    def __init__(self,session_name,n_channels, sampling_rate):
+    def __init__(self,file_names,n_channels, sampling_rate): ##We don't need sampling rate in read dat class
         """
         Constructor of the Dat_file_reader class
 
         Arguments:
-        session_name: List containing the full path of the .dat files
+        file_names: List containing the full path of the .dat files
         n_channels: number of channels in the files
         sampling_rate: sampling rate of the data
         """
@@ -36,45 +36,44 @@ class Dat_file_reader:
         # assign argument of function to the object attributes
 
         self.nchannels = n_channels
-        self.session = session_name
+        self.file_names = file_names
         self.sampling_rate = sampling_rate
 
         # check that the n_channels make sense
         
-        if isinstance(self.nchannels, float):
-            raise ValueError("Number of channels should be integer but had float numbers")
+        if not isinstance(self.nchannels, int):
+            raise TypeError("Number of channels should be an integer")
 
         # make sure the files exist
         
-        for f in range(0,len(self.session)):
+        for f in self.file_names:
             
-            exist = os.path.isfile(self.session[f])
+            exist = os.path.isfile(f)
             if exist is False:
-                raise ValueError("File not exist")
+                raise ValueError("The file {} is missing.".format(f))
         print("All files are here")
                 
         # get the file size
         
-        size_of_files = []
-        for f in range(0,len(self.session)):
-            tmp = str(self.session[f])
-            size_of_files = size_of_files + [os.path.getsize(tmp)]
-            
-        self.size_of_files = np.array(size_of_files)
-
+        self.size_of_files = [os.path.getsize(f) for f in self.file_names]
         
 
         # make sure the file size is a multiple of n_channels*2
-        
-        tmp = self.size_of_files % n_channels*2
+        tmp = np.array(self.size_of_files) % (self.nchannels*2)
         if sum(tmp != 0) > 1:
             raise ValueError("Size can not be devided by {}".format(n_channels) + ". Number of bytes doesn't match the number of channes")
 
-        # get the number of samples per channel in each file
+        # get the number of samples in each file
         
-        self.sample_number_per_file = self.size_of_files / (2*self.nchannels)
+        self.sample_number_per_file = np.array(self.size_of_files) / 2
+        
+        # refer the sample number to an index that reflex the continueous sample number
+        #self.sample_index = {self.session:self.sample_number_per_file}
        
+    def __str__(self):
         
+        return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
+    
     def read_data_blocks(self,channels,start_samples,n_samples):
         """
         Read data blocks from the dat files
@@ -106,7 +105,16 @@ class Dat_file_reader:
         Return
         2D np.array containing a single block of data from the dat files
         """
-        # find out in which files we need to get the data from
+        # find out in which files we need to get the data from (# Make an index of the start and end of each file)
+        
         # if in a single file, get the data in one go
         # if in many file, create a loop to get the data in several steps
-        pass
+        
+       
+        df = np.empty((self.nchannels, 1))
+        for i in range(len(self.file_names)): 
+            tmp = np.memmap(self.file_names[i], dtype = "int16", mode = "r", 
+                                 shape = (self.nchannels, int(self.size_of_files[i]/(2*self.nchannels))), order = "F")
+            df = np.concatenate((df,tmp), axis = 1)
+        dff = df[channels, start_sample:n_samples]
+        return dff
