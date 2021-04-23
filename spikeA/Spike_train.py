@@ -53,14 +53,15 @@ class Spike_train:
         # assign argument of function to the object attributes
         self.name = name
         self.sampling_rate = sampling_rate
+        self.intervals = None
+    
         
         # if a spike train was passed to the constructor, set the spike train
         if st is not None:
             self.set_spike_train(st=st)
         else:
             self.st = None # we can use this to know if st has been set or not (whether it is None or none)
-            self.intervals = None
-    
+        
     
     def set_spike_train(self,st):
         """
