@@ -128,15 +128,15 @@ class Dat_file_reader:
         # if in a single file, get the data in one go
         # if in many file, create a loop to get the data in several steps
         
-        if np.any(channels) >= self.nchannels:
+        if np.any(channels) >= self.nchannels:  #np.any(channels >= self.nchannels): # And negative numbers
             raise ValueError("The channel number is not in {}".format(range(0,self.nchannels-1)))
             
         df = np.empty((self.nchannels, 1))
         for i in range(len(self.file_names)): 
             tmp = np.memmap(self.file_names[i], dtype = "int16", mode = "r", 
                                  shape = (self.nchannels, int(self.size_of_files[i]/(2*self.nchannels))), order = "F")
-            df = np.concatenate((df,tmp), axis = 1)
-            
+            df = np.concatenate((df,tmp), axis = 1)  #Create a df that is already the size we want to have and fill them in.
+            #int(self.size_of_files[i]/(2*self.nchannels))
         dff = df[channels, start_sample:start_sample + n_samples]
         return dff
     
