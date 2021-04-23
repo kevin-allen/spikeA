@@ -34,7 +34,6 @@ class Intervals:
         
     def set_inter(self,inter):
         
-        print("set intervals")
         # check that inter is a numpy array
         if not isinstance(inter, np.ndarray):
             raise TypeError("inter argument should be a numpy.ndarray but was {}".format(type(inter)))
