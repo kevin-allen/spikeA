@@ -111,7 +111,7 @@ class Dat_file_reader:
             start = which_file[k][1]
             n_samples = which_file[k][3]
             df_tmp = self.read_one_block(file_base = which_file[k][0], channels = channels, start_sample = which_file[k][1], end_sample = which_file[k][2])
-            df[:, total_len[k]-which_file[k][2]:total_len[k]] = df_tmp
+            df[:, total_len[k]-which_file[k][3]:total_len[k]] = df_tmp
         return df
  
     
@@ -192,6 +192,8 @@ class Dat_file_reader:
             f2= get_file_and_start_index_within_file(files_first_sample = all_start, files_last_sample = all_end, start_index = end)
 
             if f1 == f2:
+                start = start-int(self.sample_index_per_channel[int(f1[0])][1])
+                end = end-int(self.sample_index_per_channel[int(f1[0])][1])
                 my_block.append((self.file_names[int(f1[0])], start, end, end-start))
 
             else:
@@ -205,9 +207,9 @@ class Dat_file_reader:
                         my_block.append((self.file_names[i], start, int(all_end[i]), int(all_end[i])-start))
 
                     elif i == int(f2[0]): # last file
-                        my_block.append((self.file_names[i], int(all_start[i]), end, end-int(all_start[i])))
+                        my_block.append((self.file_names[i], 0, end-int(all_start[i]), end-int(all_start[i])))
 
 
                     else: # files in the middle
                         my_block.append(self.sample_index_per_channel[i])
-            return my_block
+        return my_block
