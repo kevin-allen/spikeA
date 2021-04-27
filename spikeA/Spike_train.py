@@ -17,15 +17,22 @@ class Spike_train:
     
     The time values of the spike trains are in seconds.
     
+    You can set some time intervals to limit the analysis to some portion of the recordings
+        
     Attributes:
     
     name: name for the spike train
-    st: 1d numpy arrays containing the spike time a neuron. The time is in seconds.
+    st: 1d numpy arrays containing the spike time of a neuron. The time is in seconds.
     ifr: 1d numpy array containing the instantaneous firing rate of the neuron
     isi: 1d numpy array containing the inter-spike intervals between subsequent spikes
     
+    # don't use the next two when programming, use st
+    st_ori: 1d numpy array containing the spike time of a neuron, not affected by setting time intervals
+    st_inter: 1d numpy array containing the spike time of a neuron within the set time intervals
+    
     sta: 1d numpy array containing the spike-time autocorrelation of the neuron
     m_rate: mean firing rate of the neuron
+    ...
 
     Methods:
     n_spikes(): return the number of spikes of the neuron
@@ -42,21 +49,25 @@ class Spike_train:
         sampling_rate: sampling rate of recording. This is used when you want the sample value of spikes
         st: 1d numpy array with the spike time of one neuron. The values you pass in should be in seconds.
         """      
-
+        
         # assign argument of function to the object attributes
         self.name = name
         self.sampling_rate = sampling_rate
+        self.intervals = None
+    
         
         # if a spike train was passed to the constructor, set the spike train
         if st is not None:
             self.set_spike_train(st=st)
         else:
             self.st = None # we can use this to know if st has been set or not (whether it is None or none)
-            
+        
     
     def set_spike_train(self,st):
         """
-        Set the st and sampling_rate attribute of the Spike_train object
+        Set the st attribute of the Spike_train object
+        
+        This will reset the time intervals to the default intervals including all spikes
         
         Arguments
         st: 1D numpy array containing spike times in seconds 
@@ -67,18 +78,55 @@ class Spike_train:
         if st.ndim != 1: # it should be one neuron so one dimention
             raise ValueError("st arguemnt of the Spike_time constructor should be a numpy array with 1 dimension but had {}".format(st.ndim))
             
-        self.st = st
+        # the original spike train
+        self.st_ori = st
         
+        # self.st is a pointer to self.st_ori
+        self.st = self.st_ori
         print("Spike_train, name: {}, number of spikes {}, first: {}, last: {}".format(self.name, self.st.shape[0],self.st.min(),self.st.max()))
         
-        
         # set default time intervals from 0 to just after the last spike
-        self.intervals = Intervals(inter=np.array([[0,self.st.max()+1/self.sampling_rate]]),
-                                           sampling_rate=self.sampling_rate)
+        if self.intervals is not None:
+            self.set_intervals(inter=np.array([[0,self.st.max()+1]]))
+        else :
+             # get intervals for the first time
+            self.intervals = Intervals(inter=np.array([[0,self.st.max()+1]]))
         
-       
-        print("Total interval time: {} sec".format(self.intervals.total_interval_duration_seconds()))
+    def set_intervals(self,inter):
+        """
+        Function to limit the analysis to spikes within a set of set specific time intervals
         
+        Arguments:
+        inter: 2D numpy array, one interval per row, time in seconds
+        
+        Return:
+        The function will set self.intervals to the values of inter
+        
+        """
+        
+        if self.st is None:
+            raise ValueError("the spike train should be set before setting the intervals")
+        
+        self.intervals.set_inter(inter)
+        self.st_inter = self.intervals.spike_train_within_intervals(self.st_ori)
+        # self.st is now pointing to self.st_inter
+        self.st = self.st_inter
+        print("Number of spikes: {}".format(self.st.shape[0]))
+    
+    def unset_intervals(self):
+        """
+        Function to remove the previously set intervals. 
+        
+        After calling this function, all spikes of the original spike train will be considered.
+        The default interval that includes all spikes is set.
+        """
+        if self.st is None:
+            raise ValueError("the spike train should be set before setting the intervals")
+        
+        self.st = self.st_ori
+        # set default time intervals from 0 to just after the last spike
+        self.intervals.set_inter(inter=np.array([[0,self.st.max()+1]]))
+        print("Number of spikes: {}".format(self.st.shape[0]))
         
     def generate_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2):
         """

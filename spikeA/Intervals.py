@@ -16,13 +16,12 @@ class Intervals:
     Attributes:
     
     inter: 2D numpy array containing the start and end of each interval
-    sampling_rate: number of samples per second
     
     Methods:
     total_interval_duration_samples(), calculate the interval duration
     spike_train_within_intervals(), return a spike train containing only the spikes within the intervals
     """
-    def __init__(self,inter,sampling_rate=20000):
+    def __init__(self,inter):
         """
         Constructor of the Interval class
 
@@ -30,14 +29,28 @@ class Intervals:
         inter: 2D numpy array containing the start and end of each interval, one row per interval. Time is in seconds as np.float32
         sampling_rate: number of samples per seconds
         """
+        self.set_inter(inter)
+        print("{} intervals".format(self.inter.shape[0]))
+        
+    def set_inter(self,inter):
+        
         # check that inter is a numpy array
         if not isinstance(inter, np.ndarray):
-            raise TypeError("inter argument of the Interval constructor should be a numpy.ndarray but was {}".format(type(inter)))
+            raise TypeError("inter argument should be a numpy.ndarray but was {}".format(type(inter)))
+        if inter.ndim != 2:
+            raise TypeError("inter argument should have 2 dimensions")
+        # check if it has 2 column
+        if inter.shape[1] != 2:
+            raise ValueError("inter argument should be a numpy array with 2 columns")
+            
+        # check that second values is larger than first
+        if np.any(inter[:,1]-inter[:,0] < 0):
+            raise ValueError("inter argument: second column values should be larger than first column values")
         
         self.inter = inter
-        self.sampling_rate = sampling_rate
-                
-        print("{} intervals, sampling rate: {}".format(self.inter.shape[0],self.sampling_rate))
+        
+        print("Time in intervals: {} sec".format(self.total_interval_duration_seconds()))
+        
         
     def total_interval_duration_seconds(self):
         """
