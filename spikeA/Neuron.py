@@ -9,21 +9,25 @@ class Neuron:
         name: Name of the session. Usually used as the beginning of the file names. Format is assumed to be subject-date-time
         subject: Name of the subject (animal).
         brain_area: Brain area in which the neuron was recorded
+        channels: Channels on which the neuron was recorded. This is used to get the spike waveforms.
         spike_train: Spike_train object for the neuron
+        spike_waveform: Spike waveform object for the neuron
         spatial_prop: Spatial_prop object for the neuron. Contains the single-cell spatial properties of the neuron
     Methods:
         set_spike_train()
         
     """
-    def __init__(self,name, subject, brain_area):
+    def __init__(self,name, subject, brain_area, channels):
         """
         Constructor of the Neuron Class
         """
         self.name = name
         self.subject = subject
         self.brain_area = brain_area
+        self.channels = channels
         self.spike_train = None
         self.spatial_prop = None
+        self.spike_waveform = None
         return
     
     def set_spike_train(sampling_rate = 20000, st = None):
