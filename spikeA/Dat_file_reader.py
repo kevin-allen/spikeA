@@ -17,10 +17,16 @@ class Dat_file_reader:
     
     file_names: List of the file name (full path)
     n_channels: Number of channels in the files
+    size_of_files
+    samples_per_file
+    files_first_sample
+    files_last_sample
     
     Methods:
-    read_data_blocks, retrun 3D np array with the data from the blocks
-    read_one_block, return 2D np array with the data from one block
+    get_first_last_samples_each_file()
+    get_data_one_block()
+    get_block_start_end_within_files()
+    read_one_block()
 
     """
     def __init__(self,file_names,n_channels): ##We don't need sampling rate in read dat class
@@ -32,7 +38,6 @@ class Dat_file_reader:
         n_channels: number of channels in the files
         sampling_rate: sampling rate of the data
         """
-        
         
         # check that the n_channels make sense        
         if not isinstance(n_channels, int):
@@ -193,3 +198,5 @@ class Dat_file_reader:
                     my_block[channels, copied:(copied+self.samples_per_file[i])] = my_mapped_file[channels,:]
                     copied = copied + self.samples_per_file[i] 
         return my_block
+    
+    
