@@ -17,15 +17,22 @@ class Spike_train:
     
     The time values of the spike trains are in seconds.
     
+    You can set some time intervals to limit the analysis to some portion of the recordings
+        
     Attributes:
     
     name: name for the spike train
-    st: 1d numpy arrays containing the spike time a neuron. The time is in seconds.
+    st: 1d numpy arrays containing the spike time of a neuron. The time is in seconds.
     ifr: 1d numpy array containing the instantaneous firing rate of the neuron
     isi: 1d numpy array containing the inter-spike intervals between subsequent spikes
     
+    # don't use the next two when programming, use st
+    st_ori: 1d numpy array containing the spike time of a neuron, not affected by setting time intervals
+    st_inter: 1d numpy array containing the spike time of a neuron within the set time intervals
+    
     sta: 1d numpy array containing the spike-time autocorrelation of the neuron
     m_rate: mean firing rate of the neuron
+    ...
 
     Methods:
     n_spikes(): return the number of spikes of the neuron
@@ -42,7 +49,7 @@ class Spike_train:
         sampling_rate: sampling rate of recording. This is used when you want the sample value of spikes
         st: 1d numpy array with the spike time of one neuron. The values you pass in should be in seconds.
         """      
-
+        
         # assign argument of function to the object attributes
         self.name = name
         self.sampling_rate = sampling_rate
@@ -52,11 +59,14 @@ class Spike_train:
             self.set_spike_train(st=st)
         else:
             self.st = None # we can use this to know if st has been set or not (whether it is None or none)
-            
+            self.intervals = None
+    
     
     def set_spike_train(self,st):
         """
-        Set the st and sampling_rate attribute of the Spike_train object
+        Set the st attribute of the Spike_train object
+        
+        This will reset the time intervals to the default intervals including all spikes
         
         Arguments
         st: 1D numpy array containing spike times in seconds 
@@ -67,18 +77,55 @@ class Spike_train:
         if st.ndim != 1: # it should be one neuron so one dimention
             raise ValueError("st arguemnt of the Spike_time constructor should be a numpy array with 1 dimension but had {}".format(st.ndim))
             
-        self.st = st
+        # the original spike train
+        self.st_ori = st
         
+        # self.st is a pointer to self.st_ori
+        self.st = self.st_ori
         print("Spike_train, name: {}, number of spikes {}, first: {}, last: {}".format(self.name, self.st.shape[0],self.st.min(),self.st.max()))
         
-        
         # set default time intervals from 0 to just after the last spike
-        self.intervals = Intervals(inter=np.array([[0,self.st.max()+1/self.sampling_rate]]),
-                                           sampling_rate=self.sampling_rate)
+        if self.intervals is not None:
+            self.set_intervals(inter=np.array([[0,self.st.max()+1]]))
+        else :
+             # get intervals for the first time
+            self.intervals = Intervals(inter=np.array([[0,self.st.max()+1]]))
         
-       
-        print("Total interval time: {} sec".format(self.intervals.total_interval_duration_seconds()))
+    def set_intervals(self,inter):
+        """
+        Function to limit the analysis to spikes within a set of set specific time intervals
         
+        Arguments:
+        inter: 2D numpy array, one interval per row, time in seconds
+        
+        Return:
+        The function will set self.intervals to the values of inter
+        
+        """
+        
+        if self.st is None:
+            raise ValueError("the spike train should be set before setting the intervals")
+        
+        self.intervals.set_inter(inter)
+        self.st_inter = self.intervals.spike_train_within_intervals(self.st_ori)
+        # self.st is now pointing to self.st_inter
+        self.st = self.st_inter
+        print("Number of spikes: {}".format(self.st.shape[0]))
+    
+    def unset_intervals(self):
+        """
+        Function to remove the previously set intervals. 
+        
+        After calling this function, all spikes of the original spike train will be considered.
+        The default interval that includes all spikes is set.
+        """
+        if self.st is None:
+            raise ValueError("the spike train should be set before setting the intervals")
+        
+        self.st = self.st_ori
+        # set default time intervals from 0 to just after the last spike
+        self.intervals.set_inter(inter=np.array([[0,self.st.max()+1]]))
+        print("Number of spikes: {}".format(self.st.shape[0]))
         
     def generate_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2):
         """
@@ -206,15 +253,49 @@ class Spike_train:
         self.inter_spike_intervals()
         isi_ms = self.isi*1000
         self.isi_histogram = np.histogram(isi_ms, bins= np.arange(0,max_time_ms+bin_size_ms,bin_size_ms),density= density)
-        
+        self.isi_histogram_density = density
     
-    def inter_spike_interval_histogram_plot(self):
+    def inter_spike_interval_histogram_plot(self, plot_type = "line"):
         """
         Plot the inter spike interval histogram using matplotlib
-        """        
-        plt.plot(self.isi_histogram[1][1:],self.isi_histogram[0])
+
+        Call this method by self.inter_spike_interval_histogram_plot()
+        """
+        if self.isi_histogram is None:
+            raise ValueError("please run inter_spike_intervals_histogram() before inter_spike_interval_histogram_plot() ")  
+       
+        timestamp = self.mid_point_from_edges(self.isi_histogram[1])
+    
+        if plot_type == "bar":
+            plt.bar(timestamp, self.isi_histogram[0], width = diff) 
+        else:
+            plt.plot(timestamp, self.isi_histogram[0])
+
         plt.xlabel("Time (ms)")
-        plt.ylabel("Count")
+        
+        if self.isi_histogram_density is True:
+            plt.ylabel("Density")
+        else:
+            plt.ylabel("Count")
+            
+        #pass
+        
+    def mid_point_from_edges(self, edges):
+        """
+        Find the middle point of the edges of bins (output of np.histogram) and therefore reduce the number of edges by 1.
+        
+        Arguments:
+        edges: np.array containing the edges from np.histogram()
+        
+        Returns a np.array containing the midpoint of every bin.
+        """
+        x = edges
+        diff = x[1] - x[0]
+        median = diff/2
+        
+        timestamp = x[:-1] + median
+        
+        return timestamp
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
@@ -231,6 +312,7 @@ class Spike_train:
         hz = count / (bin_size_ms / 1000)
         
         ifr = gaussian_filter1d(hz.astype(np.float32), sigma = sigma)
+        
         self.ifr = ifr,count,edges
         self.ifr_rate = 1000/bin_size_ms
         self.ifr_bin_size_ms= bin_size_ms
@@ -245,43 +327,135 @@ class Spike_train:
         res= np.correlate(self.ifr[0],self.ifr[0],mode='full')
         maxlag= max_lag_ms/self.ifr_bin_size_ms
         res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
-        self.max_lag_ms= max_lag_ms
         if normed== False:
             self.ifr_autocorrelation= res
         else: 
             self.ifr_autocorrelation= res/np.max(res)
-            
         
-    def instantaneous_firing_rate_autocorrelation_plot(self):
-           
-        plt.plot(np.arrange(-self.max_lag_ms, self.max_lag_ms),self.ifr_autocorrelation)
-        ## x and y have to have the same dmentions 
+
+    def instantaneous_firing_rate_autocorrelation_plot(self,timewindow=None):
+        if timewindow== None:
+            plt.plot(self.ifr_autocorrelation)
+        else:
+            plt.plot(np.arange(-timewindow,timewindow,1),self.ifr_autocorrelation)
                 
-    def instantaneous_firing_rate_power_spectrum(self):
+                
+    def instantaneous_firing_rate_power_spectrum(self, nfft = None, scaling = "density"):
         """
-        Calculate the power spectrum of the instantaneous firing rate array (self.isi)
+        Calculate the power spectrum of the instantaneous firing rate array (self.ifr)
         
         Save the results in self.ifr_power_spectrum
         """
+
         f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
         self.ifr_power_spectrum = f, ps
     
     def instantaneous_firing_rate_crosscorelation(self,spike2=None,normed= False, max_lag_ms= 200):
-        if type(spike2) != spikeA.Spike_train.Spike_train:
-            raise ValueError("The spike2 object is not from spike_tain class!")
-        if spike2.st is None:
-            raise ValueError("Set the spike_train(st) for spike2 object using the set_spike_train function first!")
-
-        res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
-        maxlag= max_lag_ms/self.ifr_bin_size_ms
-        res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
+        
+        if spike2 is None:
+            spike2 = Spike_train(name= "spike2", sampling_rate= 20000,st=np.arange(0,10000))
+        
+        spike2.set_spike_train(spike2.st)
+        spike2.inter_spike_intervals()
+        spike2.instantaneous_firing_rate()
         
         if normed== False:  
+            res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
+            maxlag= max_lag_ms/self.ifr_bin_size_ms
+            res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
             self.ifr_crosscorrelation=res
-        else:
+        elif normed==True:
             self.ifr_corsscorrelation= res/np.max(res)
             
-    def instantaneous_firing_rate_crosscorelation_plot(self):
+    def instantaneous_firing_rate_crosscorelation_plot(self,timewindow=None):
         
-        plt.plot(self.ifr_crosscorrelation)
+        if timewindow== None:
+            plt.plot(self.ifr_crosscorrelation)
+        else:
+            plt.plot(np.arange(-timewindow,timewindow,1),self.ifr_crosscorrelation)
+        
+
+        if self.ifr is None:
+            raise ValueError("Please run the instantaneous_firing_rate() first")
+        
+        f, psd = signal.periodogram(self.ifr[0],fs=self.ifr_rate, nfft = nfft)
+        self.ifr_power_spectrum = f, psd
+  
+        
+    def instantaneous_firing_rate_power_spectrum_plot(self):
+        """
+        Plot the power spectrum of the instantaneous firing rate (self.ifr_power_spectrum)
+        
+        """
+        if self.ifr_power_spectrum is None:
+            print("Need to run instantaneous_firing_rate_power_spectrum first")
+            
+        plt.plot(self.ifr_power_spectrum[0], self.ifr_power_spectrum[1])
+        plt.xlabel("Hz")
+        plt.ylabel("PSD (s**2/Hz)")
+        
+    def spike_time_autocorrelation(self,bin_size_ms=0.5,range_ms=300,max_possible_rate_hz = 500):
+        """
+        This function calculate the spike-time autocorrelation by comparing the inter-spike intervals between all possible pair of spikes that fall in the 0-range_ms. 
+        Each spike is treated in turn as the reference spike.
+        The intervals between the reference spike and the subsequent spikes are calculated and binned in an histogram.
+        It only calculates time intervals between the reference spike and spikes that occurred later in time.
+        
+        To avoid for loops, we will use stride_trick
+        
+        Arguments
+        bin_size_ms: bin size of the histogram
+        range_ms: range of the histogram
+        max_possible_rate_hz: value used to set how many spikes will be checked after the reference spike
+        
+        Return
+        The np.histogram is stored in self.st_autocorrelation_histogram
+        """        
+        spike_seq_length= int(max_possible_rate_hz*range_ms/1000)
+        last_spike = self.st[-1]
+
+        # the calculation uses matrix operation that my take a lot of RAM if we have many spikes
+        # and a large range_ms
+        if range_ms > 1000:
+            print("range_ms is larger than 1000, this will use a lot of RAM")
+
+        # check RAM usage needed
+        RAM_needed_MB = self.st.shape[0]*spike_seq_length*self.st.itemsize/1000000
+        print("RAM needed: {} MB".format(RAM_needed_MB))
+
+        if RAM_needed_MB > 8000:
+            "The spike_time_autocorrelation() method needs {} MB of RAM".format(RAM_needed_MB)
+
+
+        # we need to add fake spikes at the end of our st vector, these spikes will fall outside of range considered
+        # fake spikes are padding the st array so that every spikes can be used as a reference spike, stride trick
+        padding_array = np.linspace(last_spike+range_ms+1,last_spike+range_ms+1+
+                                    ((range_ms+1)/1000)*spike_seq_length,spike_seq_length-1,endpoint=False)
+        st_padded = np.concatenate([self.st,padding_array])
+
+        # clever trick to consider each spike as a reference spike.
+        # we create a matrix, where each row has a different reference spike placed in the first column
+        res=np.lib.stride_tricks.as_strided(x = st_padded, 
+                                            shape = (self.st.shape[0],spike_seq_length),
+                                            strides = (st_padded.itemsize,st_padded.itemsize ))
+
+        # by subtracting the values of first column to other columns, we get the time difference to reference spike
+        # np.newaxis is needed so that the broadcast works
+        res1 = res[:]-res[:,0,np.newaxis]
+
+        # we remove the first column (always 0), and transform sec into ms
+        res1 = res1[:,1:]*1000
+        
+        # check that for every reference spike, we had enough spikes to cover the range of the histogram 
+        min_largest_isi = np.min(res1[:,-1])
+        if min_largest_isi < range_ms :
+            print("min of largest isi for reference spikess: {}, should be larger than {}".format(min_largest_isi,range_ms))
+            print("We are probably missing some inter-spikes intervals in spike_time_autocorrelation()")
+            print("Considered increasing the value of max_possible_rate_hz")
+                  
+        #print("max_possible_rate_hz: {}, spike_seq_length: {}".format(max_possible_rate_hz,spike_seq_length))
+        #print("last_spike: {}".format(last_spike))
        
+        # save the results in self.st_autocorrelation_histogram
+        self.st_autocorrelation_histogram = np.histogram(res1,np.arange(0,range_ms+bin_size_ms,bin_size_ms))
+
