@@ -101,13 +101,15 @@ class Dat_file_reader:
         """
         if start_sample >= end_sample:
             raise ValueError("start_sample should be smaller than last_sample")
-            
+        
+        if len(start_sample) != 1:
+            raise ValueError("start_sample should have a length of 1")
+        if len(end_sample) != 1:
+            raise ValueError("end_sample should have a length of 1")
         if start_sample < 0:
             raise ValueError("start_sample should not be a negative value")
-            
         if end_sample > self.files_last_sample[-1]:
             raise ValueError("end_sample should not be larger than the total number of samples")
-        
         if type(channels) is not np.ndarray:
             raise TypeError("channels should be a numpy.ndarray")
         if channels.ndim != 1:
@@ -121,7 +123,56 @@ class Dat_file_reader:
         # return the data block returned by our self.read_one_block() method
         return self.read_one_block(f1,i1,f2,i2,samples_to_read,channels)
         
-
+    def get_data_many_blocks(self, start_samples, block_size,channels):
+        """
+        Function to read several blocks from dat files
+        
+        This function is used for example to get the spike waveform of a neurons
+        
+        Arguments
+        start_samples: 1D numpy array containing the start_sample of each window. The length of this array is the number of blocks that will be read
+        block_size: The number of samples to read in each block. The block size is the same across block
+        channels: 1D numpy array with the channels you want to get
+        
+        Return
+        3D numpy array of size channels, block_size, n_blocks containing the data blocks.
+        """
+        
+        ## check that the arguments make sense
+        if type(start_samples) is not np.ndarray:
+            raise TypeError("start_samples should be a numpy.ndarray")
+        if start_samples.ndim != 1:
+            raise ValueError("start_samples should be an np.array of 1 dimension")
+        if type(channels) is not np.ndarray:
+            raise TypeError("channels should be a numpy.ndarray") 
+        if block_size<= 0:
+            raise ValueError("block_size should be larger than 0")
+        if channels.ndim != 1:
+            raise ValueError("channels should be an np.array of 1 dimension")    
+        if np.any(start_samples < 0):
+            raise ValueError("start_samples should not be a negative value")
+        if np.any(start_samples+block_size > self.files_last_sample[-1]):
+            raise ValueError("start_samples+block_size is larger than the total number of samples")
+        
+        ## allocate the memory for all the block in a 3D array,size channels, block_size, n_blocks
+        # blocks = np.array(...)
+        
+        ## get f1,i1,f2,i2 for all the blocks
+        ## we could use a list comprehension to create a list of tuples using the get_block_start_end_within_files()
+        #my_list_of_tuples = [ self.get_block_start_end_within_files(...) ....  for s in start_samples]
+        
+        ## we could iterate with a for look over the list of tupples, for each block we could call the function function read_one_block()
+        # bl=0
+        # for f1,i1,f2,i2 in my_list_of_tuples :
+        #     blocks[:,:,bl] = self.read_one_block(d1,i1,f2,i2,block_size,channels)
+        #     bl=bl+1
+            
+        
+        
+        
+        
+        
+        
     def get_block_start_end_within_files(self,start_index,end_index):
         """
         Function to get the start and end of a block in our collection of .dat files
