@@ -25,7 +25,7 @@ class Session:
         self.name = name
         self.path = path
         self.subject = self.name.split("-")[0]
-        self.sessionDateTime = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
+        self.session_dat_time = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
         self.fileBase = path+"/"+name
         return
 
@@ -33,8 +33,26 @@ class Session:
 class TetrodeSession(Session):
     """
     Class containing information about a recording session in which tetrodes were used
+    
+    Attributes:
+        n_channels: Number of channels
+        n_tetrodes: Number of tetrodes
+        clustered: Boolean indicating whether the session is clustered
+        tetrode_locations: List of brain region, one per tetrodes
+        dat_files: List of dat files
+        trial_df: pandas data frame with information about the trials (trial_name,environment,start_sample,end_sample,duration_sec)
+    
+    Methods
+        load_parameters_from_files()
+    
     """
-    pass
+    def __init__(self,name,path):
+        # call the super class
+        pass
+    
+    def load_parameters_from_files():
+        pass
+
 
 class ProbeSession(Session):
     """
