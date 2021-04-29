@@ -23,23 +23,23 @@ class Dat_file_reader:
     files_last_sample
     
     Methods:
-    get_first_last_samples_each_file()
+    __get_first_last_samples_each_file()
     get_data_one_block()
-    get_block_start_end_within_files()
-    read_one_block()
+    __get_block_start_end_within_files()
+    __read_one_block()
 
     """
-    def __init__(self,file_names,n_channels): ##We don't need sampling rate in read dat class
+    def __init__(self,file_names,n_channels): 
         """
         Constructor of the Dat_file_reader class
 
         Arguments:
         file_names: List containing the full path of the .dat files
         n_channels: number of channels in the files
-        sampling_rate: sampling rate of the data
         """
         
-        # check that the n_channels make sense        
+        # check that the n_channels make sense      
+        
         if not isinstance(n_channels, int):
             raise TypeError("Number of channels should be an integer")
         if n_channels < 1 :
@@ -99,21 +99,21 @@ class Dat_file_reader:
         Return:
         2D numpy array (dtype=int16) containing the data requested        
         """
-        if start_sample >= end_sample:
-            raise ValueError("start_sample should be smaller than last_sample")
+#         if start_sample >= end_sample:
+#             raise ValueError("start_sample should be smaller than last_sample")
         
-        if len(start_sample) != 1:
-            raise ValueError("start_sample should have a length of 1")
-        if len(end_sample) != 1:
-            raise ValueError("end_sample should have a length of 1")
-        if start_sample < 0:
-            raise ValueError("start_sample should not be a negative value")
-        if end_sample > self.files_last_sample[-1]:
-            raise ValueError("end_sample should not be larger than the total number of samples")
-        if type(channels) is not np.ndarray:
-            raise TypeError("channels should be a numpy.ndarray")
-        if channels.ndim != 1:
-            raise ValueError("channels should be an np.array of 1 dimension")
+#         if len(start_sample) != 1:
+#             raise ValueError("start_sample should have a length of 1")
+#         if len(end_sample) != 1:
+#             raise ValueError("end_sample should have a length of 1")
+#         if start_sample < 0:
+#             raise ValueError("start_sample should not be a negative value")
+#         if end_sample > self.files_last_sample[-1]:
+#             raise ValueError("end_sample should not be larger than the total number of samples")
+#         if type(channels) is not np.ndarray:
+#             raise TypeError("channels should be a numpy.ndarray")
+#         if channels.ndim != 1:
+#             raise ValueError("channels should be an np.array of 1 dimension")
         
         samples_to_read=end_sample-start_sample
         
@@ -197,7 +197,24 @@ class Dat_file_reader:
         # return a tuple with start and end of reading operation
         return start_file_no, start_index_within_file, end_file_no, end_index_within_file
     
+    def detectUPs(self, channel, start_sample = 0, end_sample = 20000):
+        """
+        A function to detect ttl up and down edges
+        
+        Arguments:
+        channel = ttl channel, by default the last channel
+        start_sample = the first sample to read
+        end_sample = the last sample to read
+        
+        Return a 2D array of all the ups and downs in the selected time window
 
+        """
+        ttl = self.get_data_one_block(start_sample = start_sample, end_sample = end_sample, channels = channel)
+        diff = np.diff(ttl)
+        edge = np.where(diff!=0)[0]
+        self.ttl = edge.reshape((int(len(edge)/2),2))
+    
+    
     def read_one_block(self, f1,i1,f2,i2,samples_to_read,channels):
         """
         Function to read one block of consecutive data
