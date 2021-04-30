@@ -99,13 +99,13 @@ class Dat_file_reader:
         Return:
         2D numpy array (dtype=int16) containing the data requested        
         """
-        if start_sample >= end_sample:
-            raise ValueError("start_sample should be smaller than last_sample")
-
+        
         if not isinstance(start_sample,int):
             raise ValueError("start_sample should be an integer")
         if not isinstance(end_sample,int):
             raise ValueError("end_sample should be an integer")
+        if start_sample >= end_sample:
+            raise ValueError("start_sample should be smaller than last_sample")
         if start_sample < 0:
             raise ValueError("start_sample should not be a negative value")
         if end_sample > self.files_last_sample[-1]:
