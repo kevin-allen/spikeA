@@ -99,22 +99,22 @@ class Dat_file_reader:
         Return:
         2D numpy array (dtype=int16) containing the data requested        
         """
-#         if start_sample >= end_sample:
-#             raise ValueError("start_sample should be smaller than last_sample")
-        
-#         if len(start_sample) != 1:
-#             raise ValueError("start_sample should have a length of 1")
-#         if len(end_sample) != 1:
-#             raise ValueError("end_sample should have a length of 1")
-#         if start_sample < 0:
-#             raise ValueError("start_sample should not be a negative value")
-#         if end_sample > self.files_last_sample[-1]:
-#             raise ValueError("end_sample should not be larger than the total number of samples")
-#         if type(channels) is not np.ndarray:
-#             raise TypeError("channels should be a numpy.ndarray")
-#         if channels.ndim != 1:
-#             raise ValueError("channels should be an np.array of 1 dimension")
-        
+        if start_sample >= end_sample:
+            raise ValueError("start_sample should be smaller than last_sample")
+
+        if not isinstance(start_sample,int):
+            raise ValueError("start_sample should be an integer")
+        if not isinstance(end_sample,int):
+            raise ValueError("end_sample should be an integer")
+        if start_sample < 0:
+            raise ValueError("start_sample should not be a negative value")
+        if end_sample > self.files_last_sample[-1]:
+            raise ValueError("end_sample should not be larger than the total number of samples")
+        if type(channels) is not np.ndarray:
+            raise TypeError("channels should be a numpy.ndarray")
+        if channels.ndim != 1:
+            raise ValueError("channels should be an np.array of 1 dimension")
+
         samples_to_read=end_sample-start_sample
         
         # start and end points of reading operations
