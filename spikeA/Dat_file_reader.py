@@ -197,24 +197,7 @@ class Dat_file_reader:
         # return a tuple with start and end of reading operation
         return start_file_no, start_index_within_file, end_file_no, end_index_within_file
     
-    def detectUPs(self, channel, start_sample = 0, end_sample = 20000):
-        """
-        A function to detect ttl up and down edges
-        
-        Arguments:
-        channel = ttl channel, by default the last channel
-        start_sample = the first sample to read
-        end_sample = the last sample to read
-        
-        Return a 2D array of all the ups and downs in the selected time window
 
-        """
-        ttl = self.get_data_one_block(start_sample = start_sample, end_sample = end_sample, channels = channel)[0,:]
-        diff = np.diff(ttl)
-        edge = np.where(diff!=0)[0]
-        self.ttl = edge.reshape((int(len(edge)/2),2))
-    
-    
     def read_one_block(self, f1,i1,f2,i2,samples_to_read,channels):
         """
         Function to read one block of consecutive data

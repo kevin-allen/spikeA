@@ -302,7 +302,7 @@ class Spike_train:
         timestamp = self.mid_point_from_edges(self.isi_histogram[1])
     
         if plot_type == "bar":
-            plt.bar(timestamp, self.isi_histogram[0], width = diff) 
+            plt.bar(timestamp, self.isi_histogram[0], width = timestamp/2) 
         else:
             plt.plot(timestamp, self.isi_histogram[0])
 
