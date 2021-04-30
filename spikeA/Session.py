@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import numpy as np
 from datetime import datetime
+
 class Session:
     """
     Class containing information about a recording session.
@@ -47,15 +48,48 @@ class TetrodeSession(Session):
     
     """
     def __init__(self,name,path):
-        # call the super class
+        super().__init__(name, path) # call Session constructor
+        
+        # get a dictionnary containing the files with the session configuration
+        self.file_names = {"par":self.fileBase +".par",
+                          "desen":self.fileBase +".desen",
+                          "desel":self.fileBase +".desel",
+                          "sampling_rate":self.fileBase +".sampling_rate_dat",}
+        
+        
+        print(self.file_names)
         pass
     
     def load_parameters_from_files():
-        pass
+        """
+        Function to read session parameters from configuration files
+        """
+        # check if the par file is there
+        # read the number of channels
+        # read the number of tetrodes
+        # create a list of 1D array with the channels for each tetrode
+        # read the number of trials
+        # get a list of trial names
+
+        # check if the desen file is there
+        # read the desen file
+        
+        # check if the desel file is there
+        # read the desel file
+        
+        # check if the sampling_rate file is there
+        # read the sampling rate
+        
 
 
-class ProbeSession(Session):
+class NeuronexusProbeSession(Session):
     """
-    Class containing information about a recording session in which Neuropixels or Neuronexus probes were used
+    Class containing information about a recording session with Neuronexus probes
+    """
+    pass
+
+class NeuropixelsSession(Session):
+    """
+    Class containing information about a recording session with Neuropixels probes
     """
     pass
