@@ -209,7 +209,7 @@ class Dat_file_reader:
         Return a 2D array of all the ups and downs in the selected time window
 
         """
-        ttl = self.get_data_one_block(start_sample = start_sample, end_sample = end_sample, channels = channel)
+        ttl = self.get_data_one_block(start_sample = start_sample, end_sample = end_sample, channels = channel)[0,:]
         diff = np.diff(ttl)
         edge = np.where(diff!=0)[0]
         self.ttl = edge.reshape((int(len(edge)/2),2))
