@@ -39,6 +39,18 @@ class Spike_train:
     mean_firing_rate(): return the mean firing rate of the neuron
     inter_spike_intervals(): calculate the inter-spike intervals of the neuron
     instantaneous_firing_rate(): calculate the instantaneous firing rate in time
+    inter_spike_intervals_histogram(): Calculate an inter spike interval histogram
+    inter_spike_interval_histogram_plot(): Plot the inter spike interval histogram using matplotlib
+    mid_point_from_edges(): Find the middle point of the edges of bins(output of np.histogram) and reduce the number of edges by 1.
+    instantaneous_firing_rate(): Calculate the instantaneous firing rate.
+    instantaneous_firing_rate_autocorrelation(): Calculate the autocorrelation of the instantaneous firing rate array.
+    instantaneous_firing_rate_autocorrelation_plot(): Plots the instantaneous firing rate autocorrelation using matplotlib.
+    instantaneous_firing_rate_power_spectrum(): Calculate the power spectrum of the instantaneous firing rate array.
+    instantaneous_firing_rate_crosscorelation(): Calculate the crosscorrelation of the instantaneous firing rate array.
+    instantaneous_firing_rate_crosscorelation_plot(): Plots the crosscorrelation of the instantaneous firing rate.
+    instantaneous_firing_rate_power_spectrum_plot(): Plots the power spectrum of the instantaneous firing rate using matplotlib.
+    spike_time_autocorrelation(): This function calculates the spike-time autocorrelation.
+    spike_autocorrelation_plot(): Plots the spike-time autocorrelation using matplotlib.
     """
     def __init__(self,name=None, sampling_rate = 20000, st = None):
         """
@@ -53,15 +65,14 @@ class Spike_train:
         # assign argument of function to the object attributes
         self.name = name
         self.sampling_rate = sampling_rate
-        self.intervals = None
-    
         
         # if a spike train was passed to the constructor, set the spike train
         if st is not None:
             self.set_spike_train(st=st)
         else:
             self.st = None # we can use this to know if st has been set or not (whether it is None or none)
-        
+            self.intervals = None
+    
     
     def set_spike_train(self,st):
         """
@@ -130,7 +141,7 @@ class Spike_train:
         
     def generate_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2):
         """
-        Generate a spike train from a random poisson distribution
+        Generate a spike train from a random poisson distribution.
         
         Arguments
         rate_hz: Firing rate of the spike train
@@ -212,7 +223,13 @@ class Spike_train:
         
     def n_spikes(self):
         """
-        Return the number of spikes of the cluster
+        This function calculates the total number of spikes.
+        
+        Arguments:
+        st needs to be set before this function can be called.
+       
+        Return:
+        the total number of spikes of the cluster.
         """
         if self.st is None:
             raise ValueError("set the spike train before using Spike_train.n_spike()")
@@ -220,10 +237,15 @@ class Spike_train:
     
     def mean_firing_rate(self):
         """
-        Calculate the mean firing rate (number of spikes / sec) of each cluster
+        Calculate the mean firing rate (number of spikes / sec) of each cluster.
+        Spike train needs to be set before this function can be called.
         Use the total time in seconds from self.intervals
-
-        Return the mean firing rate
+        
+        Arguments:
+        st needs to be set before this function can be called.
+        
+        Return:
+        The mean firing rate (spikes/seconds) is stored in self.n_spikes
         """
         if self.st is None:
             raise ValueError("set the spike train before using Spike_train.mean_firing_rate()")
@@ -231,13 +253,14 @@ class Spike_train:
         
     def inter_spike_intervals(self):
         """
-        Calculate the inter spike intervals
-
-        The results are stored in a 1D numpy called self.isi
-        self.isi should have a length of len(self.st) -1
+        Calculate the inter spike intervals.
         
-        Return
-        The results is stored in self.isi
+        Arguments:
+        st needs to be set before this function can be called.
+        
+        Return:
+        The inter spike intervals are calculated and stored as a 1D numpy array in self.isi
+        self.isi should have a length of len(self.st) -1
         """
         if self.st is None:
             raise ValueError("set the spike train before using Spike_train.inter_spike_intervals()")
@@ -246,9 +269,15 @@ class Spike_train:
     def inter_spike_intervals_histogram(self, bin_size_ms=5,max_time_ms=500, density= False):
         """
         Calculate an inter spike interval histogram
-        Save in self.isi_histogram
+        The inter_spike_intervals() method needs to be run before this method. 
         
-        Return
+        Arguments:
+        Expects an 1D np.array from self.isi.
+        bin_size_ms:
+        max_time_ms:
+        density:
+        
+        Return:
         The results are stored in self.isi_histogram, which is the output of np.histogram
         """
         self.inter_spike_intervals()
@@ -259,8 +288,13 @@ class Spike_train:
     def inter_spike_interval_histogram_plot(self, plot_type = "line"):
         """
         Plot the inter spike interval histogram using matplotlib
+        
+        Arguments:
+        Expects 2 np.arrays from self.isi_histogram.
+        plot_type: can be set to line/bar to givout different plots.
 
-        Call this method by self.inter_spike_interval_histogram_plot()
+        Returns:
+        A line/bar plot of the inter spike intervals.
         """
         if self.isi_histogram is None:
             raise ValueError("please run inter_spike_intervals_histogram() before inter_spike_interval_histogram_plot() ")  
@@ -288,7 +322,8 @@ class Spike_train:
         Arguments:
         edges: np.array containing the edges from np.histogram()
         
-        Returns a np.array containing the midpoint of every bin.
+        Returns:
+        A np.array containing the midpoint of every bin stored in the variable "timestamp".
         """
         x = edges
         diff = x[1] - x[0]
@@ -300,11 +335,17 @@ class Spike_train:
     
     def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
         """
-        Calculate the instantaneous firing rate. This is the firing rate of the neuron over time.
-
+        Calculates the instantaneous firing rate. This is the firing rate of the neuron over time.
         The spikes are counted in equal sized time windows. (histogram)
         Then the spike count array is smooth with a gaussian kernel. (convolution)
-        The result is a tuple containing the ifr, count and edges. These are 1D numpy arrays
+        
+        Arguments:
+        self.st
+        bin_size_ms:
+        sigma:
+        
+        Returns:
+        A tuple containing the ifr, count and edges. These are 1D numpy arrays
         """    
         st_ms=self.st*1000
         count, edges = np.histogram(st_ms, bins = np.arange(0, self.intervals.total_interval_duration_seconds() * 1000+bin_size_ms, bin_size_ms))
@@ -321,9 +362,15 @@ class Spike_train:
       
     def instantaneous_firing_rate_autocorrelation(self, normed= False, max_lag_ms= 200):
         """
-        Calculate the autocorrelation of the instantaneous firing rate array (self.isi)
+        Calculates the autocorrelation of the instantaneous firing rate array (self.isi)
         
-        Save the results in self.ifr_autocorrelation
+        Arguments:
+        The instantaneous_firing_rate() arrays saved in self.ifr
+        normed:
+        max_lag_ms:
+        
+        Returns:
+        The results are saved in self.ifr_autocorrelation
         """
         res= np.correlate(self.ifr[0],self.ifr[0],mode='full')
         maxlag= max_lag_ms/self.ifr_bin_size_ms
@@ -343,8 +390,14 @@ class Spike_train:
                 
     def instantaneous_firing_rate_power_spectrum(self, nfft = None, scaling = "density"):
         """
-        Calculate the power spectrum of the instantaneous firing rate array (self.ifr)
+        Calculates the power spectrum of the instantaneous firing rate
         
+        Arguments:
+        The instantaneous_firing_rate() arrays saved in self.ifr
+        nfft:
+        scaling:
+        
+        Returns:
         Save the results in self.ifr_power_spectrum
         """
 
@@ -352,7 +405,18 @@ class Spike_train:
         self.ifr_power_spectrum = f, ps
     
     def instantaneous_firing_rate_crosscorelation(self,spike2=None,normed= False, max_lag_ms= 200):
+        """
+        Calculates the instantaneous firing rate crosscorrelation.
         
+        Arguments:
+        spike2:
+        normed: 
+        max_lag_ms:
+        The instantaneous_firing_rate() arrays saved in self.ifr
+        
+        Returns:
+        The results are saved in self.ifr_corsscorrelation (normed) or self.ifr_crosscorrelation (not normed).
+        """
         if spike2 is None:
             spike2 = Spike_train(name= "spike2", sampling_rate= 20000,st=np.arange(0,10000))
         
@@ -369,7 +433,16 @@ class Spike_train:
             self.ifr_corsscorrelation= res/np.max(res)
             
     def instantaneous_firing_rate_crosscorelation_plot(self,timewindow=None):
+        """
+        Plots the instantaneous firing rate crosscorrelation.
         
+        Arguments:
+        ifr crosscorrelation: saved in self.ifr_corsscorrelation (normed) or self.ifr_crosscorrelation (not normed)
+        timewindow: can be defined to evaluate certain time windows of the spike train? Set to None by default.
+        
+        Returns:
+        A plot of the ifr crosscorrelation.
+        """
         if timewindow== None:
             plt.plot(self.ifr_crosscorrelation)
         else:
@@ -387,6 +460,11 @@ class Spike_train:
         """
         Plot the power spectrum of the instantaneous firing rate (self.ifr_power_spectrum)
         
+        Arguments:
+        2 numpy arrays from self.ifr_power_spectrum
+        
+        Returns:
+        A plot of the ifr power spectrum.
         """
         if self.ifr_power_spectrum is None:
             print("Need to run instantaneous_firing_rate_power_spectrum first")
@@ -397,7 +475,7 @@ class Spike_train:
         
     def spike_time_autocorrelation(self,bin_size_ms=0.5,range_ms=300,max_possible_rate_hz = 500):
         """
-        This function calculate the spike-time autocorrelation by comparing the inter-spike intervals between all possible pair of spikes that fall in the 0-range_ms. 
+        This function calculate the spike-time autocorrelation by comparing the inter-spike intervals between all possible pair of      spikes that fall in the 0-range_ms. 
         Each spike is treated in turn as the reference spike.
         The intervals between the reference spike and the subsequent spikes are calculated and binned in an histogram.
         It only calculates time intervals between the reference spike and spikes that occurred later in time.
@@ -460,3 +538,28 @@ class Spike_train:
         # save the results in self.st_autocorrelation_histogram
         self.st_autocorrelation_histogram = np.histogram(res1,np.arange(0,range_ms+bin_size_ms,bin_size_ms))
 
+    def spike_autocorrelation_plot(self, plot_type = "line"):
+
+        """
+        Plot the spike_autocorrelation using matplotlib.
+        
+        Arguments:
+        Expects 2 numpy arrays from self.st_autocorrelation_histogram
+        plot_type: can be set to a bar or a line diagram
+        
+        Returns:
+        A bar/line plot of the spike autocorrelation.
+        """
+    
+        if self.st_autocorrelation_histogram is None:
+            raise ValueError("please run inter_spike_intervals_histogram() before inter_spike_interval_histogram_plot() ")
+
+        timestamp = self.mid_point_from_edges(spikes.st_autocorrelation_histogram[1])
+    
+        if plot_type == "bar":
+            plt.bar(timestamp, self.st_autocorrelation_histogram[0]) 
+        else:
+            plt.plot(timestamp, self.st_autocorrelation_histogram[0])
+  
+        plt.xlabel("Time (ms)")
+        plt.ylabel("Count")

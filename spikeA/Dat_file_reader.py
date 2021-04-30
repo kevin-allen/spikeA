@@ -17,142 +17,254 @@ class Dat_file_reader:
     
     file_names: List of the file name (full path)
     n_channels: Number of channels in the files
+    size_of_files
+    samples_per_file
+    files_first_sample
+    files_last_sample
     
     Methods:
-    read_data_blocks, retrun 3D np array with the data from the blocks
-    read_one_block, return 2D np array with the data from one block
+    __get_first_last_samples_each_file()
+    get_data_one_block()
+    __get_block_start_end_within_files()
+    __read_one_block()
 
     """
-    def __init__(self,file_names,n_channels, sampling_rate): ##We don't need sampling rate in read dat class
+    def __init__(self,file_names,n_channels): 
         """
         Constructor of the Dat_file_reader class
 
         Arguments:
         file_names: List containing the full path of the .dat files
         n_channels: number of channels in the files
-        sampling_rate: sampling rate of the data
         """
         
-        # assign argument of function to the object attributes
-
-        self.nchannels = n_channels
-        self.file_names = file_names
-        self.sampling_rate = sampling_rate
-        self.sample_index = ()
-
-        # check that the n_channels make sense
+        # check that the n_channels make sense      
         
-        if not isinstance(self.nchannels, int):
+        if not isinstance(n_channels, int):
             raise TypeError("Number of channels should be an integer")
-
-        # make sure the files exist
-        
-        for f in self.file_names:
+        if n_channels < 1 :
+            raise ValueError("Number of channels should be larger than 0")
+        if not isinstance(file_names, list):
+            raise TypeError("file_names should be a list")
+                   
+        # assign argument of function to the object attributes
+        self.n_channels = n_channels
+        self.file_names = file_names
             
-            exist = os.path.isfile(f)
-            if exist is False:
+        # make sure the files exist
+        for f in self.file_names:
+            if os.path.isfile(f) is False:
                 raise ValueError("The file {} is missing.".format(f))
-        print("All files are here")
                 
         # get the file size
+        self.size_of_files = np.array([os.path.getsize(f) for f in self.file_names])
         
-       
-        self.size_of_files = [os.path.getsize(f) for f in self.file_names]
-        
-
         # make sure the file size is a multiple of n_channels*2
-        tmp = np.array(self.size_of_files) % (self.nchannels*2)
-        if sum(tmp != 0) > 1:
-            raise ValueError("Size can not be devided by {}".format(n_channels) + ". Number of bytes doesn't match the number of channes")
+        for i in range(len(self.size_of_files)):
+            if self.size_of_files[i] % (self.n_channels*2) != 0:
+                raise ValueError("Size of file {} can not be devided by {}".format(self.file_names[i],n_channels*2) + ". Number of bytes should be a multiple of n_channels*2")
 
-        # get the number of samples in each file
+        # get the number of samples in each file, a sample contains all channels at a given time point
+        self.samples_per_file = (self.size_of_files / (2*self.n_channels)).astype(int)
         
-        self.sample_number_per_file = np.array(self.size_of_files) / 2
-        
-        # refer the sample number to an index that reflex the continueous sample number
-
-        
-        for k in range(0,len(self.file_names)):
-            if k == 0:
-                start = 0
-                end = self.size_of_files[k]
-            elif k >= 1:
-                start = 0 + self.size_of_files[k-1]
-                end = start + self.size_of_files[k]
-            
-            tmp = (self.file_names[k], start, end)
-            
-            self.sample_index = self.sample_index + tmp
-        self.sample_index = np.reshape(self.sample_index, (len(self.file_names),3))
-
-       
+        # get the first and last sample of each file
+        self.files_first_sample, self.files_last_sample = self.get_first_last_samples_each_file()
+    
     def __str__(self):
-        
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
     
-    def read_data_blocks(self,channels,start_samples,end_samples):
+    def get_first_last_samples_each_file(self):
         """
-        Read data blocks from the dat files
+        Calculate what the first and last sample of a file is
 
-        Arguments
-        channels: np.array containing the channels to get
-        start_samples: np.array containing the start sample for each block
-        end_samples: np.array containing the corresponding end sample (to the start sample). The length of end_samples and start_samples should be the same
+        Arguments:
 
-        Return
-        3D np.array containing the blocks of data from the dat files
+        Returns: 
+        tuple containing 2 1D numpy arrays (first and last sample in each file)
         """
-        # create the 3D np.array
-        # loop and retrieve the individual blocks
-        
-        
-        pass
-    
-  
+        files_last_sample = np.cumsum(self.samples_per_file)-1
+        files_first_sample = np.insert(files_last_sample+1,0,0)[0:-1]
+        return files_first_sample, files_last_sample
 
     
-    def read_one_block(self,channels,start_sample,n_samples):
+    def get_data_one_block(self,start_sample,end_sample,channels):
         """
-        Read one block of continuous samples in the dat file
+        Method that the end user should use to get data from dat files.
+        
+        Arguments:
+        start_sample: first sample to get
+        end_sample: last sample to get
+        channels: 1D numpy array with the channels you want to get
+        
+        Return:
+        2D numpy array (dtype=int16) containing the data requested        
+        """
+        
+        if not isinstance(start_sample,int):
+            raise ValueError("start_sample should be an integer")
+        if not isinstance(end_sample,int):
+            raise ValueError("end_sample should be an integer")
+        if start_sample >= end_sample:
+            raise ValueError("start_sample should be smaller than last_sample")
+        if start_sample < 0:
+            raise ValueError("start_sample should not be a negative value")
+        if end_sample > self.files_last_sample[-1]:
+            raise ValueError("end_sample should not be larger than the total number of samples")
+        if type(channels) is not np.ndarray:
+            raise TypeError("channels should be a numpy.ndarray")
+        if channels.ndim != 1:
+            raise ValueError("channels should be an np.array of 1 dimension")
 
+        samples_to_read=end_sample-start_sample
+        
+        # start and end points of reading operations
+        f1,i1,f2,i2 = self.get_block_start_end_within_files(start_sample,end_sample)
+        
+        # return the data block returned by our self.read_one_block() method
+        return self.read_one_block(f1,i1,f2,i2,samples_to_read,channels)
+        
+    def get_data_many_blocks(self, start_samples, block_size,channels):
+        """
+        Function to read several blocks from dat files
+        
+        This function is used for example to get the spike waveform of a neurons
+        
         Arguments
-        channels: np.array containing the channels to read
-        start_sample: sample index at which we start getting the data
-        n_samples: number of samples to get from the files
-
+        start_samples: 1D numpy array containing the start_sample of each window. The length of this array is the number of blocks that will be read
+        block_size: The number of samples to read in each block. The block size is the same across block
+        channels: 1D numpy array with the channels you want to get
+        
         Return
-        2D np.array containing a single block of data from the dat files
+        3D numpy array of size channels, block_size, n_blocks containing the data blocks.
         """
-        # find out in which files we need to get the data from (# Make an index of the start and end of each file)
         
-        # if in a single file, get the data in one go
-        # if in many file, create a loop to get the data in several steps
+        ## check that the arguments make sense
+        if type(start_samples) is not np.ndarray:
+            raise TypeError("start_samples should be a numpy.ndarray")
+        if start_samples.ndim != 1:
+            raise ValueError("start_samples should be an np.array of 1 dimension")
+        if type(channels) is not np.ndarray:
+            raise TypeError("channels should be a numpy.ndarray") 
+        if block_size<= 0:
+            raise ValueError("block_size should be larger than 0")
+        if channels.ndim != 1:
+            raise ValueError("channels should be an np.array of 1 dimension")    
+        if np.any(start_samples < 0):
+            raise ValueError("start_samples should not be a negative value")
+        if np.any(start_samples+block_size > self.files_last_sample[-1]):
+            raise ValueError("start_samples+block_size is larger than the total number of samples")
         
-        if np.any(channels) >= self.nchannels:
-            raise ValueError("The channel number is not in {}".format(range(0,self.nchannels-1)))
+        ## allocate the memory for all the block in a 3D array,size channels, block_size, n_blocks
+        # blocks = np.array(...)
+        
+        ## get f1,i1,f2,i2 for all the blocks
+        ## we could use a list comprehension to create a list of tuples using the get_block_start_end_within_files()
+        #my_list_of_tuples = [ self.get_block_start_end_within_files(...) ....  for s in start_samples]
+        
+        ## we could iterate with a for look over the list of tupples, for each block we could call the function function read_one_block()
+        # bl=0
+        # for f1,i1,f2,i2 in my_list_of_tuples :
+        #     blocks[:,:,bl] = self.read_one_block(d1,i1,f2,i2,block_size,channels)
+        #     bl=bl+1
             
-        df = np.empty((self.nchannels, 1))
-        for i in range(len(self.file_names)): 
-            tmp = np.memmap(self.file_names[i], dtype = "int16", mode = "r", 
-                                 shape = (self.nchannels, int(self.size_of_files[i]/(2*self.nchannels))), order = "F")
-            df = np.concatenate((df,tmp), axis = 1)
-            
-        dff = df[channels, start_sample:start_sample + n_samples]
-        return dff
+        
+        
+        
+        
+        
+        
+    def get_block_start_end_within_files(self,start_index,end_index):
+        """
+        Function to get the start and end of a block in our collection of .dat files
+
+        This function is needed because we sometime have several .dat files and we need to know in which file(s) to read from.
+
+        Arguments: 
+        start_index: first sample to read
+        end_index: last index to read
+
+        Return:
+        A tuple with start_file_no, start_index_within_file, end_file_no, end_nidex_within_file
+        """
+        # get the starting point of reading operation in dat files (start_file_no,start_index_within_file)
+        start_file_no = np.where((start_index >=self.files_first_sample) &  (start_index <self.files_last_sample))[0].item()
+        start_index_within_file = start_index - self.files_first_sample[start_file_no]
+
+        # get the end point of reading operation in dat files (end_file_no, end_index_within_file)
+        end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index < self.files_last_sample))[0].item()
+        end_index_within_file = end_index - self.files_first_sample[end_file_no]
+
+        # return a tuple with start and end of reading operation
+        return start_file_no, start_index_within_file, end_file_no, end_index_within_file
     
-    def which_dat(self, start_samples, end_samples):
+    def detectUPs(self, channel, start_sample = 0, end_sample = 20000):
         """
-        Determine which .dat file to read based on the start_samples and the end_samples
+        A function to detect ttl up and down edges
         
-        Arguments
-        start_samples: np.array containing the first sample number of each block
-        end_samples: np.array containing the last sample number of each block. 
-        The length of these two arguments should be the same
+        Arguments:
+        channel = ttl channel, by default the last channel
+        start_sample = the first sample to read
+        end_sample = the last sample to read
         
-        Return
-        The name of the .dat file that should be used to access those sample blocks
+        Return a 2D array of all the ups and downs in the selected time window
+
         """
+        ttl = self.get_data_one_block(start_sample = start_sample, end_sample = end_sample, channels = channel)
+        diff = np.diff(ttl)
+        edge = np.where(diff!=0)[0]
+        self.ttl = edge.reshape((int(len(edge)/2),2))
+    
+    
+    def read_one_block(self, f1,i1,f2,i2,samples_to_read,channels):
+        """
+        Function to read one block of consecutive data
+
+        It can read data from several .dat files if needed.
         
-        #### Will it be better to read the whole length of all the .dat file and pick the time interval that we want? The critical point is that whether it's possible to read only
-        #### a segment of the .dat file. What I did with read_one_block is that I read everything and then pick out the specified segment.
+        User should use the get_data method
+
+        Arguments:
+        f1: index of the file in which the block starts (starts at 0)
+        i1: first sample to read in the first file
+        f2: index of the file in which the block ends
+        i2: last sample to read in the last file
+        samples_to_read: total number of samples to read in the block
+        channels: 1D np.array with the channels to read (starts at 0)
+        Return:
+        2D array containing the data to return
+        """
+
+        if f1 == f2:
+            print("can read the block from a single file")
+            print("Read file: ",self.file_names[f1], " from ", i1, "to" , i2)
+            my_mapped_file = np.memmap(self.file_names[f1], dtype = "int16", mode = "r",
+                                       shape = (self.n_channels, self.samples_per_file[f1]), order = "F")                    
+            my_block = my_mapped_file[channels,i1:i2]
+        else:
+            print ("read the block from several files")
+            # allocate the memory for the whole block
+            my_block = np.empty((self.n_channels,samples_to_read),dtype="int16") # something similar
+            copied = 0
+            for i in range(f1,f2+1): # loop through the .dat files
+                print("reading from file ",i)
+                my_mapped_file = np.memmap(self.file_names[i], dtype = "int16", mode = "r",
+                                       shape = (self.n_channels, self.samples_per_file[i]), order = "F")                       
+                if i == f1: # first file    
+                    print("copy from ",i1," to the end of the file (",self.samples_per_file[i],") in file ",f1)
+                    print("into 0 to ", self.samples_per_file[i]-i1)
+                    print(self.samples_per_file[i]-i1)
+                    my_block[channels, 0:(self.samples_per_file[i]-i1)] = my_mapped_file[channels,i1:self.samples_per_file[i]]
+                    copied = copied + self.samples_per_file[i]-i1
+
+                elif i == f2: # last file
+                    print("copy from the begining of the file ",f2, " to ", i2)
+                    print("copied:",copied, " of ", samples_to_read)
+                    my_block[channels, copied:] = my_mapped_file[channels,0:i2]
+
+                else: # files in the middle
+                    print("read the entire file ",i)
+                    my_block[channels, copied:(copied+self.samples_per_file[i])] = my_mapped_file[channels,:]
+                    copied = copied + self.samples_per_file[i] 
+        return my_block
+    
     
