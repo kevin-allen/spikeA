@@ -38,13 +38,20 @@ class TetrodeSession(Session):
     Attributes:
         n_channels: Number of channels
         n_tetrodes: Number of tetrodes
-        clustered: Boolean indicating whether the session is clustered
+        clustered: Boolean indicating whether the session is clustered (is there a main clu file)
         tetrode_locations: List of brain region, one per tetrodes
         dat_files: List of dat files
         trial_df: pandas data frame with information about the trials (trial_name,environment,start_sample,end_sample,duration_sec)
     
     Methods
         load_parameters_from_files()
+    
+    Usage:
+        path="/home/kevin/Documents/data/perez_session/jp5520-26092015-0108"
+        name="jp5520-26092015-0108"
+        ts = TetrodeSession(name,path)
+        print("This is the .par file: ", ts.file_names["par"])
+        ts.load_parameters_from_files()
     
     """
     def __init__(self,name,path):
@@ -54,10 +61,10 @@ class TetrodeSession(Session):
         self.file_names = {"par":self.fileBase +".par",
                           "desen":self.fileBase +".desen",
                           "desel":self.fileBase +".desel",
-                          "sampling_rate":self.fileBase +".sampling_rate_dat",}
+                          "sampling_rate":self.fileBase +".sampling_rate_dat",
+                          "clu": self.fileBase + ".clu",
+                          "res": self.fileBase + ".res"}
         
-        
-        print(self.file_names)
         pass
     
     def load_parameters_from_files():
