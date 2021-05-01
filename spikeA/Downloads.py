@@ -2,7 +2,7 @@ import requests
 import os.path
 import tarfile
 import tempfile 
-import gdown
+#import gdown
 
 
 def download_file_from_google_drive(id, destination):
