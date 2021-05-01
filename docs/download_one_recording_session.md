@@ -8,7 +8,7 @@ If the function can't download the file for some reason, the link is in the docs
 
 ```
 from spikeA.Downloads import download_spikeA_data_one_session
-?download_spikeA_data_one_session
+?download_spikeA_data_one_session # will print the docstring with the link
 download_spikeA_data_one_session()
 ```
 
