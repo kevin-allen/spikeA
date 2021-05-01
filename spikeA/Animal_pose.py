@@ -14,6 +14,7 @@ class Animal_pose:
     
         time: 1D numpy array with the time stamp of each data point in the pose array
         pose: 2D numpy array, columns are (x,y,z,yaw,pitch,roll)
+        inter: Interval object
         
     Methods:
         set_spike_train()
