@@ -33,6 +33,8 @@ def download_spikeA_data_one_session(destination=None):
     
     The data were processed with Klustakwik
     
+    If the download fail, you can download it manually at :  https://drive.google.com/file/d/1xq3wx-k8hv7oLKQqcjoiXxn7aWhwS_6B/view?usp=sharing
+    
     Arguments:
     destination: directory where to save the data. By default, the data will go to your home directory.
     """
