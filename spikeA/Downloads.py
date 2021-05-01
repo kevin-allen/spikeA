@@ -47,11 +47,11 @@ def download_spikeA_data_one_session(destination=None):
         print("Downloading compressed file to",tmp_destination)
         
         # This uses requests to download the file
-        #download_file_from_google_drive(file_id, tmp_destination)
+        download_file_from_google_drive(file_id, tmp_destination)
         
         # This uses gdown, better error message but is an additional requirement.
-        url = 'https://drive.google.com/uc?id=1xq3wx-k8hv7oLKQqcjoiXxn7aWhwS_6B'
-        gdown.download(url, tmp_destination, quiet=False)
+        #url = 'https://drive.google.com/uc?id=1xq3wx-k8hv7oLKQqcjoiXxn7aWhwS_6B'
+        #gdown.download(url, tmp_destination, quiet=False)
         
         # get file size
         f_size = os.path.getsize(tmp_destination)
