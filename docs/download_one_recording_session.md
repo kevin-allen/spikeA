@@ -6,6 +6,6 @@ There is a function in spikeA to download it to your computer.
 
 
 ```
-
-
+from spikeA.Downloads import download_spikeA_data_one_session
+download_spikeA_data_one_session()
 ```
