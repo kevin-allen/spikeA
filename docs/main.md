@@ -15,6 +15,10 @@ git clone https://github.com/kevin-allen/spikeA.git
 
 * [Simple installation with pip](installation.md)
 
+
+## Data 
+* [Download one recording session](download_one_recording_session.md)
+
 ## Code organization
 * [Main classes](classes.md)
 
