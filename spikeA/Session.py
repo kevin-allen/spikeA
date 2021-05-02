@@ -72,21 +72,43 @@ class TetrodeSession(Session):
         Function to read session parameters from configuration files
         """
         # check if the par file is there
+        if os.path.isfile(self.file_names.get("par")):
+            print("par file exists")
+            df = open(self.file_names.get("par")).read().split('\n')
+        else:
+            raise ValueError("par file not found")
         # read the number of channels
+        nCh = int(df[0].split(' ')[0])
         # read the number of tetrodes
+        nTet = df[2].split(' ')[0]
         # create a list of 1D array with the channels for each tetrode
+        tmp = df[3:int(nTet)+3]
+        TetCh = [tmp[i].split(' ')[1:] for i in range(0, len(tmp))]
         # read the number of trials
+        nTrials = df[int(nTet)+3]
         # get a list of trial names
-
+        Trial_names = df[int(nTet)+4:int(nTet)+4+int(nTrials)]
         # check if the desen file is there
+        if os.path.isfile(self.file_names.get("desen")):
+            print("desen file exists")
+        else:
+            raise ValueError("desen file not found")
         # read the desen file
-        
+        desen = open(self.file_names.get("desen")).read().split('\n')
         # check if the desel file is there
+        if os.path.isfile(self.file_names.get("desel")):
+            print("desel file exists")
+        else:
+            raise ValueError("desel file not found")
         # read the desel file
-        
+        desel = open(self.file_names.get("desel")).read().split('\n')
         # check if the sampling_rate file is there
+        if os.path.isfile(self.file_names.get("sampling_rate")):
+            print(".sampling_rate file exists")
+        else:
+            raise ValueError(".sampling_rate file not found")
         # read the sampling rate
-        
+        self.sampling_rate = open(self.file_names.get("sampling_rate")).read().split('\n')
 
 
 class NeuronexusProbeSession(Session):
