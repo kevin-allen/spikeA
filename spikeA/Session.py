@@ -67,7 +67,7 @@ class TetrodeSession(Session):
         
         pass
     
-    def load_parameters_from_files():
+    def load_parameters_from_files(self):
         """
         Function to read session parameters from configuration files
         """
