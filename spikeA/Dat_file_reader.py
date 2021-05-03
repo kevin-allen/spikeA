@@ -100,10 +100,10 @@ class Dat_file_reader:
         2D numpy array (dtype=int16) containing the data requested        
         """
         
-        if not isinstance(start_sample,int):
-            raise ValueError("start_sample should be an integer")
-        if not isinstance(end_sample,int):
-            raise ValueError("end_sample should be an integer")
+        if not isinstance(start_sample,(int, np.integer)):
+            raise ValueError("start_sample should be an integer but is {}".format(type(start_sample)))
+        if not isinstance(end_sample,(int,np.integer)):
+            raise ValueError("end_sample should be an integer but is {}".format(type(end_sample)))
         if start_sample >= end_sample:
             raise ValueError("start_sample should be smaller than last_sample")
         if start_sample < 0:
@@ -189,11 +189,16 @@ class Dat_file_reader:
         # get the starting point of reading operation in dat files (start_file_no,start_index_within_file)
         start_file_no = np.where((start_index >=self.files_first_sample) &  (start_index <self.files_last_sample))[0].item()
         start_index_within_file = start_index - self.files_first_sample[start_file_no]
-
+        print("start_file_no:",start_file_no)
+        print("start_index_within_file:",start_index_within_file)
         # get the end point of reading operation in dat files (end_file_no, end_index_within_file)
-        end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index < self.files_last_sample))[0].item()
+        end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index <= self.files_last_sample))[0].item()
         end_index_within_file = end_index - self.files_first_sample[end_file_no]
-
+        print("end_file_no:",end_file_no)
+        print("end_index_within_file:",end_index_within_file)
+        
+        
+        
         # return a tuple with start and end of reading operation
         return start_file_no, start_index_within_file, end_file_no, end_index_within_file
     
