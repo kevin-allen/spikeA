@@ -82,12 +82,12 @@ class TetrodeSession(Session):
         # read the number of tetrodes
         self.nTet = df[2].split(' ')[0]
         # create a list of 1D array with the channels for each tetrode
-        tmp = df[3:int(nTet)+3]
+        tmp = df[3:int(self.nTet)+3]
         self.TetCh = [tmp[i].split(' ')[1:] for i in range(0, len(tmp))]
         # read the number of trials
-        self.nTrials = df[int(nTet)+3]
+        self.nTrials = df[int(self.nTet)+3]
         # get a list of trial names
-        self.Trial_names = df[int(nTet)+4:int(nTet)+4+int(nTrials)]
+        self.Trial_names = df[int(self.nTet)+4:int(self.nTet)+4+int(self.nTrials)]
         # check if the desen file is there
         if os.path.isfile(self.file_names.get("desen")):
             print("desen file exists")
