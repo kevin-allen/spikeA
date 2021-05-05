@@ -25,7 +25,7 @@ class Neuron:
         self.subject = subject
         self.brain_area = brain_area
         self.channels = channels
-        sel.electrode_id = electrode_id
+        self.electrode_id = electrode_id
         
         # 3 types of analysis for a neurons (spike train, spatial properties and spike waveforms)
         # each will have its own class with associated attributes and methods
@@ -34,7 +34,7 @@ class Neuron:
         self.spike_waveform = None
         return
     
-    def set_spike_train(sampling_rate = 20000, st = None):
+    def set_spike_train(self, sampling_rate = 20000, st = None):
         """
         Method of the neuron class to set the spike train of the neuron
         
