@@ -96,6 +96,7 @@ class TetrodeSession(Session):
         if not os.path.isfile(self.file_names["desel"]):
             raise ValueError("{} file not found".format(self.file_names["desel"]))
         # read the desel file
+            #Check length
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
         # check if the sampling_rate file is there
         if not os.path.isfile(self.file_names["sampling_rate"]):

@@ -300,9 +300,10 @@ class Spike_train:
             raise ValueError("please run inter_spike_intervals_histogram() before inter_spike_interval_histogram_plot() ")  
        
         timestamp = self.mid_point_from_edges(self.isi_histogram[1])
+        diff = timestamp[1] - timestamp[0]
     
         if plot_type == "bar":
-            plt.bar(timestamp, self.isi_histogram[0], width = timestamp/2) 
+            plt.bar(timestamp, self.isi_histogram[0], width = diff) 
         else:
             plt.plot(timestamp, self.isi_histogram[0])
 
