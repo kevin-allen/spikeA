@@ -97,10 +97,16 @@ class TetrodeSession(Session):
             raise ValueError("{} file not found".format(self.file_names["desel"]))
         # read the desel file
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
+        
         # check if the sampling_rate file is there
         if not os.path.isfile(self.file_names["sampling_rate"]):
             raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
         self.sampling_rate = int(open(self.file_names["sampling_rate"]).read().split('\n')[0])
+        
+    def __str__(self): 
+        return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
+
+
 
 
 class NeuronexusProbeSession(Session):
