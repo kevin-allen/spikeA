@@ -92,7 +92,7 @@ class Animal_pose:
     
     
     
-    def pose_from_positrack_file(self,ses, ttl_pulse_channel=None, interpolation_frequency_hz = 50):
+    def pose_from_positrack_files(self,ses, ttl_pulse_channel=None, interpolation_frequency_hz = 50):
         """
         Method to calculute pose at fixed interval from a positrack file.
         
