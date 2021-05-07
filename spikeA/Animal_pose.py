@@ -83,6 +83,15 @@ class Animal_pose:
         print("Number of poses: {}".format(self.pose.shape[0]))
         
     
+    def occupancy_map_2d(self, cm_per_bin =2, smoothin_std_cm = 1.5):
+        """
+        Function to calculate an occupancy map for x and y position data.
+        
+        
+        """
+    
+    
+    
     def pose_from_positrack_file(self,ses, ttl_pulse_channel=None, interpolation_frequency_hz = 50):
         """
         Method to calculute pose at fixed interval from a positrack file.
