@@ -63,7 +63,8 @@ class TetrodeSession(Session):
                           "desel":self.fileBase +".desel",
                           "sampling_rate":self.fileBase +".sampling_rate_dat",
                           "clu": self.fileBase + ".clu",
-                          "res": self.fileBase + ".res"}
+                          "res": self.fileBase + ".res",
+                          "px_per_cm": self.fileBase + ".px_per_cm"}
         
         pass
     
@@ -105,6 +106,14 @@ class TetrodeSession(Session):
         if not os.path.isfile(self.file_names["sampling_rate"]):
             raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
         self.sampling_rate = int(open(self.file_names["sampling_rate"]).read().split('\n')[0])
+        
+        # check if the px_per_cm file is there
+        if not os.path.isfile(self.file_names["px_per_cm"]):
+            raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
+        self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
+        
+        
+        
         
     def __str__(self): 
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))

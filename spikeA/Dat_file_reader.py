@@ -19,6 +19,7 @@ class Dat_file_reader:
     n_channels: Number of channels in the files
     size_of_files
     samples_per_file
+    total_samples
     files_first_sample
     files_last_sample
     
@@ -66,6 +67,10 @@ class Dat_file_reader:
 
         # get the number of samples in each file, a sample contains all channels at a given time point
         self.samples_per_file = (self.size_of_files / (2*self.n_channels)).astype(int)
+        
+        # total number of samples
+        self.total_samples=np.sum(self.samples_per_file)
+        
         
         # get the first and last sample of each file
         self.files_first_sample, self.files_last_sample = self.get_first_last_samples_each_file()
