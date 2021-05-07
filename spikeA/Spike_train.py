@@ -22,7 +22,7 @@ class Spike_train:
     Attributes:
     
     name: name for the spike train
-    st: 1d numpy arrays containing the spike time of a neuron. The time is in seconds.
+    st: 1d numpy arrays containing the spike time of a neuron. The time is in seconds. st is a pointer to st_ori or st_inter
     ifr: 1d numpy array containing the instantaneous firing rate of the neuron
     isi: 1d numpy array containing the inter-spike intervals between subsequent spikes
     

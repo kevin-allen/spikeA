@@ -68,14 +68,24 @@ class Intervals:
         Return
         1D numpy array containing spike times within the intervals
         """
-        
-        # this for loop is probably not the fastest
-        # Ideally, we learn to do this with numpy function
-        to_keep = np.empty_like(st,dtype=np.bool)
-        for i, s in enumerate(st):
-            to_keep[i] = np.any((self.inter[:,0] <= s) & (s <=self.inter[:,1]))
-        return st[to_keep]
+        return st[self.is_within_intervals()]
 
+    def is_within_intervals(self,time):
+        """
+        Return a 1D numpy array containing True or False indicating whether the values in time are within the intervals
+        
+        Artument
+        time: 1D numpy array containing times
+        
+        Return
+        1D numpy array of boolean indicating whether the time points were within the intervals
+        """
+        to_keep = np.empty_like(time,dtype=np.bool)
+        for i, s in enumerate(time):
+            to_keep[i] = np.any((self.inter[:,0] <= s) & (s <=self.inter[:,1]))
+        return to_keep
+        
+        
     def instantaneous_firing_rate_within_intervals(self, ifr, bin_size_ms):
         """
         Return a 1D numpy array containing only the rate values that are within the intervals

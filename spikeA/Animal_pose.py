@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.ttl import detectTTL
+from spikeA.Intervals import Intervals
 class Animal_pose:
     """
     Class containing information about the pose (position and orientation) of an animal in time
@@ -19,24 +20,68 @@ class Animal_pose:
     
     Attributes:
     
-        time: 1D numpy array with the time stamp of each data point in the pose array
-        pose: 2D numpy array, columns are (x,y,z,yaw,pitch,roll)
+        pose: 2D numpy array, columns are (time, x,y,z,yaw,pitch,roll). This is a pointer to pose_ori or pose_inter
+        pose_ori: 2D numpy array of the original data loaded
+        pose_inter: 2D numpy array of the pose data that are within the intervals set
         inter: Interval object
         
     Methods:
-        set_spike_train()
+        pose_from_positrack_file()
+        set_intervals()
+        unset_intervals()
         
     """
     def __init__(self):
         """
         Constructor of the Animal_pose class
         """
-        pass
+        self.pose = None
+        self.pose_ori = None
+        self.pose_inter = None
+        self.intervals = None
     
     def save_pose_to_file(self):
         pass
     def load_pose_from_file(self):
         pass
+    
+    def set_intervals(self,inter):
+        """
+        Function to limit the analysis to poses within a set of set specific time intervals
+        
+        Arguments:
+        inter: 2D numpy array, one interval per row, time in seconds
+        
+        Return:
+        The function will set self.intervals to the values of inter
+        """
+        
+        if self.pose is None:
+            raise ValueError("the pose should be set before setting the intervals")
+        
+        self.intervals.set_inter(inter)
+        
+        # only use the poses that are within the intervals
+        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,0])] 
+        # self.st is now pointing to self.st_inter
+        self.pose = self.pose_inter
+        print("Number of poses: {}".format(self.pose.shape[0]))
+    
+    def unset_intervals(self):
+        """
+        Function to remove the previously set intervals. 
+        
+        After calling this function, all poses of the original data loaded will be considered.
+        The default interval that includes all poses is set.
+        """
+        if self.pose is None:
+            raise ValueError("pose should be set before setting the intervals")
+        
+        self.pose = self.pose_ori
+        # set default time intervals from 0 to just after the last spike
+        self.intervals.set_inter(inter=np.array([[0,self.pose[:,0].max()+1]]))
+        print("Number of poses: {}".format(self.pose.shape[0]))
+        
     
     def pose_from_positrack_file(self,ses, ttl_pulse_channel=None, interpolation_frequency_hz = 50):
         """
@@ -159,18 +204,30 @@ class Animal_pose:
         # new time to interpolate
         nt = np.arange(0, posi[-1,0]+interpolation_step,interpolation_step)
 
+        #
         new_x = fx(nt)
         new_y = fy(nt)
         new_hdc = fhdc(nt)
         new_hds = fhds(nt)
 
         # get back the angle from the cosin and sin
-        new_hd = np.arctan2(new_hdc,new_hds)
+        new_hd = np.arctan2(new_hdc,new_hds) # this does not work at the moment.
 
-        self.time = nt/ses.sampling_rate # from sample number to time in seconds
-        self.pose = np.empty((new_x.shape[0],6),float)
-        self.pose[:] = np.nan
-        self.pose[:,0] = new_x/ses.px_per_cm # transform to cm
-        self.pose[:,1] = new_y/ses.px_per_cm # transform to cm
-        self.pose[:,3] = new_hd
+        # contain time, x,y,z, yaw, pitch, roll
+        # index:    0   1,2,3, 4,    5,     6
+        self.pose_ori = np.empty((new_x.shape[0],7),float) # create the memory
+        self.pose = self.pose_ori # self.pose points to the same memory as self.pose_ori
         
+        self.pose[:] = np.nan
+        self.pose[:,0] = nt/ses.sampling_rate # from sample number to time in seconds
+        self.pose[:,1] = new_x/ses.px_per_cm # transform to cm
+        self.pose[:,2] = new_y/ses.px_per_cm # transform to cm
+        self.pose[:,4] = new_hd
+        
+        ## create intervals that cover the entire session
+        if self.intervals is not None:
+            # set default time intervals from 0 to the last sample
+            self.set_intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
+        else :
+             # get intervals for the first time
+            self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
