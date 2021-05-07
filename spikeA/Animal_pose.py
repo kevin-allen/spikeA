@@ -14,7 +14,8 @@ class Animal_pose:
     
     To ease computations, the time intervals between data point is kept constant.
     
-    The angles are in radians to make computations simpler.
+    Position data are in cm.
+    Angular data are in radians to make computations simpler
     
     Attributes:
     
@@ -169,7 +170,7 @@ class Animal_pose:
         self.time = nt/ses.sampling_rate # from sample number to time in seconds
         self.pose = np.empty((new_x.shape[0],6),float)
         self.pose[:] = np.nan
-        self.pose[:,0] = new_x
-        self.pose[:,1] = new_y
+        self.pose[:,0] = new_x/ses.px_per_cm # transform to cm
+        self.pose[:,1] = new_y/ses.px_per_cm # transform to cm
         self.pose[:,3] = new_hd
         
