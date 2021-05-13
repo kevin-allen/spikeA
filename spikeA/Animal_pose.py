@@ -3,10 +3,12 @@ import pandas as pd
 from pathlib import Path
 from scipy.interpolate import interp1d
 from scipy import ndimage
+import os.path
 
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.ttl import detectTTL
 from spikeA.Intervals import Intervals
+from spikeA.Session import Session
 class Animal_pose:
     """
     Class containing information about the pose (position and orientation) of an animal in time
@@ -25,6 +27,11 @@ class Animal_pose:
         pose_ori: 2D numpy array of the original data loaded
         pose_inter: 2D numpy array of the pose data that are within the intervals set
         inter: Interval object
+        occupancy_cm_per_bin: cm per bin in the occupancy map
+        occupancy_map: 2D numpy array containing the occupancy map
+        occupancy_bins: list of 2 x 1D array containing the bin edges to create the occupancy map (used when calling np.histogram2d)
+        occupancy_smoothing: boolean indicating of the occupancy map was smoothed
+        smoothing_sigma_cm: standard deviation in cm of the gaussian smoothing kernel used to smooth the occupancy map.
         
     Methods:
         pose_from_positrack_file()
@@ -33,19 +40,81 @@ class Animal_pose:
         occupancy_map()
         
     """
-    def __init__(self):
+    def __init__(self, ses=None):
         """
         Constructor of the Animal_pose class
         """
+        
+        # self.ses can be set here or when loading data from files
+        if ses is None:
+            self.ses = None
+        else :
+            if not (issubclass(type(ses),Session) or isinstance(ses,Session)): 
+                raise TypeError("ses should be a subclass of the Session class")
+            self.ses = ses # information regarding our session
+            
         self.pose = None
         self.pose_ori = None
         self.pose_inter = None
         self.intervals = None
+        self.occupancy_cm_per_bin = None
+        self.occupancy_map = None
+        self.occupancy_bins = None
+        self.occupancy_smoothing = None
+        self.smoothing_sigma_cm = None
+        self.pose_file_extension = ".pose.npy"
     
-    def save_pose_to_file(self):
-        pass
-    def load_pose_from_file(self):
-        pass
+    def save_pose_to_file(self,file_name=None):
+        """
+        Save the original pose for this session into an npy file
+        
+        This is used so we don't have to look at the synchronization of the position data and ephys every time we want the position data.
+        
+        Arguments
+        file_name: If you want to save to a specific file name, set this argument. Otherwise, the self.ses object will be used to determine the file name.
+        """
+        if self.pose is None:
+            raise ValueError("the pose should be set before saving it to file")
+        if file_name is None and self.ses is None:
+            raise ValueError("self.ses is not set and no file name is given")
+        
+        if file_name is not None:
+            fn = file_name
+        else:
+            fn = self.ses.fileBase+self.pose_file_extension
+            
+        print("Saving original pose to",fn)
+        np.save(file = fn, arr = self.pose_ori) 
+            
+    def load_pose_from_file(self,file_name=None):
+        """
+        Load the pose data from file.
+        
+        Arguments
+        file_name: If you want to save to a specific file name, set this argument. Otherwise, the self.ses object will be used to determine the file name.
+        """
+        if file_name is None and self.ses is None:
+            raise ValueError("self.ses is not set and no file name is given")
+        
+        if file_name is not None:
+            fn = file_name
+        else:
+            fn = self.ses.fileBase+self.pose_file_extension
+        
+        
+        if not path.exists(fn):
+            raise OSError(fn+" is missing")
+        print("Loading original pose from",fn)
+        self.pose_ori = np.load(file = fn) 
+        self.pose = self.pose_ori
+    
+        ## create intervals that cover all the data in self.pose
+        if self.intervals is not None:
+            # set default time intervals from 0 to the last sample
+            self.set_intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
+        else :
+             # get intervals for the first time
+            self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
     
     def set_intervals(self,inter):
         """
@@ -102,8 +171,13 @@ class Animal_pose:
         self.occupancy_map is set. It is a 2D numpy array containing the time spent in seconds in a set of bins covering the environment
         """
         
+        if self.pose is None:
+            raise TypeError("Set the self.pose array before attempting to calculate the occupancy_map_2d")
+        
         # we save this for later use when calculating firing rate maps
-        self.occ_cm_per_bin=cm_per_bin
+        self.occupancy_cm_per_bin=cm_per_bin
+        self.occupancy_smoothing = smoothing
+        self.smoothing_sigma_cm = smoothing_sigma_cm
         
         # remove invalid position data
         invalid = np.isnan(self.pose[:,1:3]).any(axis=1)
@@ -116,12 +190,13 @@ class Animal_pose:
         #print("max x and y for the np.arange function : {}".format(xy_max))
 
         # create two arrays that will be our bin edges in the histogram function
-        bins = [np.arange(0,xy_max[0],cm_per_bin),
-                np.arange(0,xy_max[1],cm_per_bin)]
+        self.occupancy_bins = [np.arange(0,xy_max[0],cm_per_bin),
+                               np.arange(0,xy_max[1],cm_per_bin)]
+        
         
         # calculate the occupancy map
         occ,x_edges,y_edges = np.histogram2d(x = val[:,0], y= val[:,1],
-                                            bins= bins)
+                                            bins= self.occupancy_bins)
         
         # calculate the time per sample
         sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
@@ -145,7 +220,7 @@ class Animal_pose:
         
         
     
-    def pose_from_positrack_files(self,ses, ttl_pulse_channel=None, interpolation_frequency_hz = 50):
+    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50):
         """
         Method to calculute pose at fixed interval from a positrack file.
         
@@ -158,6 +233,15 @@ class Animal_pose:
         No value is returned but self.time and self.pose are set
         
         """
+        
+        if ses is None and self.ses is None:
+            raise TypeError("Please provide a session object with the ses argument")
+        
+        if ses is not None:
+            if not (issubclass(type(ses),Session) or isinstance(ses,Session)): 
+                raise TypeError("ses should be a subclass of the Session class")
+            self.ses = ses # update what is in the self.ses
+        
         # we loop for each trial, check the syncrhonization, append the position data and ttl time 
         # (taking into account the length of previous files)
 
@@ -167,14 +251,14 @@ class Animal_pose:
         posi_list = []
 
         # interpolate to have data for the entire .dat file (padded with np.nan at the beginning and end when there was no tracking)
-        interpolation_step = ses.sampling_rate/interpolation_frequency_hz # interpolate at x Hz
+        interpolation_step = self.ses.sampling_rate/interpolation_frequency_hz # interpolate at x Hz
         print("Interpolation step: {} samples".format(interpolation_step))
 
 
         # loop for trials
-        for i,t in enumerate(ses.trial_names):
-            dat_file_name = ses.path + "/" + t+".dat"
-            positrack_file_name = ses.path + "/" + t+".positrack"
+        for i,t in enumerate(self.ses.trial_names):
+            dat_file_name = self.ses.path + "/" + t+".dat"
+            positrack_file_name = self.ses.path + "/" + t+".positrack"
             print(dat_file_name)
             print(positrack_file_name)
 
@@ -183,8 +267,8 @@ class Animal_pose:
                 raise OSError("positrack file {} missing".format(positrack_file_name))
 
             # read the ttl channel for positrack
-            df = Dat_file_reader(file_names=[dat_file_name],n_channels = ses.n_channels)
-            ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([ses.n_channels-1]))
+            df = Dat_file_reader(file_names=[dat_file_name],n_channels = self.ses.n_channels)
+            ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
             ttl = detectTTL(ttl_data = ttl_channel_data)
             print("Number of ttl pulses detected: {}".format(ttl.shape[0]))
 
@@ -281,9 +365,9 @@ class Animal_pose:
         self.pose = self.pose_ori # self.pose points to the same memory as self.pose_ori
         
         self.pose[:] = np.nan
-        self.pose[:,0] = nt/ses.sampling_rate # from sample number to time in seconds
-        self.pose[:,1] = new_x/ses.px_per_cm # transform to cm
-        self.pose[:,2] = new_y/ses.px_per_cm # transform to cm
+        self.pose[:,0] = nt/self.ses.sampling_rate # from sample number to time in seconds
+        self.pose[:,1] = new_x/self.ses.px_per_cm # transform to cm
+        self.pose[:,2] = new_y/self.ses.px_per_cm # transform to cm
         self.pose[:,4] = new_hd
         
         ## create intervals that cover the entire session
