@@ -94,7 +94,7 @@ class Spike_train:
         
         # self.st is a pointer to self.st_ori
         self.st = self.st_ori
-        print("Spike_train, name: {}, number of spikes {}, first: {}, last: {}".format(self.name, self.st.shape[0],self.st.min(),self.st.max()))
+        
         
         # set default time intervals from 0 to just after the last spike
         if self.intervals is not None:
@@ -102,6 +102,8 @@ class Spike_train:
         else :
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.st.max()+1]]))
+        
+        print("Spike_train, name: {name}, number of spikes: {n_spikes:{fill}{align}{width}} mean firing rate: {rate:.2f} Hz".format(name=self.name, n_spikes=self.n_spikes(),fill=" ",align="<", width=8,rate=self.mean_firing_rate()))
         
     def set_intervals(self,inter):
         """

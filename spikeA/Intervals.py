@@ -30,7 +30,7 @@ class Intervals:
         sampling_rate: number of samples per seconds
         """
         self.set_inter(inter)
-        print("{} intervals".format(self.inter.shape[0]))
+        #print("{} intervals".format(self.inter.shape[0]))
         
     def set_inter(self,inter):
         
@@ -49,7 +49,7 @@ class Intervals:
         
         self.inter = inter
         
-        print("Time in intervals: {} sec".format(self.total_interval_duration_seconds()))
+        #print("Time in intervals: {} sec".format(self.total_interval_duration_seconds()))
         
         
     def total_interval_duration_seconds(self):

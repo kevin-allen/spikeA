@@ -35,6 +35,8 @@ class Animal_pose:
         
     Methods:
         pose_from_positrack_file()
+        save_pose_to_file()
+        load_pose_from_file()
         set_intervals()
         unset_intervals()
         occupancy_map()
@@ -102,7 +104,7 @@ class Animal_pose:
             fn = self.ses.fileBase+self.pose_file_extension
         
         
-        if not path.exists(fn):
+        if not os.path.exists(fn):
             raise OSError(fn+" is missing")
         print("Loading original pose from",fn)
         self.pose_ori = np.load(file = fn) 
