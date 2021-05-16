@@ -1,5 +1,7 @@
 import numpy as np
 from spikeA.Spike_train import Spike_train
+from spikeA.Animal_pose import Animal_pose
+from spikeA.Spatial_properties import Spatial_properties
 
 class Neuron:
     """
@@ -12,8 +14,9 @@ class Neuron:
         channels: Channels on which the neuron was recorded. This is used to get the spike waveforms.
         spike_train: Spike_train object for the neuron
         spike_waveform: Spike waveform object for the neuron
-        spatial_prop: Spatial_prop object for the neuron. Contains the single-cell spatial properties of the neuron
+        spatial_properties: Spatial_prop object for the neuron. Contains the single-cell spatial properties of the neuron
     Methods:
+        set_spatial_properties()
         set_spike_train()
         
     """
@@ -30,9 +33,30 @@ class Neuron:
         # 3 types of analysis for a neurons (spike train, spatial properties and spike waveforms)
         # each will have its own class with associated attributes and methods
         self.spike_train = None
-        self.spatial_prop = None
+        self.spatial_properties = None
         self.spike_waveform = None
         return
+    
+    def set_spatial_properties(self, animal_pose):
+        """
+        Method of the neuron class to set the Spatial_properties object of the neuron
+        
+        Arguments
+        animal_pose: Animal_pose object
+        
+        Return
+        The neuron.spatial_properties object of the Neuron is set.
+        """
+        
+        # if we don't have a Spike_train object in the Neuron object, create it
+        if self.spike_train is None: # if None create the Spike_train object of the neuron
+            raise TypeError("Set the neuron's Spike_train object before calling set_spatial_properties")
+        
+        if not isinstance(animal_pose,Animal_pose): 
+            raise TypeError("animal_pose should be a subclass of the Animal_pose class")
+        
+        self.spatial_properties = Spatial_properties(animal_pose=animal_pose,spike_train=self.spike_train)
+    
     
     def set_spike_train(self, sampling_rate = 20000, st = None):
         """

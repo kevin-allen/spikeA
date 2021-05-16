@@ -478,7 +478,7 @@ class Spike_train:
         
     def spike_time_autocorrelation(self,bin_size_ms=0.5,range_ms=300,max_possible_rate_hz = 500):
         """
-        This function calculate the spike-time autocorrelation by comparing the inter-spike intervals between all possible pair of      spikes that fall in the 0-range_ms. 
+        This function calculate the spike-time autocorrelation by comparing the inter-spike intervals between all possible pair of spikes that fall in the 0-range_ms. 
         Each spike is treated in turn as the reference spike.
         The intervals between the reference spike and the subsequent spikes are calculated and binned in an histogram.
         It only calculates time intervals between the reference spike and spikes that occurred later in time.
@@ -503,7 +503,7 @@ class Spike_train:
 
         # check RAM usage needed
         RAM_needed_MB = self.st.shape[0]*spike_seq_length*self.st.itemsize/1000000
-        print("RAM needed: {} MB".format(RAM_needed_MB))
+        print("RAM needed for spike_time_autocorrelation: {} MB".format(RAM_needed_MB))
 
         if RAM_needed_MB > 8000:
             "The spike_time_autocorrelation() method needs {} MB of RAM".format(RAM_needed_MB)
@@ -557,7 +557,7 @@ class Spike_train:
         if self.st_autocorrelation_histogram is None:
             raise ValueError("please run inter_spike_intervals_histogram() before inter_spike_interval_histogram_plot() ")
 
-        timestamp = self.mid_point_from_edges(spikes.st_autocorrelation_histogram[1])
+        timestamp = self.mid_point_from_edges(self.st_autocorrelation_histogram[1])
     
         if plot_type == "bar":
             plt.bar(timestamp, self.st_autocorrelation_histogram[0]) 
