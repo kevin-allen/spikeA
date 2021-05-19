@@ -22,8 +22,8 @@ You might want to change `kevin` for your user name.
 ```
 conda deactivate
 mkdir /home/kevin/python_virtual_environments
-python3 -m venv /home/kevin/python_virtual_environments/skikeAenv
-source /home/kevin/python_virtual_environments/skikeAenv/bin/activate
+python3 -m venv /home/kevin/python_virtual_environments/spikeAenv
+source /home/kevin/python_virtual_environments/spikeAenv/bin/activate
 ```
 
 ## Install spikeA in your python environment
