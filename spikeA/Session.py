@@ -14,7 +14,7 @@ class Session:
     
     Attributes:
         name: Name of the session. Usually used as the beginning of the file names. Format should be subject-date-time
-        path: Directory path of the data for this session. Should not end with a /
+        path: Directory path of the data for this session.
         subject: Name of the subect. This assumes that the session name is in the format subject-date-time
         session_date_time: Datetime of the session. This assumes that the session name is in the format subject-date-time
         file_base: path + name
@@ -24,14 +24,14 @@ class Session:
     """
     def __init__(self,name, path):
         self.name = name
-        self.path = path
+        self.path = os.path.normpath(path)
         self.subject = self.name.split("-")[0]
         self.session_dat_time = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
-        self.fileBase = path+"/"+name
+        self.fileBase = self.path+"/"+name
         return
 
     
-class TetrodeSession(Session):
+class Tetrode_session(Session):
     """
     Class containing information about a recording session in which tetrodes were used
     
@@ -121,7 +121,7 @@ class TetrodeSession(Session):
 
 
 
-class KilosortSession(Session):
+class Kilosort_session(Session):
     """
     Class containing information about a recording session processed with Kilosort.
     
@@ -166,4 +166,47 @@ class KilosortSession(Session):
                            "spike_times": self.path +"/spike_times.npy",
                            "spike_clusters": self.path +"/spike_clusters.npy",
                            "cluster_groups": self.path +"/cluster_groups.csv"}
+    
+    def load_parameters_from_files(self):
+        """
+        Function to read session parameters from configuration files.
         
+        The names of the files are in the self.file_names dictionary.
+        """
+        
+        ## read the params file
+        if not os.path.isfile(self.file_names["params"]):
+            raise ValueError("{} file not found".format(self.file_names["params"]))    
+        f = open(self.file_names["params"], "r")
+        c = f.read().replace('\'','').split('\n')
+        f.close()
+        
+        self.n_channels = int(c[1].split(" = ")[1])
+        self.dat_dtype = c[2].split(" = ")[1]
+        self.dat_offset = int(c[3].split(" = ")[1])
+        self.sampling_rate = float(c[4].split(" = ")[1])
+        
+        # read the desen file
+        if not os.path.isfile(self.file_names["desen"]):
+            raise ValueError("{} file not found".format(self.file_names["desen"]))
+        self.desen = open(self.file_names["desen"]).read().split('\n')[:-1]
+        # read the desel file 
+        if not os.path.isfile(self.file_names["desel"]):
+            raise ValueError("{} file not found".format(self.file_names["desel"]))
+        # read the desel file
+        self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
+        
+        # get the trial names from the par file
+        if not os.path.isfile(self.file_names["par"]):
+            raise ValueError("{} file not found".format(self.file_names["par"]))    
+        f = open(self.file_names["par"], "r")
+        c = f.read().split('\n')
+        f.close()
+        to_skip = int(c[2].split()[0])
+        n_trials = int(c[3+to_skip])
+        n_trials
+        self.trial_names = c[to_skip+4:to_skip+4+n_trials]
+        
+        
+    def __str__(self): 
+        return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))

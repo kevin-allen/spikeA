@@ -4,6 +4,7 @@ File containing the definition of the Spike_train_loader class
 import numpy as np
 import pandas as pd
 from scipy import stats
+from spikeA.Session import Kilosort_session
 
 class Spike_train_loader:
     """
@@ -136,4 +137,15 @@ class Spike_train_loader:
         print(clu.size,res.size)
         self.clu_ids = np.sort(np.unique(clu))
         self.spike_times = [ res[clu==c] for c in self.clu_ids ]
+    
+    def load_spike_train_kilosort(self, ks):
+        """
+        Load the spike train for a recording session processed with kilosort
         
+        Arguments
+        ks: a Kilosort_session object
+        
+        The values are stored in self.clu_id, self.spike_times, 
+        """
+        if not isinstance(ks,Kilosort_session):
+            raise TypeError("ks should be a Kilosort_session")
