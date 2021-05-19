@@ -121,14 +121,49 @@ class TetrodeSession(Session):
 
 
 
-class NeuronexusProbeSession(Session):
+class KilosortSession(Session):
     """
-    Class containing information about a recording session with Neuronexus probes
+    Class containing information about a recording session processed with Kilosort.
+    
+    The files and format expected are described here:
+    https://phy.readthedocs.io/en/latest/sorting_user_guide/
+    
+    Attributes:
+        n_channels: Number of channels
+        n_shanks: Number of tetrodes
+        dat_files: List of dat files
+        trial_df: pandas data frame with information about the trials (trial_name,environment,start_sample,end_sample,duration_sec)
+    
+    Methods
+        load_parameters_from_files()
+    
+    Usage:
+        path="/home/kevin/Documents/data/perez_session/jp5520-26092015-0108"
+        name="jp5520-26092015-0108"
+        ks = KilosortSession(name,path)
+        print("This is the config.py file: ", ks.file_names["config"])
+        ks.load_parameters_from_files()
     """
-    pass
-
-class NeuropixelsSession(Session):
-    """
-    Class containing information about a recording session with Neuropixels probes
-    """
-    pass
+    
+    def __init__(self,name,path):
+        super().__init__(name, path) # call Session constructor
+        
+        # get a dictionnary containing the files with the session configuration
+        self.file_names = { # files used in the Allen lab
+                            "par":self.fileBase +".par",
+                           "desen":self.fileBase +".desen",
+                            "desel":self.fileBase +".desel",
+                            "sampling_rate":self.fileBase +".sampling_rate_dat",
+                            "px_per_cm": self.fileBase + ".px_per_cm",
+                           # files created by kilosort
+                            "params": self.path +"/params.py",
+                            "amplitudes": self.path +"/amplitudes.npy",
+                            "channel_map": self.path +"/channel_map.npy",
+                           "channel_positions": self.path +"/channel_positions.npy",
+                           "pc_features": self.path +"/pc_features.npy",
+                           "pc_feature_ind": self.path +"/pc_feature_ind.npy",
+                           "spike_templates": self.path +"/spike_templates.npy",
+                           "spike_times": self.path +"/spike_times.npy",
+                           "spike_clusters": self.path +"/spike_clusters.npy",
+                           "cluster_groups": self.path +"/cluster_groups.csv"}
+        
