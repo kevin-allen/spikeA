@@ -4,6 +4,7 @@ File containing the definition of the Spike_train_loader class
 import numpy as np
 import pandas as pd
 from scipy import stats
+import os.path
 from spikeA.Session import Kilosort_session
 
 class Spike_train_loader:
@@ -148,4 +149,36 @@ class Spike_train_loader:
         The values are stored in self.clu_id, self.spike_times, 
         """
         if not isinstance(ks,Kilosort_session):
-            raise TypeError("ks should be a Kilosort_session")
+            raise TypeError("ks should be a Kilosort_session but is"+ type(ks))
+        
+        
+        if not os.path.isfile(ks.file_names["spike_times"]):
+            raise IOError("{} file not found".format(ks.file_names["spike_times"]))
+        spike_times = np.squeeze(np.load(ks.file_names["spike_times"])/self.sampling_rate)
+        
+        if not os.path.isfile(ks.file_names["spike_clusters"]):
+            raise IOError("{} file not found".format(ks.file_names["spike_clusters"]))
+        spike_clusters = np.load(ks.file_names["spike_clusters"])
+        
+        if spike_clusters.shape[0] != spike_times.shape[0]:
+            raise ValueError("the shape of spike_clusters and spike_times should be the same but are {} {}".format(spike_clusters.shape[0],spike_times.shape[0]))
+        
+        # read the cluster_group file
+        if not os.path.isfile(ks.file_names["cluster_group"]):
+            raise IOError("{} file not found".format(ks.file_names["cluster_group"]))
+        
+        cluster_group = pd.read_csv(ks.file_names["cluster_group"],"\t")
+
+        # get the clu id of "good" clusters
+        g = cluster_group.group == "good"
+        good_clusters = cluster_group.cluster_id[g].to_numpy()
+        print("Number of good clusters: {}".format(len(good_clusters)))
+        
+        ## only keep the spikes from good clusters
+        g = np.isin(spike_clusters,good_clusters)
+        spike_times = spike_times[g]
+        spike_clusters = spike_clusters[g]
+        
+        ## format the spike times so we get a list of arrays
+        self.clu_ids = np.sort(np.unique(spike_clusters))
+        self.spike_times = [ spike_times[spike_clusters==c] for c in self.clu_ids ]

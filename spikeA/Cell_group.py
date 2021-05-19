@@ -28,7 +28,7 @@ class Cell_group:
         # This function creates a list of Neurons and set the spike train object using the spike_train_loader object
         """
         if not isinstance(stl,Spike_train_loader):
-            raise TypeError("stl should be a SpikeA.Spike_train_loader object")
+            raise TypeError("stl should be a Spike_train_loader object but is {}".format(type(stl)))
         
         ## create a list of neurons
         ## use a list comprehension, use the stl.clu_ids to set the name of the neurons

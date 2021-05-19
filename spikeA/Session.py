@@ -165,7 +165,7 @@ class Kilosort_session(Session):
                            "spike_templates": self.path +"/spike_templates.npy",
                            "spike_times": self.path +"/spike_times.npy",
                            "spike_clusters": self.path +"/spike_clusters.npy",
-                           "cluster_groups": self.path +"/cluster_groups.csv"}
+                           "cluster_group": self.path +"/cluster_group.tsv"}
     
     def load_parameters_from_files(self):
         """
@@ -176,7 +176,7 @@ class Kilosort_session(Session):
         
         ## read the params file
         if not os.path.isfile(self.file_names["params"]):
-            raise ValueError("{} file not found".format(self.file_names["params"]))    
+            raise IOError("{} file not found".format(self.file_names["params"]))    
         f = open(self.file_names["params"], "r")
         c = f.read().replace('\'','').split('\n')
         f.close()
@@ -188,17 +188,17 @@ class Kilosort_session(Session):
         
         # read the desen file
         if not os.path.isfile(self.file_names["desen"]):
-            raise ValueError("{} file not found".format(self.file_names["desen"]))
+            raise IOError("{} file not found".format(self.file_names["desen"]))
         self.desen = open(self.file_names["desen"]).read().split('\n')[:-1]
         # read the desel file 
         if not os.path.isfile(self.file_names["desel"]):
-            raise ValueError("{} file not found".format(self.file_names["desel"]))
+            raise IOError("{} file not found".format(self.file_names["desel"]))
         # read the desel file
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
         
         # get the trial names from the par file
         if not os.path.isfile(self.file_names["par"]):
-            raise ValueError("{} file not found".format(self.file_names["par"]))    
+            raise IOError("{} file not found".format(self.file_names["par"]))    
         f = open(self.file_names["par"], "r")
         c = f.read().split('\n')
         f.close()
