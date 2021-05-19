@@ -36,6 +36,12 @@ Make sure your python environment is active. Then install the `spikeA` package i
 pip install -e ~/repo/spikeA
 ```
 
+If this stalls, check that your proxy is set properly. For instance at the DKFZ, you would use this code.
+```
+echo $https_proxy
+export https_proxy=www-int2.inet.dkfz-heidelberg.de:80
+```
+
 You should then be able to import the different modules of the package from ipython
 
 ## Test your installation
