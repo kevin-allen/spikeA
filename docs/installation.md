@@ -44,6 +44,12 @@ export https_proxy=www-int2.inet.dkfz-heidelberg.de:80
 
 You should then be able to import the different modules of the package from ipython
 
+## Install ipython
+
+```
+pip install jupyterlab
+```
+
 ## Test your installation
 
 To get a ipython terminal
@@ -57,3 +63,10 @@ from spikeA.Spike_train import Spike_train
 Spike_train("hey")
 ```
 If there is no error, `spikeA` is now installed in your environment.
+
+If some requirements are missing, try this
+
+```
+cd ~/repo/spikeA
+pip install -r requirements.txt
+```
