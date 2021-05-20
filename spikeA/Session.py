@@ -66,6 +66,23 @@ class Tetrode_session(Session):
                           "res": self.fileBase + ".res",
                           "px_per_cm": self.fileBase + ".px_per_cm"}
         
+        
+        myPath = self.path+'/'
+        cluFiles = [myPath + f for f in os.listdir(myPath) if f.endswith('.clu.', 0, 25) & ~f.endswith('.bk')]
+        cluFiles.sort()
+        cluFiles
+        self.Tetrode_index = {}
+        cell_index = 2
+
+        for index, filename in enumerate(cluFiles):
+            Tet = 'Tet_' + filename.split('/')[-1].split('.')[-1]
+            nCell = int(open(filename).readline().split('\n')[0])-1
+            if nCell != 0:
+                cell_ID = np.arange(cell_index, cell_index + nCell)
+            elif nCell == 0:
+                cell_ID = None
+            self.Tetrode_index[Tet] = cell_ID    
+            cell_index = cell_index + nCell
         pass
     
     def load_parameters_from_files(self):
