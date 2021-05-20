@@ -78,9 +78,9 @@ class Tetrode_session(Session):
             Tet = 'Tet_' + filename.split('/')[-1].split('.')[-1]
             nCell = int(open(filename).readline().split('\n')[0])-1
             if nCell != 0:
-                cell_ID = np.arange(cell_index, cell_index + nCell)
+                cell_ID = range(cell_index, cell_index + nCell)
             elif nCell == 0:
-                cell_ID = None
+                cell_ID = range(0,0)
             self.Tetrode_index[Tet] = cell_ID    
             cell_index = cell_index + nCell
         pass
