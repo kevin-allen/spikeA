@@ -12,8 +12,8 @@ class Neuron:
         subject: Name of the subject (animal).
         brain_area: Brain area in which the neuron was recorded
         channels: Channels on which the neuron was recorded. This is used to get the spike waveforms.
-        spike_train: Spike_train object for the neuron
-        spike_waveform: Spike waveform object for the neuron
+        spike_train: Spike_train object for the neuron.
+        spike_waveform: Spike waveform object for the neuron.
         spatial_properties: Spatial_prop object for the neuron. Contains the single-cell spatial properties of the neuron
     Methods:
         set_spatial_properties()

@@ -98,8 +98,7 @@ class Spatial_properties:
         
         Return
         Information score
-        """
-        
+        """      
         
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
         v = self.firing_rate_map
