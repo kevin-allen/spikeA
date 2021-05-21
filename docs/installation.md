@@ -22,8 +22,8 @@ You might want to change `kevin` for your user name.
 ```
 conda deactivate
 mkdir /home/kevin/python_virtual_environments
-python3 -m venv /home/kevin/python_virtual_environments/skikeAenv
-source /home/kevin/python_virtual_environments/skikeAenv/bin/activate
+python3 -m venv /home/kevin/python_virtual_environments/spikeAenv
+source /home/kevin/python_virtual_environments/spikeAenv/bin/activate
 ```
 
 ## Install spikeA in your python environment
@@ -36,7 +36,19 @@ Make sure your python environment is active. Then install the `spikeA` package i
 pip install -e ~/repo/spikeA
 ```
 
+If this stalls, check that your proxy is set properly. For instance at the DKFZ, you would use this code.
+```
+echo $https_proxy
+export https_proxy=www-int2.inet.dkfz-heidelberg.de:80
+```
+
 You should then be able to import the different modules of the package from ipython
+
+## Install ipython
+
+```
+pip install jupyterlab
+```
 
 ## Test your installation
 
@@ -51,3 +63,10 @@ from spikeA.Spike_train import Spike_train
 Spike_train("hey")
 ```
 If there is no error, `spikeA` is now installed in your environment.
+
+If some requirements are missing, try this
+
+```
+cd ~/repo/spikeA
+pip install -r requirements.txt
+```

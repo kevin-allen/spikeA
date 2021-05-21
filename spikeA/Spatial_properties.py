@@ -22,10 +22,10 @@ class Spatial_properties:
         Constructor of the Spatial_properties class
         """
         
-        if not isinstance(spike_train,Spike_train): 
-            raise TypeError("spike_train should be a subclass of the Spike_train class")
-        if not isinstance(animal_pose,Animal_pose): 
-            raise TypeError("animal_pose should be a subclass of the Animal_pose class")
+#         if not isinstance(spike_train,Spike_train): 
+#             raise TypeError("spike_train should be a subclass of the Spike_train class")
+#         if not isinstance(animal_pose,Animal_pose): 
+#             raise TypeError("animal_pose should be a subclass of the Animal_pose class")
             
         self.st=spike_train
         self.ap=animal_pose
@@ -94,5 +94,28 @@ class Spatial_properties:
     
     def information_score(self):
         """
-        Method of the Spatial_proper
+        Method of the Spatial_properties class to calculate the information score of a single neuron.
+        
+        Return
+        Information score
+        """      
+        
+        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
+        v = self.firing_rate_map
+        v[v==0]=np.nan
+        IS = np.nansum((p * v) * np.log2(v/np.nanmean(self.firing_rate_map)))
+        return IS
+    
+    def sparsity_score(self):
         """
+        Method of the Spatial_properties class to calculate the sparsity score of a single neuron.
+        
+        Return
+        Sparsity score
+        """
+        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
+        v = self.firing_rate_map
+        return 1-((((np.nansum(p*v))**2))/np.nansum(p*(v**2)))
+        
+        pass            
+    
