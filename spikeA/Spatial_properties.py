@@ -84,6 +84,9 @@ class Spatial_properties:
                                                      y= self.spike_posi[:,1],
                                                      bins= self.ap.occupancy_bins)
         
+        # save this for later (e.g., in information_score())
+        self.spike_count = spike_count
+        
         ## smooth the spike count array
         if smoothing:
             spike_count = ndimage.filters.gaussian_filter(spike_count,
@@ -96,14 +99,31 @@ class Spatial_properties:
         """
         Method of the Spatial_properties class to calculate the information score of a single neuron.
         
+        The formula is from Skaggs and colleagues (1996, Hippocampus).
+        
         Return
         Information score
         """      
         
+        # need to check that we have a valid firing rate map already calculated
+        
+        
+        # probability to be in bin i
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
+        
+        # firing rate in bin i
         v = self.firing_rate_map
+        
+        # mean rate is the sum of spike count / sum of occupancy, NOT the mean of the firing rate map bins
+        mr = np.nansum(self.spike_count)/np.nansum(self.ap.occupancy_map)
+        
+        # when rate is 0, we get p * 0 * -inf, which should be 0
+        # to avoid -inf * 0, we set the v==0 to np.nan
         v[v==0]=np.nan
-        IS = np.nansum((p * v) * np.log2(v/np.nanmean(self.firing_rate_map)))
+        
+        # following Skaggs' formula
+        IS = np.nansum(p * v/mr * np.log2(v/mr))
+        
         return IS
     
     def sparsity_score(self):
