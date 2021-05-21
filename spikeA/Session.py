@@ -93,33 +93,45 @@ class Tetrode_session(Session):
         # check if the par file is there
         if not os.path.isfile(self.file_names["par"]):
             raise ValueError("{} file not found".format(self.file_names["par"]))                  
-        df = open(self.file_names["par"]).read().split('\n')                   
+        df = open(self.file_names["par"]).read().split('\n')       
+        
         # read the number of channels
         self.n_channels = int(df[0].split(' ')[0])
+        
         # read the number of tetrodes
         self.n_tetrodes = int(df[2].split(' ')[0])
-        # create a list of 1D array with the channels for each tetrode
+        
+        # create a dictionary with the channels for each tetrode
         tmp = df[3:int(self.n_tetrodes)+3]
         tetrode_channels = [list(map(int, tmp[i].split(' ')))[1:] for i in range(0, len(tmp))]
         self.tetrode_channels = {}
+        for i in range(self.n_tetrodes):
+            self.tetrode_channels['Tet_'+str(i)] = tetrode_channels[i]
+        
         # read the number of trials
         self.n_trials = int(df[int(self.n_tetrodes)+3])
+        
         # get a list of trial names
         self.trial_names = df[self.n_tetrodes+4:self.n_tetrodes+4+self.n_trials]
+        
         # check if the desen file is there
         if not os.path.isfile(self.file_names["desen"]):
             raise ValueError("{} file not found".format(self.file_names["desen"]))
+            
         # read the desen file
         self.desen = open(self.file_names["desen"]).read().split('\n')[:-1]
+        
         # check if the desel file is there
         if not os.path.isfile(self.file_names["desel"]):
             raise ValueError("{} file not found".format(self.file_names["desel"]))
+            
         # read the desel file
         desel = open(self.file_names["desel"]).read().split('\n')[:-1]
         if len(desel) == self.n_tetrodes:
             self.desel = desel
         else:
             raise ValueError("Length of desel is not matching the number of tetrodes")
+            
         # check if the sampling_rate file is there
         if not os.path.isfile(self.file_names["sampling_rate"]):
             raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
