@@ -92,3 +92,7 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
+    def information_score(self):
+        """
+        Method of the Spatial_proper
+        """
