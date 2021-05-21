@@ -128,7 +128,7 @@ class Dat_file_reader:
         # return the data block returned by our self.read_one_block() method
         return self.read_one_block(f1,i1,f2,i2,samples_to_read,channels)
         
-    def get_data_many_blocks(self, start_samples, block_size,channels):
+    def get_data_many_blocks(self, start_samples, block_size,channels, n_spikes):
         """
         Function to read several blocks from dat files
         
@@ -159,19 +159,26 @@ class Dat_file_reader:
         if np.any(start_samples+block_size > self.files_last_sample[-1]):
             raise ValueError("start_samples+block_size is larger than the total number of samples")
         
+
+
         ## allocate the memory for all the block in a 3D array,size channels, block_size, n_blocks
-        # blocks = np.array(...)
+        #blocks = np.ndarray((len(channels), block_size, n_spikes))
         
         ## get f1,i1,f2,i2 for all the blocks
         ## we could use a list comprehension to create a list of tuples using the get_block_start_end_within_files()
         #my_list_of_tuples = [ self.get_block_start_end_within_files(...) ....  for s in start_samples]
-        
+        #my_list_of_tuples = [self.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
+
+
         ## we could iterate with a for look over the list of tupples, for each block we could call the function function read_one_block()
         # bl=0
         # for f1,i1,f2,i2 in my_list_of_tuples :
         #     blocks[:,:,bl] = self.read_one_block(d1,i1,f2,i2,block_size,channels)
         #     bl=bl+1
-            
+#         bl=0
+#         for f1,i1,f2,i2 in my_list_of_tuples :
+#             blocks[:,:,bl] = myFile.read_one_block(f1,int(i1),f2,int(i2),block_sample_size,channels)
+#             bl=bl+1            
         
         
         
@@ -194,13 +201,13 @@ class Dat_file_reader:
         # get the starting point of reading operation in dat files (start_file_no,start_index_within_file)
         start_file_no = np.where((start_index >=self.files_first_sample) &  (start_index <self.files_last_sample))[0].item()
         start_index_within_file = start_index - self.files_first_sample[start_file_no]
-        print("start_file_no:",start_file_no)
-        print("start_index_within_file:",start_index_within_file)
+        #print("start_file_no:",start_file_no)
+        #print("start_index_within_file:",start_index_within_file)
         # get the end point of reading operation in dat files (end_file_no, end_index_within_file)
         end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index <= self.files_last_sample))[0].item()
         end_index_within_file = end_index - self.files_first_sample[end_file_no]
-        print("end_file_no:",end_file_no)
-        print("end_index_within_file:",end_index_within_file)
+        #print("end_file_no:",end_file_no)
+        #print("end_index_within_file:",end_index_within_file)
         
         
         
@@ -228,8 +235,8 @@ class Dat_file_reader:
         """
 
         if f1 == f2:
-            print("can read the block from a single file")
-            print("Read file: ",self.file_names[f1], " from ", i1, "to" , i2)
+            #print("can read the block from a single file")
+            #print("Read file: ",self.file_names[f1], " from ", i1, "to" , i2)
             my_mapped_file = np.memmap(self.file_names[f1], dtype = "int16", mode = "r",
                                        shape = (self.n_channels, self.samples_per_file[f1]), order = "F")                    
             my_block = my_mapped_file[channels,i1:i2]

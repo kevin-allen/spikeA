@@ -100,7 +100,8 @@ class Tetrode_session(Session):
         self.n_tetrodes = int(df[2].split(' ')[0])
         # create a list of 1D array with the channels for each tetrode
         tmp = df[3:int(self.n_tetrodes)+3]
-        self.tetrode_channels = [list(map(int, tmp[i].split(' ')))[1:] for i in range(0, len(tmp))]
+        tetrode_channels = [list(map(int, tmp[i].split(' ')))[1:] for i in range(0, len(tmp))]
+        self.tetrode_channels = {}
         # read the number of trials
         self.n_trials = int(df[int(self.n_tetrodes)+3])
         # get a list of trial names
