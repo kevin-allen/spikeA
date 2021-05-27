@@ -267,4 +267,16 @@ class Dat_file_reader:
                     copied = copied + self.samples_per_file[i] 
         return my_block
     
+    def save_selected_to_dat(self, channels, file_name):
+        
+#         if type(channels) is not np.ndarray:
+#             raise TypeError("channels should be a numpy.ndarray")
+#         if channels.ndim != 1:
+#             raise ValueError("channels should be an np.array of 1 dimension")
+
+
+        df = np.fromfile(self.file_names[0], dtype = 'uint16').reshape(self.n_channels, self.total_samples)[channels,:]
+        df.tofile(file_name)
+        
+
     
