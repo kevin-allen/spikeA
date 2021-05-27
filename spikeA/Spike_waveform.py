@@ -40,7 +40,7 @@ class Spike_waveform:
         """
     
         blocks = np.ndarray((len(channels), block_size, self.st.n_spikes()))
-        spike_time_sample = self.st.st*self.st.sampling_rate
+        spike_time_sample = self.st.st * self.st.sampling_rate
         
         my_list_of_tuples = [self.df.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
         
@@ -51,7 +51,7 @@ class Spike_waveform:
             bl=bl+1
             
         self.spike_waveform = blocks
-        self.meanWaveform =  np.mean(blocks, axis = 2)
+        self.mean_waveforms =  np.mean(blocks, axis = 2)
         
  
 

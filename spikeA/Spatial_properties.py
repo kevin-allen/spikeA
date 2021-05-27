@@ -137,5 +137,5 @@ class Spatial_properties:
         v = self.firing_rate_map
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
         
-        pass            
+
     

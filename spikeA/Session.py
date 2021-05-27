@@ -71,17 +71,17 @@ class Tetrode_session(Session):
         cluFiles = [myPath + f for f in os.listdir(myPath) if f.endswith('.clu.', 0, 25) & ~f.endswith('.bk')]
         cluFiles.sort()
         cluFiles
-        self.Tetrode_index = {}
+        self.tetrode_index = {}
         cell_index = 2
 
         for index, filename in enumerate(cluFiles):
             Tet = 'Tet_' + filename.split('/')[-1].split('.')[-1]
             nCell = int(open(filename).readline().split('\n')[0])-1
             if nCell != 0:
-                cell_ID = range(cell_index, cell_index + nCell)
+                cell_id = range(cell_index, cell_index + nCell)
             elif nCell == 0:
-                cell_ID = range(0,0)
-            self.Tetrode_index[Tet] = cell_ID    
+                cell_id = range(0,0)
+            self.tetrode_index[Tet] = cell_id
             cell_index = cell_index + nCell
         pass
     
