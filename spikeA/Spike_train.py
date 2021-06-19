@@ -7,6 +7,7 @@ from scipy.stats import poisson
 from spikeA.Intervals import Intervals
 from scipy.ndimage import gaussian_filter1d
 from scipy import signal
+from numba import jit
 import matplotlib.pyplot as plt 
 
 class Spike_train:
@@ -51,6 +52,7 @@ class Spike_train:
     instantaneous_firing_rate_power_spectrum_plot(): Plots the power spectrum of the instantaneous firing rate using matplotlib.
     spike_time_autocorrelation(): This function calculates the spike-time autocorrelation.
     spike_autocorrelation_plot(): Plots the spike-time autocorrelation using matplotlib.
+    spike_time_crosscorrelation(): This function calculate the spike-time crosscorrelation between 2 spike trains.
     """
     def __init__(self,name=None, sampling_rate = 20000, st = None):
         """
@@ -65,14 +67,14 @@ class Spike_train:
         # assign argument of function to the object attributes
         self.name = name
         self.sampling_rate = sampling_rate
+        self.intervals = None
         
         # if a spike train was passed to the constructor, set the spike train
         if st is not None:
             self.set_spike_train(st=st)
         else:
             self.st = None # we can use this to know if st has been set or not (whether it is None or none)
-            self.intervals = None
-    
+        
     
     def set_spike_train(self,st, verbose= False):
         """
@@ -566,3 +568,46 @@ class Spike_train:
   
         plt.xlabel("Time (ms)")
         plt.ylabel("Count")
+        
+        
+    def spike_time_crosscorrelation(self,st1=None,st2=None, bin_size_sec=0.0005, min_sec=-0.1, max_sec=0.1):
+        """
+        This function calculates the spike-time crosscorrelation between 2 Spike_train objects.
+        
+        Arguments:
+        st1: np.array with spike times, if not provided, the spike times of the object will be used. These are the reference spikes
+        st2: np.array with spike times
+        bin_size_sec: size of bins in the histogram
+        min_sec: minimum value in the histogram
+        max_sec: maximum value in the histogram
+        
+        Returns:
+        Tuple containing the histogram. The first element is the count and seconds are the edges of the histogram bin
+        """
+        if st1 is None:
+            st1=self.st
+        
+        if not isinstance(st1,np.ndarray):
+            raise TypeError("st1 should be a np.ndarray")
+        
+        if st2 is None:
+            raise ValueError("you need to provide a second series of spike times")
+        
+        st2New = st2
+        if isinstance(st2New,Spike_train):
+            st2New=st2New.st # use the spike times
+        
+        if not isinstance(st2New,np.ndarray):
+            raise TypeError("st2New should be a np.ndarray")
+        
+        myRange = np.arange(min_sec,max_sec+bin_size_sec,bin_size_sec)
+        myHist = np.zeros(myRange.shape[0]-1) # to store the results
+
+        @jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
+        def spikeTimeCrossCorrelation(st1,st2,myRange,results):
+            for i in range(len(st1)):
+                results += np.histogram(st2-st1[i],bins=myRange)[0]
+
+        spikeTimeCrossCorrelation(st1,st2New,myRange,myHist)
+        return (myHist,myRange)
+        
