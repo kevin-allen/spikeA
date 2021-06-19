@@ -74,7 +74,7 @@ class Spike_train:
             self.intervals = None
     
     
-    def set_spike_train(self,st):
+    def set_spike_train(self,st, verbose= False):
         """
         Set the st attribute of the Spike_train object
         
@@ -102,8 +102,8 @@ class Spike_train:
         else :
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.st.max()+1]]))
-        
-        print("Spike_train, name: {name}, number of spikes: {n_spikes:{fill}{align}{width}} mean firing rate: {rate:.2f} Hz".format(name=self.name, n_spikes=self.n_spikes(),fill=" ",align="<", width=8,rate=self.mean_firing_rate()))
+        if verbose:
+            print("Spike_train, name: {name}, number of spikes: {n_spikes:{fill}{align}{width}} mean firing rate: {rate:.2f} Hz".format(name=self.name, n_spikes=self.n_spikes(),fill=" ",align="<", width=8,rate=self.mean_firing_rate()))
         
     def set_intervals(self,inter):
         """
