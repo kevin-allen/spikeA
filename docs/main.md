@@ -25,6 +25,7 @@ git clone https://github.com/kevin-allen/spikeA.git
 ## Development
 
 * [For developpers](development.md)
+* [Writing functions in c with cython](cython.md)
 * [Unit testing](unittest.md)
 
 
