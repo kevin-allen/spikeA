@@ -7,7 +7,7 @@ from scipy.stats import poisson
 from spikeA.Intervals import Intervals
 from scipy.ndimage import gaussian_filter1d
 from scipy import signal
-from numba import jit
+from numba import njit, prange
 import matplotlib.pyplot as plt 
 
 class Spike_train:
@@ -597,15 +597,15 @@ class Spike_train:
         if isinstance(st2New,Spike_train):
             st2New=st2New.st # use the spike times
         
-        if not isinstance(st2New,np.ndarray):
-            raise TypeError("st2New should be a np.ndarray")
+    #    if not isinstance(st2New,np.ndarray):
+    #        raise TypeError("st2New should be a np.ndarray")
         
         myRange = np.arange(min_sec,max_sec+bin_size_sec,bin_size_sec)
         myHist = np.zeros(myRange.shape[0]-1) # to store the results
 
-        @jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
+        @njit(parallel=True) 
         def spikeTimeCrossCorrelation(st1,st2,myRange,results):
-            for i in range(len(st1)):
+            for i in prange(len(st1)):
                 results += np.histogram(st2-st1[i],bins=myRange)[0]
 
         spikeTimeCrossCorrelation(st1,st2New,myRange,myHist)

@@ -44,7 +44,7 @@ class Spike_train_loader:
         """
         Load spike trains from KlustaKwik output and store it in the correct format for spikeA
         
-        Function that should be used by the user.
+        Function that the user should use.
         
         Klustakwik format:
         The time values are stored as sample number in a .res file.
