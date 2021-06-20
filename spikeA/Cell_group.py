@@ -78,7 +78,7 @@ class Cell_group:
         
         for i in tqdm(range(len(self.pairs))):
             j,k = self.pairs[i]
-            self.st_crosscorrelation[i,:] = self.neuron_list[j].spike_train.spike_time_crosscorrelation(st2=self.neuron_list[k].spike_train,
+            self.st_crosscorrelation[i,:] = self.neuron_list[j].spike_train.spike_time_crosscorrelation(st2=self.neuron_list[k].spike_train.st,
                                                                                                 bin_size_sec = bin_size_sec, 
                                                                                                 min_sec = min_sec, max_sec = max_sec)[0] # [0] keeps only the counts
         self.st_crosscorrelation_bins = myRange

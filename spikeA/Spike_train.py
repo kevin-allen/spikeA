@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import poisson
 from spikeA.Intervals import Intervals
+import spikeA.spike_time_crosscorrelation
 from scipy.ndimage import gaussian_filter1d
 from scipy import signal
 from numba import njit, prange
@@ -603,11 +604,8 @@ class Spike_train:
         myRange = np.arange(min_sec,max_sec+bin_size_sec,bin_size_sec)
         myHist = np.zeros(myRange.shape[0]-1) # to store the results
 
-        @njit(parallel=True) 
-        def spikeTimeCrossCorrelation(st1,st2,myRange,results):
-            for i in prange(len(st1)):
-                results += np.histogram(st2-st1[i],bins=myRange)[0]
-
-        spikeTimeCrossCorrelation(st1,st2New,myRange,myHist)
+        
+        spikeA.spike_time_crosscorrelation.spike_time_crosscorrelation_func(st1,st2New,myHist,min_sec,max_sec,bin_size_sec)
+        
         return (myHist,myRange)
         
