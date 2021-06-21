@@ -44,6 +44,17 @@ export https_proxy=www-int2.inet.dkfz-heidelberg.de:80
 
 You should then be able to import the different modules of the package from ipython
 
+## Compile some Cython libraries
+
+I could not find a way to compile the cython code during installation. So you will need to do it.
+
+```
+cd ~/repo/spikeA/spikeA/
+python setup.py build_ext --inplace
+```
+
+This will create a module that you will be able to load from python.
+
 ## Install ipython
 
 ```
