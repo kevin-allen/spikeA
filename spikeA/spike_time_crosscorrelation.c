@@ -6,7 +6,6 @@ void spike_time_crosscorrelation(double * st1, double * st2, double* out, int si
     int i;
     int j;
     int prev_start = 0;
-    int next_start = 0;
     double time_diff = 0;
     int index = 0;
     
