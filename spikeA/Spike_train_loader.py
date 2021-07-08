@@ -149,7 +149,7 @@ class Spike_train_loader:
         The values are stored in self.clu_id, self.spike_times, 
         """
         if not isinstance(ks,Kilosort_session):
-            raise TypeError("ks should be a Kilosort_session but is"+ type(ks))
+            raise TypeError("ks should be a Kilosort_session but is {}".format(type(ks)))
         
         
         if not os.path.isfile(ks.file_names["spike_times"]):

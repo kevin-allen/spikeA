@@ -48,8 +48,81 @@ class Spatial_properties:
         # get the position of the animal at each spike time
         self.spike_posi[:,0] = self.fx(self.st.st)
         self.spike_posi[:,1] = self.fy(self.st.st)
+    
+    def spike_head_direction(self):
+        """
+        Method to calculate the head direction of each spike of the Spike_train object.
         
-    def firing_rate_map_2d(self,cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True,):
+        All the calculations are in radians
+        
+        The head-direction data are in radians. To do the interpolation, we transform in cos and sin components, interpolate and then back in radians.
+        We transform in cos and sin components because averaging 0 and 360 gives 180, which is incorrect in the case of angles.
+        
+        Return
+        self.spike_hd
+        """
+        
+        # transform hd data to cos and sin components
+        c = np.cos(self.ap.pose[:,4])
+        s = np.sin(self.ap.pose[:,4])
+        
+        # fit
+        fhdc = interp1d(self.ap.pose[:,0], c, bounds_error=False) # time, cos
+        fhds = interp1d(self.ap.pose[:,0], s, bounds_error=False) # time, sin
+        
+        # interpolate
+        ihdc = fhdc(self.st.st)
+        ihds = fhds(self.st.st)
+        
+        # get radians from cos and sin
+        self.spike_hd = np.arctan2(ihdc,ihds) 
+        
+        
+        
+    def firing_rate_head_direction_histogram(self,deg_per_bin=10, smoothing_sigma_deg = 20, smoothing=True):
+        """
+        Method of the Spatial_properties class to calculate the firing rate of a neuron as a function of head direction.
+        
+        If a compatible occupancy_hd histogram is not already present in the self.animal_pose object, one will be calculated.
+        
+        Calculations are all done in radians.
+        
+        Arguments:
+        deg_per_bin: degrees per bins in the head-direction histogram
+        smoothing_sigma_deg: standard deviation of the gaussian kernel used to smooth the firing rate head direction histogram
+        smoothing: boolean indicating whether or not smoothing is applied
+        
+        Return:
+        The Spatial_properties.firing_rate_head_direction_histo is set. It is a 1D numpy array containing the firing rate in Hz as a function of head direction.
+        """
+        self.hd_histo_deg_per_bin =deg_per_bin
+        self.hd_histo_smoothing_sigma_deg = smoothing_sigma_deg
+        self.hd_histo_smoothing = smoothing
+        
+        ## check if we have a compatible occupancy hd in the Animal_pose object
+        if self.ap.hd_occupancy_deg_per_bin != self.hd_histo_deg_per_bin:
+            # create a new hd occupancy histogram
+            self.ap.head_direction_occupancy_histogram(cm_per_deg =self.hd_histo_deg_per_bin, 
+                                     smoothing_sigma_cm = self.hd_histo_smoothing_sigma_deg, 
+                                     smoothing = True, zero_to_nan = True)
+        
+        self.spike_head_direction()
+        
+        ## calculate the number of spikes per bin in the histogram
+        ## we use the bin edges of the occupancy histogram to make sure that the spike count histogram and hd occupancy histogram have the same dimension
+        spike_count,edges = np.histogram(self.spike_hd, bins= self.ap.hd_occupancy_bins)
+        
+        self.spike_count_hd_histo=spike_count
+        
+        ## smooth the spike count array
+        if smoothing:
+            spike_count = ndimage.gaussian_filter1d(spike_count, sigma=self.hd_histo_smoothing_sigma_deg/self.hd_histo_deg_per_bin)
+    
+        ## get the firing rate in Hz (spike count/ time in sec)
+        self.firing_rate_head_direction_histo_edges = self.ap.hd_occupancy_bins
+        self.firing_rate_head_direction_histo = spike_count/self.ap.hd_occupancy_histogram
+    
+    def firing_rate_map_2d(self,cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -61,7 +134,7 @@ class Spatial_properties:
         smoothing: boolean indicating whether or not smoothing should be applied to the firing rate map
         
         Return
-        The Spatial_properties.firing_rate_map is set. It is a 2D numpy array containing the firing rate in Hz in a set of bins covering the environment
+        The Spatial_properties.firing_rate_map is set. It is a 2D numpy array containing the firing rate in Hz in a set of bins covering the environment.
         """
         # we could do check for valid value ranges
         self.map_cm_per_bin = cm_per_bin
@@ -106,7 +179,8 @@ class Spatial_properties:
         """      
         
         # need to check that we have a valid firing rate map already calculated
-        
+        # we need to check that the dimension of occ map and firing rate map are the same
+        # we should not use smoothed firing rate maps
         
         # probability to be in bin i
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)

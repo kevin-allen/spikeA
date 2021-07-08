@@ -33,6 +33,13 @@ class Animal_pose:
         occupancy_smoothing: boolean indicating of the occupancy map was smoothed
         smoothing_sigma_cm: standard deviation in cm of the gaussian smoothing kernel used to smooth the occupancy map.
         
+        hd_occupancy_deg_per_bin: cm per bin in the occupancy map
+        hd_occupancy_histogram: 1D numpy array containing the HD occupancy histogram
+        hd_occupancy_bins: 1D array containing the bin edges to create the hd occupancy histogram (used when calling np.histogram)
+        hd_occupancy_smoothing: boolean indicating of the occupancy map was smoothed
+        hd_smoothing_sigma_deg: standard deviation in cm of the gaussian smoothing kernel used to smooth the head-direction occupancy histogram.
+        
+        
     Methods:
         pose_from_positrack_file()
         save_pose_to_file()
@@ -40,6 +47,7 @@ class Animal_pose:
         set_intervals()
         unset_intervals()
         occupancy_map()
+        head_direction_occupancy_histogram()
         
     """
     def __init__(self, ses=None):
@@ -51,8 +59,8 @@ class Animal_pose:
         if ses is None:
             self.ses = None
         else :
-            if not (issubclass(type(ses),Tetrode_session) or isinstance(ses,Tetrode_session)):   ### I needed to change Session to Tetrode_session here to make it run
-                raise TypeError("ses should be a subclass of the Session class")
+            if not (issubclass(type(ses),Session)):   ### I needed to change Session to Tetrode_session here to make it run
+                raise TypeError("ses should be a subclass of the Session class but is {}".format(type(ses)))
             self.ses = ses # information regarding our session
             
         self.pose = None
@@ -155,7 +163,63 @@ class Animal_pose:
         self.intervals.set_inter(inter=np.array([[0,self.pose[:,0].max()+1]]))
         print("Number of poses: {}".format(self.pose.shape[0]))
         
+    def head_direction_occupancy_histogram(self, deg_per_bin=10, smoothing_sigma_deg=10, smoothing = True, zero_to_nan = True):
+        """
+        Function to calculate an head-direction occupancy histogram for head-direction data. 
+        The occupancy histogram is a 1D array covering the entire 0-360 degree.
+        Each bin of the array contains the time in seconds that the animal spent in the bin.
+        The head-direction occupancy histogram is used to calculate head-direction firing rate histograms
+        
+        The calculations are all done in radians. Bin size (deg_per_bin) and smoothing (smoothing_sigma_deg) are provided in degrees as people are generally more familiar with degrees. The outputs are all in radians
+        
+        Arguments
+        cm_per_deg: deg per bins in the occupancy histogram
+        smoothing_sigma_deg: standard deviation of the gaussian kernel used to smooth the occupancy histogram
+        smoothing: boolean indicating whether or not smoothing should be applied to the occupancy histogram
+        zero_to_nan: boolean indicating if occupancy bins with a time of zero should be set to np.nan
+        
+        Return
+        self.hd_occupancy_histogram and self.hd_occupancy_histogram are set. They are 1D numpy arrays containing the time spent in seconds in a set of head-direction and the edges of the histogram bins (in radians)
+        """
+        if self.pose is None:
+            raise TypeError("Set the self.pose array before attempting to calculate the hd_occupancy_histogram")
+        
+        # we save this for later use when calculating firing rate maps
+        
+        self.hd_occupancy_deg_per_bin = deg_per_bin
+        self.hd_occupancy_smoothing = smoothing
+        self.hd_smoothing_sigma_deg = smoothing_sigma_deg
+        
+        # remove invalid head direction data, self.pose
+        invalid = np.isnan(self.pose[:,4])
+        print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
+        val = self.pose[~invalid,4]
+        
+        # calculate the hd occupancy histogram
+        self.hd_occupancy_bins = np.arange(-np.pi,np.pi+self.hd_occupancy_deg_per_bin/360*2*np.pi,self.hd_occupancy_deg_per_bin/360*2*np.pi)
+        occ,edges = np.histogram(val,bins= self.hd_occupancy_bins)
+        
+        # calculate the time per sample
+        sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
+                
+        # get the time in seconds
+        occ = occ*sec_per_sample
+        
+        # smoothin of occupancy map
+        if smoothing:
+            occ_sm = ndimage.gaussian_filter1d(occ,sigma=smoothing_sigma_deg/deg_per_bin)
+        else:
+            occ_sm = occ # if no smoothing just get a reference to occ, because we want to use occ_sm for the rest of the function
+          
+        # set bins at 0 to np.nan
+        if zero_to_nan:
+            occ_sm[occ==0] = np.nan
     
+        # save the occupancy map for later use
+        self.hd_occupancy_histogram = occ_sm
+        
+    
+        
     def occupancy_map_2d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True):
         """
         Function to calculate an occupancy map for x and y position data. 
@@ -271,7 +335,7 @@ class Animal_pose:
             # read the ttl channel for positrack
             df = Dat_file_reader(file_names=[dat_file_name],n_channels = self.ses.n_channels)
             ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
-            ttl = detectTTL(ttl_data = ttl_channel_data)
+            ttl,downs = detectTTL(ttl_data = ttl_channel_data)
             print("Number of ttl pulses detected: {}".format(ttl.shape[0]))
 
             # read the positrack file
@@ -283,7 +347,7 @@ class Animal_pose:
                 # we will need code to solve simple problems 
                 #
                 #
-                raise ValueError("Synchronization problem (positrack and ttl pulse) for trial {}".format(t))
+                raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
@@ -312,10 +376,10 @@ class Animal_pose:
                 print("****************************************************************************************")  
 
             # estimate functions to interpolate
-            fx = interp1d(ttl[:,0], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
-            fy = interp1d(ttl[:,0], d[:,1], bounds_error=False) # y 
-            fhdc = interp1d(ttl[:,0], d[:,3], bounds_error=False) # cos
-            fhds = interp1d(ttl[:,0], d[:,4], bounds_error=False) # sin
+            fx = interp1d(ttl[:], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
+            fy = interp1d(ttl[:], d[:,1], bounds_error=False) # y 
+            fhdc = interp1d(ttl[:], d[:,3], bounds_error=False) # cos
+            fhds = interp1d(ttl[:], d[:,4], bounds_error=False) # sin
 
             # set the time points at which we want a position
             new_time = np.arange(0, df.total_samples,interpolation_step)

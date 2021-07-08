@@ -52,8 +52,8 @@ class Neuron:
         if self.spike_train is None: # if None create the Spike_train object of the neuron
             raise TypeError("Set the neuron's Spike_train object before calling set_spatial_properties")
         
-        if not isinstance(animal_pose,Animal_pose): 
-            raise TypeError("animal_pose should be a subclass of the Animal_pose class")
+        #if not isinstance(animal_pose,Animal_pose): 
+        #    raise TypeError("animal_pose should be a subclass of the Animal_pose class but is {}".format(type(animal_pose)))
         
         self.spatial_properties = Spatial_properties(animal_pose=animal_pose,spike_train=self.spike_train)
     

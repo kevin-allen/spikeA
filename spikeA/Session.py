@@ -226,6 +226,12 @@ class Kilosort_session(Session):
         # read the desel file
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
         
+        # check if the px_per_cm file is there
+        if not os.path.isfile(self.file_names["px_per_cm"]):
+            raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
+        self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
+        
+        
         # get the trial names from the par file
         if not os.path.isfile(self.file_names["par"]):
             raise IOError("{} file not found".format(self.file_names["par"]))    

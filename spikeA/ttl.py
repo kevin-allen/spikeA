@@ -13,11 +13,9 @@ def detectTTL(ttl_data):
         A function to detect ttl up and down edges
         
         Arguments:
-        channel = np.array containing data from a ttl channel
-        start_sample = the first sample to read
-        end_sample = the last sample to read
+        ttl_data: 1D np.array containing the data of a channel used for TTL
         
-        Return a 2D array of all the ups and downs in the selected time window
+        Return a tuple of length 2 containing 1D arrays for the up and down edges of the TTL signal.  A tuple is returned instead of a 2D array because there might be more ups than downs in the signal
         """
         
         if not isinstance(ttl_data,np.ndarray):
@@ -29,9 +27,9 @@ def detectTTL(ttl_data):
         
         # np.squeeze remove the first dimension
         diff = np.diff(np.squeeze(ttl_data))
-        edge = np.where(diff!=0)[0]
-        ttl = edge.reshape((int(len(edge)/2),2))
+        ups = np.where(diff>0)[0]
+        downs = np.where(diff<0)[0]
         
-        return ttl
+        return ups,downs
     
     
