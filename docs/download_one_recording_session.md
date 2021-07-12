@@ -9,6 +9,11 @@ from spikeA.Downloads import download_spikeA_data_one_session
 download_spikeA_data_one_session()
 ```
 
+If you are beind a proxy, make sure you have the environment variable https_proxy defined in your shell.
+```
+export https_proxy=www-int2.inet.dkfz-heidelberg.de:80
+```
+
 If the function can't download the file for some reasons, the link to the file is in the docstring of the function.
 
 ```
