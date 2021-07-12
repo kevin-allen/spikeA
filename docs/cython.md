@@ -82,55 +82,11 @@ void spike_time_crosscorrelation(double * st1, double * st2, double* out, int si
 
 In `spikeA/spikeA/_spike_time.pyx`, you need to import your c function and create a wrapper for python
 
-```
-""" C function that calculate a spike-time crosscorrelation between 2 sorted spike time arrays. It takes C double arrays as input using
-    the Numpy declarations from Cython """
-
-# cimport the Cython declarations for numpy
-cimport numpy as np
-
-# if you want to use the Numpy-C-API from Cython
-# (not strictly necessary for this example, but good practice)
-np.import_array()
-
-# cdefine the signature of our c function
-cdef extern from "spike_time_crosscorrelation.h":
-    void spike_time_crosscorrelation(double * st1, double * st2, double* out, int size1, int size2, int outSize, double min, double max, double step)
-
-# create the wrapper code, with numpy type annotations
-def spike_time_crosscorrelation_func(np.ndarray[double, ndim=1, mode="c"] st1 not None,
-    				     np.ndarray[double, ndim=1, mode="c"] st2 not None,
-				     np.ndarray[double, ndim=1, mode="c"] out not None,
-				     min,
-				     max,
-				     step):
-    spike_time_crosscorrelation(<double*> np.PyArray_DATA(st1),
-                                <double*> np.PyArray_DATA(st2),
-				<double*> np.PyArray_DATA(out),
-				st1.shape[0],
-				st2.shape[0],
-				out.shape[0],
-				min,
-				max,
-				step)
-```
+See the file for more information
 
 ### Compile c code to a library (module)
 
 In `spikeA/spikeA/setup.py`, tell cpython how to compile our new module.
-
-```
-from distutils.core import setup, Extension
-import numpy
-from Cython.Distutils import build_ext
-
-setup(
-    cmdclass={'build_ext': build_ext},
-    ext_modules=[Extension("spike_time_crosscorrelation",
-                 sources=["_spike_time_crosscorrelation.pyx", "spike_time_crosscorrelation.c"],
-                 include_dirs=[numpy.get_include()])],
-)
-```
 
 Then run 
 
@@ -158,7 +114,7 @@ dir(spikeA.spike_time)
 x = np.arange(0, 2 * np.pi, 0.1)
 y = np.empty_like(x)
 out = np.empty(10)
-
+## this is not gonna work!
 spikeA.spike_time.spike_time_crosscorrelation_func(x,y,out,-0.1,0.1,0.0005)
 out
 ```
