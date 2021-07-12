@@ -5,3 +5,4 @@ scipy==1.6.0
 gdown==3.12.2
 matplotlib==3.4.2
 numba
+Cython
