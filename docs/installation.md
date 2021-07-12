@@ -33,6 +33,8 @@ You should do your data analysis from a python environment. If you don't know wh
 Make sure your python environment is active. Then install the `spikeA` package in your environment using pip.
 
 ```
+cd ~/repo/spikeA
+pip install -r requirements.txt
 pip install -e ~/repo/spikeA
 ```
 
