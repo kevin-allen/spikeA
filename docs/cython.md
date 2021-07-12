@@ -1,7 +1,6 @@
 # c code with cython
 
-We should try to avoid writing c code as much as possible as it makes it much harder to read for people not use to it. 
-It is also much harder to debug as the code needs to be compiled.
+In general, we should try to avoid writing c code as much as possible as it makes it much harder to read for most user and it is harder to debug.
 
 But sometime c code is needed for speed. Below is an example of how I added a function to calculate spike-time crosscorrelation to the spikeA package. 
 I had tried to speed it up with numba but I needed more control in the for loop.
@@ -10,7 +9,7 @@ I read an introduction to [interfacing with c](https://scipy-lectures.org/advanc
 
 Based on this introduction, I decided to use [cython](https://cython.org/) to interface with c code. The documentation is found [here](https://cython.readthedocs.io/en/latest/).
 
-cython has its own language that I did not learn. 
+Cython has its own language that I did not learn. 
 
 
 ## Installation
@@ -40,7 +39,7 @@ Below is a step-by-step example of how I created a c function to computer the sp
 
 ### Declare the function in a .h file
 
-In `spikeA/spikeA/spike_time_crosscorrelation.h`
+In `spikeA/spikeA/spike_time.h`
 ```
 void spike_time_crosscorrelation(double * st1, double * st2, double* out, int size1, int size2, int outSize, double min, double max, double step);
 ```
@@ -48,7 +47,7 @@ This is plain c code.
 
 ### Write the function in a .c file
 
-In `spikeA/spikeA/spike_time_crosscorrelation.c`
+In `spikeA/spikeA/spike_time.c`
 ```
 
 /*  Function to calculate the spike-time crosscorrelation between two arrays containing sorted spike times. */
@@ -81,7 +80,7 @@ void spike_time_crosscorrelation(double * st1, double * st2, double* out, int si
 
 ### Import the function in a .pyx file and create a wrapper function
 
-In `spikeA/spikeA/_spike_time_crosscorrelation.pyx`, you need to import your c function and create a wrapper for python
+In `spikeA/spikeA/_spike_time.pyx`, you need to import your c function and create a wrapper for python
 
 ```
 """ C function that calculate a spike-time crosscorrelation between 2 sorted spike time arrays. It takes C double arrays as input using
@@ -146,13 +145,13 @@ In a jupyter notebook, you can try the following
 ```
 import numpy as np
 import matplotlib.pyplot as plt
-import spikeA.spike_time_crosscorrelation
+import spikeA.spike_time # no capital (not the python class but the c extension)
 
-?spikeA.spike_time_crosscorrelation
+?spikeA.spike_time
 ```
 
 ```
-dir(spikeA.spike_time_crosscorrelation)
+dir(spikeA.spike_time)
 ```
 
 ```
@@ -160,6 +159,6 @@ x = np.arange(0, 2 * np.pi, 0.1)
 y = np.empty_like(x)
 out = np.empty(10)
 
-spikeA.spike_time_crosscorrelation.spike_time_crosscorrelation_func(x,y,out,-0.1,0.1,0.0005)
+spikeA.spike_time.spike_time_crosscorrelation_func(x,y,out,-0.1,0.1,0.0005)
 out
 ```
