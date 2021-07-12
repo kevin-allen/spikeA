@@ -82,3 +82,24 @@ class Cell_group:
                                                                                                 bin_size_sec = bin_size_sec, 
                                                                                                 min_sec = min_sec, max_sec = max_sec)[0] # [0] keeps only the counts
         self.st_crosscorrelation_bins = myRange
+        
+    def spike_time_autocorrelation(self,bin_size_sec=0.0005, min_sec=-0.1, max_sec=0.1):
+        """
+        Calculate the spike-time autocorrelation for all neurons in the Cell_group object.
+        
+        Arguments:
+        bin_size_sec: size of bins in the histogram
+        min_sec: minimum value in the histogram
+        max_sec: maximum value in the histogram
+        
+        Returns:
+        self.st_autocorrelation: 2D np.ndarray with one spike time autocorrelation per row
+        """
+        
+        myRange = np.arange(min_sec,max_sec+bin_size_sec,bin_size_sec)
+        self.st_autocorrelation = np.ndarray((len(self.neuron_list),myRange.shape[0]-1)) # to store the results
+        
+        for n in tqdm(self.neuron_list):
+            self.st_autocorrelation[i,:] = self.neuron_list[j].spike_train.spike_time_autocorrelation(                                                                                bin_size_sec = bin_size_sec, 
+                                                                                                min_sec = min_sec, max_sec = max_sec)[0] # [0] keeps only the counts
+        self.st_autocorrelation_bins = myRange
