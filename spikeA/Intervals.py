@@ -68,7 +68,7 @@ class Intervals:
         Return
         1D numpy array containing spike times within the intervals
         """
-        return st[self.is_within_intervals()]
+        return st[self.is_within_intervals(st)]
 
     def is_within_intervals(self,time):
         """

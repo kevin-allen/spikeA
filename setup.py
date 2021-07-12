@@ -1,7 +1,9 @@
 import setuptools
+from setuptools.extension import Extension
 
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
+
 
 setuptools.setup(
     name="spikeA-kevinallen", # Replace with your own username
@@ -18,5 +20,8 @@ setuptools.setup(
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
         "Operating System :: POSIX :: Linux",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.6'
 )
+
+
+
