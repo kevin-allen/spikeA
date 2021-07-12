@@ -494,7 +494,7 @@ class Spike_train:
         max_sec: How far after from the reference spike are we considering
         
         Return
-        The histogram is stored in self.st_autocorrelation_histogram
+        The histogram is stored in self.st_autocorrelation_histogram as a tuple, (count, edges)
         """        
        
         if not isinstance(self.st,np.ndarray):
