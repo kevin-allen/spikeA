@@ -99,7 +99,7 @@ class Cell_group:
         myRange = np.arange(min_sec,max_sec+bin_size_sec,bin_size_sec)
         self.st_autocorrelation = np.ndarray((len(self.neuron_list),myRange.shape[0]-1)) # to store the results
         
-        for n in tqdm(self.neuron_list):
-            self.st_autocorrelation[i,:] = self.neuron_list[j].spike_train.spike_time_autocorrelation(                                                                                bin_size_sec = bin_size_sec, 
-                                                                                                min_sec = min_sec, max_sec = max_sec)[0] # [0] keeps only the counts
+        for i,n in tqdm(enumerate(self.neuron_list)):
+            n.spike_train.spike_time_autocorrelation(bin_size_sec = bin_size_sec, min_sec = min_sec, max_sec = max_sec)
+            self.st_autocorrelation[i,:] = n.spike_train.st_autocorrelation_histogram[0]
         self.st_autocorrelation_bins = myRange
