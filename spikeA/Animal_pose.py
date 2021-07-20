@@ -342,8 +342,14 @@ class Animal_pose:
             # read the positrack file
             if extension=="positrack" :
                 pt = pd.read_csv(positrack_file_name, delimiter=" ")
-            else:
+            elif extension=="positrack2":
                 pt = pd.read_csv(positrack_file_name)
+            elif extension=="trk":
+                data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
+                pt = pd.DataFrame({"x":data[:,11], "y":data[:,12],"hd": data[:,10]})
+            else :
+                raise ValueError("extension not supported")
+  
             print("Number of lines in positrack file: {}".format(pt.shape[0]))
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
