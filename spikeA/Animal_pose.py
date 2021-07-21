@@ -346,6 +346,7 @@ class Animal_pose:
                 pt = pd.read_csv(positrack_file_name)
             elif extension=="trk":
                 data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
+                data = data.astype(np.float32)
                 pt = pd.DataFrame({"x":data[:,11], "y":data[:,12],"hd": data[:,10]})
             else :
                 raise ValueError("extension not supported")
