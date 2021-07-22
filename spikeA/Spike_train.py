@@ -127,7 +127,7 @@ class Spike_train:
         self.st_inter = self.intervals.spike_train_within_intervals(self.st_ori)
         # self.st is now pointing to self.st_inter
         self.st = self.st_inter
-        print("Number of spikes: {}".format(self.st.shape[0]))
+        #print("Number of spikes: {}".format(self.st.shape[0]))
     
     def unset_intervals(self):
         """
@@ -142,7 +142,7 @@ class Spike_train:
         self.st = self.st_ori
         # set default time intervals from 0 to just after the last spike
         self.intervals.set_inter(inter=np.array([[0,self.st.max()+1]]))
-        print("Number of spikes: {}".format(self.st.shape[0]))
+        #print("Number of spikes: {}".format(self.st.shape[0]))
         
     def generate_poisson_spike_train(self,rate_hz=20, sampling_rate=20000, length_sec=2):
         """

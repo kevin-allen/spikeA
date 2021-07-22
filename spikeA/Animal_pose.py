@@ -146,7 +146,7 @@ class Animal_pose:
         self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,0])] 
         # self.st is now pointing to self.st_inter
         self.pose = self.pose_inter
-        print("Number of poses: {}".format(self.pose.shape[0]))
+        #print("Number of poses: {}".format(self.pose.shape[0]))
     
     def unset_intervals(self):
         """
@@ -161,7 +161,7 @@ class Animal_pose:
         self.pose = self.pose_ori
         # set default time intervals from 0 to just after the last spike
         self.intervals.set_inter(inter=np.array([[0,self.pose[:,0].max()+1]]))
-        print("Number of poses: {}".format(self.pose.shape[0]))
+        #print("Number of poses: {}".format(self.pose.shape[0]))
         
     def head_direction_occupancy_histogram(self, deg_per_bin=10, smoothing_sigma_deg=10, smoothing = True, zero_to_nan = True):
         """
@@ -192,7 +192,7 @@ class Animal_pose:
         
         # remove invalid head direction data, self.pose
         invalid = np.isnan(self.pose[:,4])
-        print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
+        #print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
         val = self.pose[~invalid,4]
         
         # calculate the hd occupancy histogram
@@ -247,7 +247,7 @@ class Animal_pose:
         
         # remove invalid position data
         invalid = np.isnan(self.pose[:,1:3]).any(axis=1)
-        print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
+        #print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
         val = self.pose[~invalid,1:3]
         
         ## determine the size of the occupancy map with the maximum x and y values
@@ -409,7 +409,7 @@ class Animal_pose:
             posi_list.append(posi_d)
 
             # change the offset for the next trial
-            trial_sample_offset+=trial_sample_offset+df.total_samples
+            trial_sample_offset+=df.total_samples
 
         # put all the trials together
         posi = np.concatenate(posi_list)
