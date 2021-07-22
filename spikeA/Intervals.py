@@ -80,10 +80,15 @@ class Intervals:
         Return
         1D numpy array of boolean indicating whether the time points were within the intervals
         """
-        to_keep = np.empty_like(time,dtype=np.bool)
-        for i, s in enumerate(time):
-            to_keep[i] = np.any((self.inter[:,0] <= s) & (s <=self.inter[:,1]))
-        return to_keep
+        within = np.zeros((time.shape[0],self.inter.shape[0]))
+        
+        for i in range(self.inter.shape[0]):
+            s=self.inter[i,0]
+            e=self.inter[i,1]
+            within[:,i]=np.logical_and(time>=s, time<=e)
+        
+        
+        return np.sum(within,axis=1)>0
         
         
     def instantaneous_firing_rate_within_intervals(self, ifr, bin_size_ms):
