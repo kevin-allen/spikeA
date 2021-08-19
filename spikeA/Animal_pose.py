@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.ndimage import gaussian_filter1d
 import os.path
+import os
 
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.ttl import detectTTL
@@ -356,13 +357,33 @@ class Animal_pose:
                 raise ValueError("extension not supported")
   
             print("Number of lines in positrack file: {}".format(pt.shape[0]))
+    
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
+                # if there are just 1 or 2 ttl pulses missing from positrack, copy the last 1 or 2 lines
+                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2)):
+                    original_positrack_file = self.ses.path + "/" + t+"o."+ extension
+                    missing = ttl.shape[0]-pt.shape[0]
+                    pt_mod = pt.append(pt[(pt.shape[0]-missing):(pt.shape[0]+1)])
+                    print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
+                    os.rename(positrack_file_name, original_positrack_file)
+                    pt_mod.to_csv(positrack_file_name, sep=' ')
+                    pt = pt_mod
+                    print("Alignment problem solved by adding one or two ttl pulses to positrack")
+                elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
+                    original_positrack_file = self.ses.path + "/" + t+"o."+ extension
+                    pt_mod = pt[:ttl.shape[0]]
+                    print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
+                    os.rename(positrack_file_name, original_positrack_file)
+                    pt = pt_mod
+                    pt.to_csv(positrack_file_name, sep=' ')
+                    print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
 
-                # we will need code to solve simple problems 
+                # we will need more code to solve simple problems 
                 #
                 #
-                raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
+                else:
+                    raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
