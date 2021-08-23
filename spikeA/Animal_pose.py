@@ -286,7 +286,7 @@ class Animal_pose:
         
         
     
-    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50):
+    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2"):
         """
         Method to calculute pose at fixed interval from a positrack file.
         
@@ -324,11 +324,15 @@ class Animal_pose:
         # loop for trials
         for i,t in enumerate(self.ses.trial_names):
             dat_file_name = self.ses.path + "/" + t+".dat"
-            positrack_file_name = self.ses.path + "/" + t+".positrack"
+            if extension== "positrack": 
+                positrack_file_name = self.ses.path + "/" + t+".positrack"
+            elif extension == "positrack2":
+                positrack_file_name= self.ses.path + "/" + t +".positrack2"
             print(dat_file_name)
             print(positrack_file_name)
 
             positrack_file = Path(positrack_file_name)
+            
             if not positrack_file.exists() :
                 raise OSError("positrack file {} missing".format(positrack_file_name))
 
@@ -339,7 +343,12 @@ class Animal_pose:
             print("Number of ttl pulses detected: {}".format(ttl.shape[0]))
 
             # read the positrack file
-            pt = pd.read_csv(positrack_file_name, delimiter=" ")
+            if extension== "positrack":
+                pt = pd.read_csv(positrack_file_name, delimiter=" ")
+            elif extension== "positrack2":
+                pt = pd.read_csv(positrack_file_name, delimiter=",")
+                
+                
             print("Number of lines in positrack file: {}".format(pt.shape[0]))
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
