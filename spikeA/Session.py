@@ -3,6 +3,9 @@ import os
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from spikeA.Dat_file_reader import Dat_file_reader
+from spikeA.Intervals import Intervals
+
 
 class Session:
     """
@@ -30,7 +33,6 @@ class Session:
         self.fileBase = self.path+"/"+name
         return
 
-    
 class Tetrode_session(Session):
     """
     Class containing information about a recording session in which tetrodes were used
@@ -90,6 +92,11 @@ class Tetrode_session(Session):
         Function to read session parameters from configuration files
         
         """
+        
+        ## check that the directory exists
+        if not os.path.isdir(self.path):
+            raise IOError("directory {} does not exist".format(self.path))
+    
         # check if the par file is there
         if not os.path.isfile(self.file_names["par"]):
             raise ValueError("{} file not found".format(self.file_names["par"]))                  
@@ -142,8 +149,10 @@ class Tetrode_session(Session):
             raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
         self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
         
-        
-        
+        self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
+        df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
+        inter = df.get_file_intervals_in_seconds()
+        self.trialIntervals = Intervals(inter)
         
     def __str__(self): 
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
@@ -163,7 +172,9 @@ class Kilosort_session(Session):
         n_shanks: Number of tetrodes
         dat_files: List of dat files
         trial_df: pandas data frame with information about the trials (trial_name,environment,start_sample,end_sample,duration_sec)
-    
+        dat_file_names
+        trial_intervals: spikeA.Intervals for each .dat file (or trial)
+         
     Methods
         load_parameters_from_files()
     
@@ -204,6 +215,11 @@ class Kilosort_session(Session):
         The names of the files are in the self.file_names dictionary.
         """
         
+        ## check that the directory exists
+        if not os.path.isdir(self.path):
+            raise IOError("directory {} does not exist".format(self.path))
+    
+        
         ## read the params file
         if not os.path.isfile(self.file_names["params"]):
             raise IOError("{} file not found".format(self.file_names["params"]))    
@@ -242,6 +258,11 @@ class Kilosort_session(Session):
         n_trials = int(c[3+to_skip])
         n_trials
         self.trial_names = c[to_skip+4:to_skip+4+n_trials]
+        
+        self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
+        df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
+        inter = df.get_file_intervals_in_seconds()
+        self.trial_intervals = Intervals(inter)
         
         
     def __str__(self): 

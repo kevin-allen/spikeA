@@ -99,12 +99,11 @@ class Spatial_properties:
         self.hd_histo_smoothing_sigma_deg = smoothing_sigma_deg
         self.hd_histo_smoothing = smoothing
         
-        ## check if we have a compatible occupancy hd in the Animal_pose object
-        if self.ap.hd_occupancy_deg_per_bin != self.hd_histo_deg_per_bin:
-            # create a new hd occupancy histogram
-            self.ap.head_direction_occupancy_histogram(cm_per_deg =self.hd_histo_deg_per_bin, 
-                                     smoothing_sigma_cm = self.hd_histo_smoothing_sigma_deg, 
-                                     smoothing = True, zero_to_nan = True)
+      
+        # create a new hd occupancy histogram
+        self.ap.head_direction_occupancy_histogram(deg_per_bin =self.hd_histo_deg_per_bin, 
+                                                 smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
+                                                 smoothing = True, zero_to_nan = True)
         
         self.spike_head_direction()
         
@@ -141,12 +140,10 @@ class Spatial_properties:
         self.map_smoothing_sigma_cm = smoothing_sigma_cm
         self.map_smoothing = smoothing
         
-        ## check if we have a compatible occupancy map in the Animal_pose object
-        if self.ap.occupancy_cm_per_bin != self.map_cm_per_bin:
-            # create a new occupancy map
-            self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
-                                     smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                     smoothing = True, zero_to_nan = True)
+        # create a new occupancy map
+        self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
+                                 smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
+                                 smoothing = True, zero_to_nan = True)
         
         ## get the position of every spike
         self.spike_position()

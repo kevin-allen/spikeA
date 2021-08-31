@@ -80,7 +80,7 @@ class Dat_file_reader:
     
     def get_first_last_samples_each_file(self):
         """
-        Calculate what the first and last sample of a file is
+        Calculate what the first and last sample for the dat files.
 
         Arguments:
 
@@ -91,6 +91,19 @@ class Dat_file_reader:
         files_first_sample = np.insert(files_last_sample+1,0,0)[0:-1]
         return files_first_sample, files_last_sample
 
+    def get_file_intervals_in_seconds(self,sampling_rate=20000):
+        """
+        Calculate the start and end time of dat files in seconds
+        
+        Argument:
+        sampling_rate: sampling rate (Hz) to calculate time in seconds, default 20000
+        
+        Returns:
+        2D numpy array with one interval per row
+        """
+        s,e = self.get_first_last_samples_each_file()
+        return np.stack([s/sampling_rate,e/sampling_rate],axis=1)
+        
     
     def get_data_one_block(self,start_sample,end_sample,channels):
         """
@@ -179,11 +192,7 @@ class Dat_file_reader:
 #         for f1,i1,f2,i2 in my_list_of_tuples :
 #             blocks[:,:,bl] = myFile.read_one_block(f1,int(i1),f2,int(i2),block_sample_size,channels)
 #             bl=bl+1            
-        
-        
-        
-        
-        
+           
         
     def get_block_start_end_within_files(self,start_index,end_index):
         """
