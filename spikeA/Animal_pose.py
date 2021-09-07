@@ -41,7 +41,7 @@ class Animal_pose:
         
         
     Methods:
-        pose_from_positrack_file()
+        pose_from_positrack_files()
         save_pose_to_file()
         load_pose_from_file()
         set_intervals()
