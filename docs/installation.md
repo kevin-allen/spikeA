@@ -25,6 +25,12 @@ mkdir /home/kevin/python_virtual_environments
 python3 -m venv /home/kevin/python_virtual_environments/spikeAenv
 source /home/kevin/python_virtual_environments/spikeAenv/bin/activate
 ```
+## Update pip
+
+```
+pip install --upgrade pip
+```
+
 
 ## Install spikeA in your python environment
 
