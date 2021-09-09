@@ -32,6 +32,7 @@ class Animal_pose:
         occupancy_bins: list of 2 x 1D array containing the bin edges to create the occupancy map (used when calling np.histogram2d)
         occupancy_smoothing: boolean indicating of the occupancy map was smoothed
         smoothing_sigma_cm: standard deviation in cm of the gaussian smoothing kernel used to smooth the occupancy map.
+        ttl_ups: list of 1D numpy array containing the sample number in the dat files at which a up TTL was detected. This is assigned in pose_from_positrack_files()
         
         hd_occupancy_deg_per_bin: cm per bin in the occupancy map
         hd_occupancy_histogram: 1D numpy array containing the HD occupancy histogram
@@ -295,7 +296,7 @@ class Animal_pose:
         
         Arguments
         ses: A Session object
-        ttl_pulse_channe: channel on which the ttl pulses were recorded. If not provided, the last channel is assumed
+        ttl_pulse_channel: channel on which the ttl pulses were recorded. If not provided, the last channel is assumed
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
                 
@@ -319,13 +320,15 @@ class Animal_pose:
         trial_sample_offset = 0
         # list to store the position array of each trial
         posi_list = []
-
+        # list to store the up values (including the offset)
+        self.ttl_ups = []
+        
         # interpolate to have data for the entire .dat file (padded with np.nan at the beginning and end when there was no tracking)
         interpolation_step = self.ses.sampling_rate/interpolation_frequency_hz # interpolate at x Hz
         print("Interpolation step: {} samples".format(interpolation_step))
 
 
-        # loop for trials
+        #loop for trials
         for i,t in enumerate(self.ses.trial_names):
             dat_file_name = self.ses.path + "/" + t+".dat"
             positrack_file_name = self.ses.path + "/" + t+"."+ extension
@@ -346,6 +349,7 @@ class Animal_pose:
             # read the positrack file
             if extension=="positrack" :
                 pt = pd.read_csv(positrack_file_name, delimiter=" ")
+                    
             elif extension=="positrack2":
                 pt = pd.read_csv(positrack_file_name)
             elif extension=="trk":
@@ -411,6 +415,9 @@ class Animal_pose:
 
             # store the data in a lists of arrays
             posi_list.append(posi_d)
+            
+            # store the ttl up
+            self.ttl_ups.append(ttl[:]+trial_sample_offset)
 
             # change the offset for the next trial
             trial_sample_offset+=df.total_samples
