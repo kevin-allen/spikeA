@@ -205,20 +205,27 @@ class Dat_file_reader:
         end_index: last index to read
 
         Return:
-        A tuple with start_file_no, start_index_within_file, end_file_no, end_nidex_within_file
+        A tuple with start_file_no, start_index_within_file, end_file_no, end_index_within_file
         """
         # get the starting point of reading operation in dat files (start_file_no,start_index_within_file)
-        start_file_no = np.where((start_index >=self.files_first_sample) &  (start_index <self.files_last_sample))[0].item()
-        start_index_within_file = start_index - self.files_first_sample[start_file_no]
+        if start_index>=0: # if the first index is before the first trial, return nan
+            start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].item()
+            start_index_within_file = start_index - self.files_first_sample[start_file_no]
+        else:
+            start_file_no = np.nan
+            start_index_within_file = np.nan
         #print("start_file_no:",start_file_no)
         #print("start_index_within_file:",start_index_within_file)
+        
         # get the end point of reading operation in dat files (end_file_no, end_index_within_file)
-        end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index <= self.files_last_sample))[0].item()
-        end_index_within_file = end_index - self.files_first_sample[end_file_no]
+        if end_index<= self.files_last_sample[-1]: # if the end_index goes beyond the last trial, return nan
+            end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index <= self.files_last_sample))[0].item()
+            end_index_within_file = end_index - self.files_first_sample[end_file_no]
+        else:
+            end_file_no = np.nan
+            end_index_within_file = np.nan
         #print("end_file_no:",end_file_no)
         #print("end_index_within_file:",end_index_within_file)
-        
-        
         
         # return a tuple with start and end of reading operation
         return start_file_no, start_index_within_file, end_file_no, end_index_within_file
