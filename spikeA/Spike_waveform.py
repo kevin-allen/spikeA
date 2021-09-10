@@ -43,11 +43,11 @@ class Spike_waveform:
         spike_time_sample = self.st.st * self.st.sampling_rate
         
         my_list_of_tuples = [self.df.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
-        
+        my_list_of_tuples = [t for t in my_list_of_tuples if not any(np.isnan(t))] # remove spikes for which the start or end index goes beyond the first or last trial respectively
         bl=0
         
         for f1,i1,f2,i2 in my_list_of_tuples :
-            blocks[:,:,bl] = self.df.read_one_block(f1,int(i1),f2,int(i2),block_size,channels)
+            blocks[:,:,bl] = self.df.read_one_block(f1,int(np.round(i1)),f2,int(np.round(i2)),block_size,channels)
             bl=bl+1
             
         self.spike_waveform = blocks
