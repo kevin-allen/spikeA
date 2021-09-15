@@ -126,13 +126,26 @@ class Animal_pose:
         else :
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
-    
-    def set_intervals(self,inter):
+    def percentage_valid_data(self,columnIndex=1):
+        """
+        Function to return the percentage of valid data point in the .pose array
+        
+        Arguments:
+        columnIndex: column index to use in the pose array to calculate the proportion of valid data points
+        
+        Return: Percentage of valid data point in .pose
+        """
+        return np.sum(~np.isnan(self.pose[:,columnIndex]))/self.pose.shape[0]*100
+        
+        
+        
+    def set_intervals(self,inter,timeColumnIndex=0):
         """
         Function to limit the analysis to poses within a set of set specific time intervals
         
         Arguments:
         inter: 2D numpy array, one interval per row, time in seconds
+        timeColumnIndex: index of the column containing the time in the pose matrix
         
         Return:
         The function will set self.intervals to the values of inter
@@ -144,7 +157,7 @@ class Animal_pose:
         self.intervals.set_inter(inter)
         
         # only use the poses that are within the intervals
-        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,0])] 
+        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] 
         # self.st is now pointing to self.st_inter
         self.pose = self.pose_inter
         #print("Number of poses: {}".format(self.pose.shape[0]))
