@@ -58,7 +58,7 @@ class Cell_group:
         if pair_type=="permutations":
             self.pairs = list(permutations(range(len(self.neuron_list)),2))
         if pair_type=="combinations":
-            self.pairs = list(permutations(range(len(self.neuron_list)),2))
+            self.pairs = list(combinations(range(len(self.neuron_list)),2))
     
     def spike_time_crosscorrelation(self,bin_size_sec=0.0005, min_sec=-0.1, max_sec=0.1):
         """
