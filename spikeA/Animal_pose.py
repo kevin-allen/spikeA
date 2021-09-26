@@ -234,7 +234,8 @@ class Animal_pose:
         
     
         
-    def occupancy_map_2d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True):
+    def occupancy_map_2d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True,
+                        xy_range=None):
         """
         Function to calculate an occupancy map for x and y position data. 
         The occupancy map is a 2D array covering the entire environment explored by the animal.
@@ -246,6 +247,7 @@ class Animal_pose:
         smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the occupancy map
         smoothing: boolean indicating whether or not smoothing should be applied to the occupancy map
         zero_to_nan: boolean indicating if occupancy bins with a time of zero should be set to np.nan
+        xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map, default is None and the values are calculated from the data.         
         
         Return
         self.occupancy_map is set. It is a 2D numpy array containing the time spent in seconds in a set of bins covering the environment
@@ -264,14 +266,19 @@ class Animal_pose:
         #print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
         val = self.pose[~invalid,1:3]
         
-        ## determine the size of the occupancy map with the maximum x and y values
+        ## determine the size of the occupancy map with the minimum and maximum x and y values
         #print("max x and y values: {}".format(val.max(axis=0)))
-        xy_max = np.ceil(val.max(axis=0))+cm_per_bin
-        #print("max x and y for the np.arange function : {}".format(xy_max))
+        if xy_range is None:
+            xy_max = np.ceil(val.max(axis=0))+cm_per_bin
+            xy_min = np.floor(val.min(axis=0))-cm_per_bin
+        else :
+            xy_max= xy_range[1,:]
+            xy_min= xy_range[0,:]
+        #print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
 
         # create two arrays that will be our bin edges in the histogram function
-        self.occupancy_bins = [np.arange(0,xy_max[0],cm_per_bin),
-                               np.arange(0,xy_max[1],cm_per_bin)]
+        self.occupancy_bins = [np.arange(xy_min[0],xy_max[0],cm_per_bin),
+                               np.arange(xy_min[1],xy_max[1],cm_per_bin)]
         
         
         # calculate the occupancy map
