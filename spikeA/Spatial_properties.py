@@ -121,7 +121,7 @@ class Spatial_properties:
         self.firing_rate_head_direction_histo_edges = self.ap.hd_occupancy_bins
         self.firing_rate_head_direction_histo = spike_count/self.ap.hd_occupancy_histogram
     
-    def firing_rate_map_2d(self,cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True):
+    def firing_rate_map_2d(self,cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, xy_range=None):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -131,6 +131,7 @@ class Spatial_properties:
         cm_per_bin: cm per bins in the firing rate map
         smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the firing rate map
         smoothing: boolean indicating whether or not smoothing should be applied to the firing rate map
+        xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map, default is None and the values are calculated from the data.
         
         Return
         The Spatial_properties.firing_rate_map is set. It is a 2D numpy array containing the firing rate in Hz in a set of bins covering the environment.
@@ -143,7 +144,7 @@ class Spatial_properties:
         # create a new occupancy map
         self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
                                  smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                 smoothing = True, zero_to_nan = True)
+                                 smoothing = True, zero_to_nan = True,xy_range=xy_range)
         
         ## get the position of every spike
         self.spike_position()

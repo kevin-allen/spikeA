@@ -35,6 +35,7 @@ class Animal_pose:
         occupancy_bins: list of 2 x 1D array containing the bin edges to create the occupancy map (used when calling np.histogram2d)
         occupancy_smoothing: boolean indicating of the occupancy map was smoothed
         smoothing_sigma_cm: standard deviation in cm of the gaussian smoothing kernel used to smooth the occupancy map.
+        ttl_ups: list of 1D numpy array containing the sample number in the dat files at which a up TTL was detected. This is assigned in pose_from_positrack_files()
         
         hd_occupancy_deg_per_bin: cm per bin in the occupancy map
         hd_occupancy_histogram: 1D numpy array containing the HD occupancy histogram
@@ -44,9 +45,7 @@ class Animal_pose:
         
         
     Methods:
-        pose_from_positrack_file()
-        speed_from_pose()
-        save_pose_to_file()
+     save_pose_to_file()
         load_pose_from_file()
         set_intervals()
         unset_intervals()
@@ -130,13 +129,26 @@ class Animal_pose:
         else :
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
-    
-    def set_intervals(self,inter):
+    def percentage_valid_data(self,columnIndex=1):
+        """
+        Function to return the percentage of valid data point in the .pose array
+        
+        Arguments:
+        columnIndex: column index to use in the pose array to calculate the proportion of valid data points
+        
+        Return: Percentage of valid data point in .pose
+        """
+        return np.sum(~np.isnan(self.pose[:,columnIndex]))/self.pose.shape[0]*100
+        
+        
+        
+    def set_intervals(self,inter,timeColumnIndex=0):
         """
         Function to limit the analysis to poses within a set of set specific time intervals
         
         Arguments:
         inter: 2D numpy array, one interval per row, time in seconds
+        timeColumnIndex: index of the column containing the time in the pose matrix
         
         Return:
         The function will set self.intervals to the values of inter
@@ -148,7 +160,7 @@ class Animal_pose:
         self.intervals.set_inter(inter)
         
         # only use the poses that are within the intervals
-        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,0])] 
+        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] 
         # self.st is now pointing to self.st_inter
         self.pose = self.pose_inter
         #print("Number of poses: {}".format(self.pose.shape[0]))
@@ -225,7 +237,8 @@ class Animal_pose:
         
     
         
-    def occupancy_map_2d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True):
+    def occupancy_map_2d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True,
+                        xy_range=None):
         """
         Function to calculate an occupancy map for x and y position data. 
         The occupancy map is a 2D array covering the entire environment explored by the animal.
@@ -237,6 +250,7 @@ class Animal_pose:
         smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the occupancy map
         smoothing: boolean indicating whether or not smoothing should be applied to the occupancy map
         zero_to_nan: boolean indicating if occupancy bins with a time of zero should be set to np.nan
+        xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map, default is None and the values are calculated from the data.         
         
         Return
         self.occupancy_map is set. It is a 2D numpy array containing the time spent in seconds in a set of bins covering the environment
@@ -255,14 +269,19 @@ class Animal_pose:
         #print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
         val = self.pose[~invalid,1:3]
         
-        ## determine the size of the occupancy map with the maximum x and y values
+        ## determine the size of the occupancy map with the minimum and maximum x and y values
         #print("max x and y values: {}".format(val.max(axis=0)))
-        xy_max = np.ceil(val.max(axis=0))+cm_per_bin
-        #print("max x and y for the np.arange function : {}".format(xy_max))
+        if xy_range is None:
+            xy_max = np.ceil(val.max(axis=0))+cm_per_bin
+            xy_min = np.floor(val.min(axis=0))-cm_per_bin
+        else :
+            xy_max= xy_range[1,:]
+            xy_min= xy_range[0,:]
+        #print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
 
         # create two arrays that will be our bin edges in the histogram function
-        self.occupancy_bins = [np.arange(0,xy_max[0],cm_per_bin),
-                               np.arange(0,xy_max[1],cm_per_bin)]
+        self.occupancy_bins = [np.arange(xy_min[0],xy_max[0],cm_per_bin),
+                               np.arange(xy_min[1],xy_max[1],cm_per_bin)]
         
         
         # calculate the occupancy map
@@ -291,13 +310,16 @@ class Animal_pose:
         
         
     
-    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension="positrack"):
+
+    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2"):
+
+
         """
         Method to calculute pose at fixed interval from a positrack file.
         
         Arguments
         ses: A Session object
-        ttl_pulse_channe: channel on which the ttl pulses were recorded. If not provided, the last channel is assumed
+        ttl_pulse_channel: channel on which the ttl pulses were recorded. If not provided, the last channel is assumed
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
                 
@@ -321,13 +343,15 @@ class Animal_pose:
         trial_sample_offset = 0
         # list to store the position array of each trial
         posi_list = []
-
+        # list to store the up values (including the offset)
+        self.ttl_ups = []
+        
         # interpolate to have data for the entire .dat file (padded with np.nan at the beginning and end when there was no tracking)
         interpolation_step = self.ses.sampling_rate/interpolation_frequency_hz # interpolate at x Hz
         print("Interpolation step: {} samples".format(interpolation_step))
 
 
-        # loop for trials
+        #loop for trials
         for i,t in enumerate(self.ses.trial_names):
             dat_file_name = self.ses.path + "/" + t+".dat"
             positrack_file_name = self.ses.path + "/" + t+"."+ extension
@@ -335,6 +359,7 @@ class Animal_pose:
             print(positrack_file_name)
 
             positrack_file = Path(positrack_file_name)
+            
             if not positrack_file.exists() :
                 raise OSError("positrack file {} missing".format(positrack_file_name))
 
@@ -347,6 +372,7 @@ class Animal_pose:
             # read the positrack file
             if extension=="positrack" :
                 pt = pd.read_csv(positrack_file_name, delimiter=" ", index_col=False)
+
             elif extension=="positrack2":
                 pt = pd.read_csv(positrack_file_name)
             elif extension=="trk":
@@ -432,6 +458,9 @@ class Animal_pose:
 
             # store the data in a lists of arrays
             posi_list.append(posi_d)
+            
+            # store the ttl up
+            self.ttl_ups.append(ttl[:]+trial_sample_offset)
 
             # change the offset for the next trial
             trial_sample_offset+=df.total_samples
