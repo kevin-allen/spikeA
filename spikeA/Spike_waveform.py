@@ -34,13 +34,20 @@ class Spike_waveform:
         
         return
     
-    def mean_waveform(self, block_size, channels):
+    def mean_waveform(self, block_size, channels, n_spikes=None):
         """
-        A method to get the mean waveform of all neurons
+        A method to get the mean waveform of one neuron 
+        Arguments:
+        block_size = Number of time points in the waveform 
+        channels= channel list as np.array
+        n_spikes= limit the analysis to the first n spikes _ default is None and all spikes are analyzed
         """
-    
-        blocks = np.ndarray((len(channels), block_size, self.st.n_spikes()))
-        spike_time_sample = self.st.st * self.st.sampling_rate
+        if n_spikes is None:
+            blocks = np.ndarray((len(channels), block_size, self.st.n_spikes()))
+            spike_time_sample = self.st.st * self.st.sampling_rate
+        else:
+            blocks = np.ndarray((len(channels), block_size, n_spikes))
+            spike_time_sample = self.st.st * self.st.sampling_rate
         
         my_list_of_tuples = [self.df.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
         my_list_of_tuples = [t for t in my_list_of_tuples if not any(np.isnan(t))] # remove spikes for which the start or end index goes beyond the first or last trial respectively
