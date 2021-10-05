@@ -68,8 +68,7 @@ class Spike_waveform:
             self.mean_waveforms is a 2D array with time and channel as dimentions
             here we find the channel with the largest amplitude and return the waveform associated to that. 
             """
-        
-         pass 
+            pass 
         
         #for n in ses.cg.neuron_list:
         #n.set_spike_waveform(ses)
