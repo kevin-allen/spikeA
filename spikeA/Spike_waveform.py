@@ -47,7 +47,7 @@ class Spike_waveform:
             spike_time_sample = self.st.st * self.st.sampling_rate
         else:
             blocks = np.ndarray((len(channels), block_size, n_spikes))
-            spike_time_sample = self.st.st * self.st.sampling_rate
+            spike_time_sample = self.st.st[:n_spikes] * self.st.sampling_rate
         
         my_list_of_tuples = [self.df.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
         my_list_of_tuples = [t for t in my_list_of_tuples if not any(np.isnan(t))] # remove spikes for which the start or end index goes beyond the first or last trial respectively
@@ -60,7 +60,20 @@ class Spike_waveform:
         self.spike_waveform = blocks
         self.mean_waveforms =  np.mean(blocks, axis = 2)
         
- 
-
-
+        
+        def largest_amplitude_waveform(self):
+            
+            """
+            A function to get the largest amplitude waveform
+            self.mean_waveforms is a 2D array with time and channel as dimentions
+            here we find the channel with the largest amplitude and return the waveform associated to that. 
+            """
+        
+         pass 
+        
+        #for n in ses.cg.neuron_list:
+        #n.set_spike_waveform(ses)
+        
+        #for n in ses.cg.neuron_list:
+        #n.spike_waveform.mean_waveform(block_size=100, channels=range(ses.n_channels-1), n_spikes=300)
 

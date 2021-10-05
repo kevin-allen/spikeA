@@ -2,6 +2,8 @@ import numpy as np
 from spikeA.Spike_train import Spike_train
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spatial_properties import Spatial_properties
+from spikeA.Dat_file_reader import Dat_file_reader
+from spikeA.Spike_waveform import Spike_waveform
 
 class Neuron:
     """
@@ -85,4 +87,16 @@ class Neuron:
                                       
         # call the set_spike_train of the Spike_train object of the neuron
         self.spike_train.set_spike_train(st=st)
+    
+    def set_spike_waveform(self,ses):
+        
+        if self.spike_train is None:
+            raise TypeError("self.spike_train.st should not be None")
+        if ses.n_channels is None:
+            raise TypeError("ses.n_channels is None, run ses.load_parameter_files()")
+            
+        file_names=[f"{ses.fileBase}.dat"]
+        df= Dat_file_reader(file_names,ses.n_channels)
+        self.spike_waveform = Spike_waveform(dat_file=df, spike_train=self.spike_train)
+        
         
