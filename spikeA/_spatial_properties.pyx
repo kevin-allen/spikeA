@@ -10,6 +10,7 @@ np.import_array()
 # cdefine the signature of our c function
 cdef extern from "spatial_properties.h":
     void map_autocorrelation(double *one_place, double *one_auto, int x_bins_place_map, int y_bins_place_map, int x_bins_auto_map, int y_bins_auto_map, int min_for_correlation)
+    double correlation (double* x, double* y, int size, double invalid)
     
 
 # create the wrapper code, with numpy type annotations

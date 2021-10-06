@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <stdio.h>
+
 void map_autocorrelation(double *one_place, // pointer to one place field map
 			 double *one_auto, // pointer to one spatial autocorrelation map
 			 int x_bins_place_map, // x size of the place field map (num bins)
@@ -89,7 +92,7 @@ map.
 }
 
 
-void correlation (double* x, double* y, int size, double invalid)
+double correlation (double* x, double* y, int size, double invalid)
 {
   /* return the r value of a linear correlation
      see NI Fisher page 145, 6.19 */

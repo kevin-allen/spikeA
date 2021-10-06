@@ -1608,7 +1608,7 @@ static PyObject *__pyx_tuple__3;
 static PyObject *__pyx_codeobj__4;
 /* Late includes */
 
-/* "spatial_properties.pyx":16
+/* "spatial_properties.pyx":17
  * 
  * # create the wrapper code, with numpy type annotations
  * def map_autocorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not None,             # <<<<<<<<<<<<<<
@@ -1651,11 +1651,11 @@ static PyObject *__pyx_pw_18spatial_properties_1map_autocorrelation_func(PyObjec
         case  1:
         if (likely((values[1] = __Pyx_PyDict_GetItemStr(__pyx_kwds, __pyx_n_s_one_auto)) != 0)) kw_args--;
         else {
-          __Pyx_RaiseArgtupleInvalid("map_autocorrelation_func", 1, 2, 2, 1); __PYX_ERR(0, 16, __pyx_L3_error)
+          __Pyx_RaiseArgtupleInvalid("map_autocorrelation_func", 1, 2, 2, 1); __PYX_ERR(0, 17, __pyx_L3_error)
         }
       }
       if (unlikely(kw_args > 0)) {
-        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "map_autocorrelation_func") < 0)) __PYX_ERR(0, 16, __pyx_L3_error)
+        if (unlikely(__Pyx_ParseOptionalKeywords(__pyx_kwds, __pyx_pyargnames, 0, values, pos_args, "map_autocorrelation_func") < 0)) __PYX_ERR(0, 17, __pyx_L3_error)
       }
     } else if (PyTuple_GET_SIZE(__pyx_args) != 2) {
       goto __pyx_L5_argtuple_error;
@@ -1668,14 +1668,14 @@ static PyObject *__pyx_pw_18spatial_properties_1map_autocorrelation_func(PyObjec
   }
   goto __pyx_L4_argument_unpacking_done;
   __pyx_L5_argtuple_error:;
-  __Pyx_RaiseArgtupleInvalid("map_autocorrelation_func", 1, 2, 2, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 16, __pyx_L3_error)
+  __Pyx_RaiseArgtupleInvalid("map_autocorrelation_func", 1, 2, 2, PyTuple_GET_SIZE(__pyx_args)); __PYX_ERR(0, 17, __pyx_L3_error)
   __pyx_L3_error:;
   __Pyx_AddTraceback("spatial_properties.map_autocorrelation_func", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __Pyx_RefNannyFinishContext();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_one_place), __pyx_ptype_5numpy_ndarray, 0, "one_place", 0))) __PYX_ERR(0, 16, __pyx_L1_error)
-  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_one_auto), __pyx_ptype_5numpy_ndarray, 0, "one_auto", 0))) __PYX_ERR(0, 17, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_one_place), __pyx_ptype_5numpy_ndarray, 0, "one_place", 0))) __PYX_ERR(0, 17, __pyx_L1_error)
+  if (unlikely(!__Pyx_ArgTypeTest(((PyObject *)__pyx_v_one_auto), __pyx_ptype_5numpy_ndarray, 0, "one_auto", 0))) __PYX_ERR(0, 18, __pyx_L1_error)
   __pyx_r = __pyx_pf_18spatial_properties_map_autocorrelation_func(__pyx_self, __pyx_v_one_place, __pyx_v_one_auto);
 
   /* function exit code */
@@ -1708,16 +1708,16 @@ static PyObject *__pyx_pf_18spatial_properties_map_autocorrelation_func(CYTHON_U
   __pyx_pybuffernd_one_auto.rcbuffer = &__pyx_pybuffer_one_auto;
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_one_place.rcbuffer->pybuffer, (PyObject*)__pyx_v_one_place, &__Pyx_TypeInfo_double, PyBUF_FORMAT| PyBUF_C_CONTIGUOUS, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 16, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_one_place.rcbuffer->pybuffer, (PyObject*)__pyx_v_one_place, &__Pyx_TypeInfo_double, PyBUF_FORMAT| PyBUF_C_CONTIGUOUS, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 17, __pyx_L1_error)
   }
   __pyx_pybuffernd_one_place.diminfo[0].strides = __pyx_pybuffernd_one_place.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_one_place.diminfo[0].shape = __pyx_pybuffernd_one_place.rcbuffer->pybuffer.shape[0]; __pyx_pybuffernd_one_place.diminfo[1].strides = __pyx_pybuffernd_one_place.rcbuffer->pybuffer.strides[1]; __pyx_pybuffernd_one_place.diminfo[1].shape = __pyx_pybuffernd_one_place.rcbuffer->pybuffer.shape[1];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_one_auto.rcbuffer->pybuffer, (PyObject*)__pyx_v_one_auto, &__Pyx_TypeInfo_double, PyBUF_FORMAT| PyBUF_C_CONTIGUOUS, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 16, __pyx_L1_error)
+    if (unlikely(__Pyx_GetBufferAndValidate(&__pyx_pybuffernd_one_auto.rcbuffer->pybuffer, (PyObject*)__pyx_v_one_auto, &__Pyx_TypeInfo_double, PyBUF_FORMAT| PyBUF_C_CONTIGUOUS, 2, 0, __pyx_stack) == -1)) __PYX_ERR(0, 17, __pyx_L1_error)
   }
   __pyx_pybuffernd_one_auto.diminfo[0].strides = __pyx_pybuffernd_one_auto.rcbuffer->pybuffer.strides[0]; __pyx_pybuffernd_one_auto.diminfo[0].shape = __pyx_pybuffernd_one_auto.rcbuffer->pybuffer.shape[0]; __pyx_pybuffernd_one_auto.diminfo[1].strides = __pyx_pybuffernd_one_auto.rcbuffer->pybuffer.strides[1]; __pyx_pybuffernd_one_auto.diminfo[1].shape = __pyx_pybuffernd_one_auto.rcbuffer->pybuffer.shape[1];
 
-  /* "spatial_properties.pyx":18
+  /* "spatial_properties.pyx":19
  * def map_autocorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not None,
  * 				     np.ndarray[double, ndim=2, mode="c"] one_auto not None):
  *     map_autocorrelation(<double*> np.PyArray_DATA(one_place),             # <<<<<<<<<<<<<<
@@ -1726,7 +1726,7 @@ static PyObject *__pyx_pf_18spatial_properties_map_autocorrelation_func(CYTHON_U
  */
   map_autocorrelation(((double *)PyArray_DATA(((PyArrayObject *)__pyx_v_one_place))), ((double *)PyArray_DATA(((PyArrayObject *)__pyx_v_one_auto))), (__pyx_v_one_place->dimensions[0]), (__pyx_v_one_place->dimensions[1]), (__pyx_v_one_auto->dimensions[0]), (__pyx_v_one_auto->dimensions[1]), 1);
 
-  /* "spatial_properties.pyx":16
+  /* "spatial_properties.pyx":17
  * 
  * # create the wrapper code, with numpy type annotations
  * def map_autocorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not None,             # <<<<<<<<<<<<<<
@@ -2693,17 +2693,17 @@ static CYTHON_SMALL_CODE int __Pyx_InitCachedConstants(void) {
   __Pyx_GOTREF(__pyx_tuple__2);
   __Pyx_GIVEREF(__pyx_tuple__2);
 
-  /* "spatial_properties.pyx":16
+  /* "spatial_properties.pyx":17
  * 
  * # create the wrapper code, with numpy type annotations
  * def map_autocorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not None,             # <<<<<<<<<<<<<<
  * 				     np.ndarray[double, ndim=2, mode="c"] one_auto not None):
  *     map_autocorrelation(<double*> np.PyArray_DATA(one_place),
  */
-  __pyx_tuple__3 = PyTuple_Pack(2, __pyx_n_s_one_place, __pyx_n_s_one_auto); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 16, __pyx_L1_error)
+  __pyx_tuple__3 = PyTuple_Pack(2, __pyx_n_s_one_place, __pyx_n_s_one_auto); if (unlikely(!__pyx_tuple__3)) __PYX_ERR(0, 17, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_tuple__3);
   __Pyx_GIVEREF(__pyx_tuple__3);
-  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(2, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_spatial_properties_pyx, __pyx_n_s_map_autocorrelation_func, 16, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(0, 16, __pyx_L1_error)
+  __pyx_codeobj__4 = (PyObject*)__Pyx_PyCode_New(2, 0, 2, 0, CO_OPTIMIZED|CO_NEWLOCALS, __pyx_empty_bytes, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_tuple__3, __pyx_empty_tuple, __pyx_empty_tuple, __pyx_kp_s_spatial_properties_pyx, __pyx_n_s_map_autocorrelation_func, 17, __pyx_empty_bytes); if (unlikely(!__pyx_codeobj__4)) __PYX_ERR(0, 17, __pyx_L1_error)
   __Pyx_RefNannyFinishContext();
   return 0;
   __pyx_L1_error:;
@@ -3026,16 +3026,16 @@ if (!__Pyx_RefNanny) {
  */
   __pyx_t_1 = __pyx_f_5numpy_import_array(); if (unlikely(__pyx_t_1 == ((int)-1))) __PYX_ERR(0, 8, __pyx_L1_error)
 
-  /* "spatial_properties.pyx":16
+  /* "spatial_properties.pyx":17
  * 
  * # create the wrapper code, with numpy type annotations
  * def map_autocorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not None,             # <<<<<<<<<<<<<<
  * 				     np.ndarray[double, ndim=2, mode="c"] one_auto not None):
  *     map_autocorrelation(<double*> np.PyArray_DATA(one_place),
  */
-  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18spatial_properties_1map_autocorrelation_func, NULL, __pyx_n_s_spatial_properties); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 16, __pyx_L1_error)
+  __pyx_t_2 = PyCFunction_NewEx(&__pyx_mdef_18spatial_properties_1map_autocorrelation_func, NULL, __pyx_n_s_spatial_properties); if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 17, __pyx_L1_error)
   __Pyx_GOTREF(__pyx_t_2);
-  if (PyDict_SetItem(__pyx_d, __pyx_n_s_map_autocorrelation_func, __pyx_t_2) < 0) __PYX_ERR(0, 16, __pyx_L1_error)
+  if (PyDict_SetItem(__pyx_d, __pyx_n_s_map_autocorrelation_func, __pyx_t_2) < 0) __PYX_ERR(0, 17, __pyx_L1_error)
   __Pyx_DECREF(__pyx_t_2); __pyx_t_2 = 0;
 
   /* "spatial_properties.pyx":1
