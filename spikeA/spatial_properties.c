@@ -88,3 +88,57 @@ map.
   free(value_2_correlation);
 }
 
+
+void correlation (double* x, double* y, int size, double invalid)
+{
+  /* return the r value of a linear correlation
+     see NI Fisher page 145, 6.19 */
+  double sum_x=0;
+  double sum_y=0;
+  double mean_x=0;
+  double mean_y=0;
+  double sum_x_mean=0;
+  double sum_y_mean=0;
+  double sum_prod_diff_mean=0;
+  double r;
+  int n=0;
+  for (int i = 0; i < size; i++)
+    {
+      if (x[i]!=invalid && y[i]!=invalid)
+	    {
+	      sum_x=sum_x+x[i];
+	      sum_y=sum_y+y[i];
+	      n++;
+	    }
+    }
+  mean_x=sum_x/n;
+  mean_y=sum_y/n;
+  for (int i = 0; i < size; i++)
+    {
+      if (x[i]!=invalid && y[i]!=invalid)
+	{
+	  sum_x_mean=sum_x_mean+pow((x[i]-mean_x),2);
+	  sum_y_mean=sum_y_mean+pow((y[i]-mean_y),2);
+	  sum_prod_diff_mean=sum_prod_diff_mean+((x[i]-mean_x)*(y[i]-mean_y));
+	}
+    }
+  if (sum_x_mean == 0 || sum_y_mean == 0)
+    {
+      r = 0;
+    }
+  else
+    {
+      r=sum_prod_diff_mean/sqrt((sum_x_mean*sum_y_mean));
+    }
+  // allow for some small rounding error, this should be negligable for most analysis
+  if(r<-1.0&&r>-1.00000000001)
+    r=-1.0;
+  if(r>1.0&&r<1.00000000001)
+    r=1.0;
+  if (r<-1.0||r>1.0) 
+    {
+      printf("problem with correlation function, value of r out of range: %lf\n",r);
+      printf("size: %d n: %d\n",size,n);
+    }
+  return r;
+}

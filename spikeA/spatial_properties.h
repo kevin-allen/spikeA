@@ -5,3 +5,5 @@ void map_autocorrelation(double *one_place, // pointer to one place field map
 			 int x_bins_auto_map, // x size of the autocorrelation map
 			 int y_bins_auto_map, // y size of the autocorreltion map
 			 int min_for_correlation); // minimum of valid values to do the correlation
+
+double correlation (double* x, double* y, int size, double invalid);
