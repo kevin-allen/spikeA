@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 
 double correlation (double* x, double* y, int size, double invalid)
 {

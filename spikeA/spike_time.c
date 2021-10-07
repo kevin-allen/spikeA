@@ -25,7 +25,6 @@ void spike_time_autocorrelation(double * st, double* out, int inSize, int outSiz
     }
 }
 
-
 void spike_time_crosscorrelation(double * st1, double * st2, double* out, int size1, int size2, int outSize, double min, double max, double step){
     int i;
     int j;
