@@ -182,10 +182,11 @@ class Spatial_properties:
         
         ## check for firing rate map
         if not hasattr(self, 'firing_rate_map'):
+            #We might want to warn the user because here we are generating maps with parameters that the user does not know
             self.firing_rate_map_2d(cm_per_bin =2, smoothing_sigma_cm = 2, smoothing=True)
         
         ## convert nan values to -1 for C function
-        self.firing_rate_map[np.isnan(self.firing_rate_map)]=-1
+        self.firing_rate_map[np.isnan(self.firing_rate_map)]=-1.0
         
         ## create an empty array of the appropriate dimensions to store the autocorrelation data
         auto_array = np.zeros((2*self.firing_rate_map.shape[0]+1,2*self.firing_rate_map.shape[1]+1))
