@@ -17,6 +17,8 @@ class Spatial_properties:
     Methods:
         firing_rate_map_2d()
         spatial_autocorrelation_map_2d()
+        spatial_autocorrelation_field_detection(threshold, neighborhood_size)
+        spatial_autocorrelation_field_detection_7(neighborhood_size)
         
     """
     def __init__(self, spike_train=None, animal_pose=None):
@@ -194,6 +196,55 @@ class Spatial_properties:
         ## create the spatial autocorrelation calling a C function
         spikeA.spatial_properties.map_autocorrelation_func(self.firing_rate_map,auto_array)
         self.spatial_autocorrelation_map = auto_array
+
+        
+        
+    def spatial_autocorrelation_field_detection(self, threshold = 0.1, neighborhood_size = 5):
+        """
+        Method to detect fields based on autocorrelation map
+        
+        Returns
+        The list of peaks x,y        
+        """
+        
+        ### check for autocorrelation map
+        if self.spatial_autocorrelation_map is None:
+            raise TypeError("call spatial_autocorrelation_map_2d to generate the autocorrelation")
+            
+        data = self.spatial_autocorrelation_map
+        
+        data_max = filters.maximum_filter(data, neighborhood_size)
+        maxima = (data == data_max)
+        data_min = filters.minimum_filter(data, neighborhood_size)
+        diff = ((data_max - data_min) > threshold)
+        maxima[diff == 0] = 0
+
+        labeled, num_objects = ndimage.label(maxima)
+        slices = ndimage.find_objects(labeled)
+        x, y = [], []
+        for dy,dx in slices:
+            x_center = (dx.start + dx.stop - 1)/2
+            x.append(round(x_center))
+            y_center = (dy.start + dy.stop - 1)/2    
+            y.append(round(y_center))
+
+        return(x,y)
+    
+    def spatial_autocorrelation_field_detection_7(self, neighborhood_size = 5):
+        thresholds = np.linspace(0,0.1,100)
+        numsofpeaks = [ len(self.spatial_autocorrelation_field_detection(threshold, neighborhood_size)[0]) for threshold in thresholds ]
+        
+        print("thresholds",thresholds)
+        print("numsofpeaks",numsofpeaks)
+
+        thresholds_good = thresholds[np.where(np.array(numsofpeaks) == 7)[0]]
+        threshold_goodmean = np.mean(thresholds_good)
+        
+        print("suitable thresholds:", thresholds_good, ". Use: ",threshold_goodmean)
+
+        return(self.spatial_autocorrelation_field_detection(threshold_goodmean, neighborhood_size))
+        
+        
         
     def information_score(self):
         """
