@@ -3,6 +3,7 @@ from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from scipy import ndimage
+import spikeA.spatial_properties
 
 class Spatial_properties:
     """
@@ -15,6 +16,7 @@ class Spatial_properties:
         ap = Animal_pose object
     Methods:
         firing_rate_map_2d()
+        spatial_autocorrelation_map_2d()
         
     """
     def __init__(self, spike_train=None, animal_pose=None):
@@ -166,6 +168,32 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
+    def spatial_autocorrelation_map_2d(self):
+        """
+        Method of the Spatial_properties class to calculate a spatial autocorrelation map of a single neuron.
+        
+        If a compatible firing rate map is not already present in the spatial_properties object, one will be calculated.
+        
+        Arguments
+        
+        Return
+        The Spatial_properties.spatial_autocorrelation_map is set. It is a 2D numpy array.
+        """
+        
+        ## check for firing rate map
+        if not hasattr(self, 'firing_rate_map'):
+            self.firing_rate_map_2d(cm_per_bin =2, smoothing_sigma_cm = 2, smoothing=True)
+        
+        ## convert nan values to -1 for C function
+        self.firing_rate_map[np.isnan(self.firing_rate_map)]=-1
+        
+        ## create an empty array of the appropriate dimensions to store the autocorrelation data
+        auto_array = np.zeros((2*self.firing_rate_map.shape[0]+1,2*self.firing_rate_map.shape[1]+1))
+
+        ## create the spatial autocorrelation calling a C function
+        spikeA.spatial_properties.map_autocorrelation_func(self.firing_rate_map,auto_array)
+        self.spatial_autocorrelation_map = auto_array
+        
     def information_score(self):
         """
         Method of the Spatial_properties class to calculate the information score of a single neuron.
