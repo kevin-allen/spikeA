@@ -45,8 +45,9 @@ class Animal_pose:
         
         
     Methods:
-     save_pose_to_file()
+        save_pose_to_file()
         load_pose_from_file()
+        pose_from_positrack_files()
         set_intervals()
         unset_intervals()
         occupancy_map()
