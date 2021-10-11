@@ -3,6 +3,7 @@ from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from scipy import ndimage
+import spikeA.spatial_properties
 
 class Spatial_properties:
     """
@@ -15,6 +16,9 @@ class Spatial_properties:
         ap = Animal_pose object
     Methods:
         firing_rate_map_2d()
+        spatial_autocorrelation_map_2d()
+        spatial_autocorrelation_field_detection(threshold, neighborhood_size)
+        spatial_autocorrelation_field_detection_7(neighborhood_size)
         
     """
     def __init__(self, spike_train=None, animal_pose=None):
@@ -169,6 +173,82 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
+    def spatial_autocorrelation_map_2d(self):
+        """
+        Method of the Spatial_properties class to calculate a spatial autocorrelation map of a single neuron.
+        
+        If a compatible firing rate map is not already present in the spatial_properties object, one will be calculated.
+        
+        Arguments
+        
+        Return
+        The Spatial_properties.spatial_autocorrelation_map is set. It is a 2D numpy array.
+        """
+        
+        ## check for firing rate map
+        if not hasattr(self, 'firing_rate_map'):
+            #We might want to warn the user because here we are generating maps with parameters that the user does not know
+            self.firing_rate_map_2d(cm_per_bin =2, smoothing_sigma_cm = 2, smoothing=True)
+        
+        ## convert nan values to -1 for C function
+        self.firing_rate_map[np.isnan(self.firing_rate_map)]=-1.0
+        
+        ## create an empty array of the appropriate dimensions to store the autocorrelation data
+        auto_array = np.zeros((2*self.firing_rate_map.shape[0]+1,2*self.firing_rate_map.shape[1]+1))
+
+        ## create the spatial autocorrelation calling a C function
+        spikeA.spatial_properties.map_autocorrelation_func(self.firing_rate_map,auto_array)
+        self.spatial_autocorrelation_map = auto_array
+
+        
+        
+    def spatial_autocorrelation_field_detection(self, threshold = 0.1, neighborhood_size = 5):
+        """
+        Method to detect fields based on autocorrelation map
+        
+        Returns
+        The list of peaks x,y        
+        """
+        
+        ### check for autocorrelation map
+        if self.spatial_autocorrelation_map is None:
+            raise TypeError("call spatial_autocorrelation_map_2d to generate the autocorrelation")
+            
+        data = self.spatial_autocorrelation_map
+        
+        data_max = filters.maximum_filter(data, neighborhood_size)
+        maxima = (data == data_max)
+        data_min = filters.minimum_filter(data, neighborhood_size)
+        diff = ((data_max - data_min) > threshold)
+        maxima[diff == 0] = 0
+
+        labeled, num_objects = ndimage.label(maxima)
+        slices = ndimage.find_objects(labeled)
+        x, y = [], []
+        for dy,dx in slices:
+            x_center = (dx.start + dx.stop - 1)/2
+            x.append(round(x_center))
+            y_center = (dy.start + dy.stop - 1)/2    
+            y.append(round(y_center))
+
+        return(x,y)
+    
+    def spatial_autocorrelation_field_detection_7(self, neighborhood_size = 5):
+        thresholds = np.linspace(0,0.1,100)
+        numsofpeaks = [ len(self.spatial_autocorrelation_field_detection(threshold, neighborhood_size)[0]) for threshold in thresholds ]
+        
+        print("thresholds",thresholds)
+        print("numsofpeaks",numsofpeaks)
+
+        thresholds_good = thresholds[np.where(np.array(numsofpeaks) == 7)[0]]
+        threshold_goodmean = np.mean(thresholds_good)
+        
+        print("suitable thresholds:", thresholds_good, ". Use: ",threshold_goodmean)
+
+        return(self.spatial_autocorrelation_field_detection(threshold_goodmean, neighborhood_size))
+        
+        
+        
     def information_score(self):
         """
         Method of the Spatial_properties class to calculate the information score of a single neuron.

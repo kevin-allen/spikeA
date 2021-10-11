@@ -167,7 +167,7 @@ class Spike_train_loader:
         if not os.path.isfile(ks.file_names["cluster_group"]):
             raise IOError("{} file not found".format(ks.file_names["cluster_group"]))
         
-        cluster_group = pd.read_csv(ks.file_names["cluster_group"],sep="\t")
+        cluster_group = pd.read_csv(ks.file_names["cluster_group"], sep="\t")
 
         # get the clu id of "good" clusters
         g = cluster_group.group == "good"

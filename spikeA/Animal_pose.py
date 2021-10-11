@@ -3,7 +3,9 @@ import pandas as pd
 from pathlib import Path
 from scipy.interpolate import interp1d
 from scipy import ndimage
+from scipy.ndimage import gaussian_filter1d
 import os.path
+import os
 
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.ttl import detectTTL
@@ -26,6 +28,7 @@ class Animal_pose:
         pose: 2D numpy array, columns are (time, x,y,z,yaw,pitch,roll). This is a pointer to pose_ori or pose_inter
         pose_ori: 2D numpy array of the original data loaded
         pose_inter: 2D numpy array of the pose data that are within the intervals set
+        speed: 1D numpy array of speed data of the original pose data
         inter: Interval object
         occupancy_cm_per_bin: cm per bin in the occupancy map
         occupancy_map: 2D numpy array containing the occupancy map
@@ -42,9 +45,9 @@ class Animal_pose:
         
         
     Methods:
-        pose_from_positrack_files()
         save_pose_to_file()
         load_pose_from_file()
+        pose_from_positrack_files()
         set_intervals()
         unset_intervals()
         occupancy_map()
@@ -73,6 +76,7 @@ class Animal_pose:
         self.occupancy_bins = None
         self.occupancy_smoothing = None
         self.smoothing_sigma_cm = None
+        self.speed = None
         self.pose_file_extension = ".pose.npy"
     
     def save_pose_to_file(self,file_name=None):
@@ -368,8 +372,8 @@ class Animal_pose:
 
             # read the positrack file
             if extension=="positrack" :
-                pt = pd.read_csv(positrack_file_name, delimiter=" ")
-                    
+                pt = pd.read_csv(positrack_file_name, delimiter=" ", index_col=False)
+
             elif extension=="positrack2":
                 pt = pd.read_csv(positrack_file_name)
             elif extension=="trk":
@@ -380,13 +384,33 @@ class Animal_pose:
                 raise ValueError("extension not supported")
   
             print("Number of lines in positrack file: {}".format(pt.shape[0]))
+    
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
+                # if there are just 1 or 2 ttl pulses missing from positrack, copy the last 1 or 2 lines
+                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2)):
+                    original_positrack_file = self.ses.path + "/" + t+"o."+ extension
+                    missing = ttl.shape[0]-pt.shape[0]
+                    pt_mod = pt.append(pt[(pt.shape[0]-missing):(pt.shape[0]+1)])
+                    print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
+                    os.rename(positrack_file_name, original_positrack_file)
+                    pt_mod.to_csv(positrack_file_name, sep=' ')
+                    pt = pt_mod
+                    print("Alignment problem solved by adding one or two ttl pulses to positrack")
+                elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
+                    original_positrack_file = self.ses.path + "/" + t+"o."+ extension
+                    pt_mod = pt[:ttl.shape[0]]
+                    print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
+                    os.rename(positrack_file_name, original_positrack_file)
+                    pt = pt_mod
+                    pt.to_csv(positrack_file_name, sep=' ')
+                    print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
 
-                # we will need code to solve simple problems 
+                # we will need more code to solve simple problems 
                 #
                 #
-                raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
+                else:
+                    raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
@@ -485,3 +509,36 @@ class Animal_pose:
         else :
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
+            
+    def speed_from_pose(self, sigma=1):
+        """
+        Method to calculute the speed (in cm/s) of the animal from the position data
+        The speed at index x is calculated from the distance between position x and x+1 and the sampling rate.
+        Then a Gaussian kernel is applied for smoothing.
+        
+        Arguments
+        sigma: for Gaussian kernel
+                
+        Return
+        No value is returned but self.speed is set
+        
+        """
+        if self.pose is None:
+            raise TypeError("Set the self.pose array before attempting to calculate the speed")
+        
+        # create empty speed array
+        self.speed = np.empty((len(self.pose[:,0]),1),float)
+        
+        
+        # calculate the time per sample
+        sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
+        
+        # calculate the distance covered between the position data and divide by time per sample
+        distance = np.diff(self.pose, axis=0, append=np.nan)
+        speed = np.sqrt(distance[:,1]**2 + distance[:,2]**2)/sec_per_sample
+        
+        # apply gaussian filter for smoothing
+        self.speed = gaussian_filter1d(speed, sigma=sigma)
+
+
+
