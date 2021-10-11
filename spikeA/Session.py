@@ -152,7 +152,7 @@ class Tetrode_session(Session):
         self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
         df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
         inter = df.get_file_intervals_in_seconds()
-        self.trialIntervals = Intervals(inter)
+        self.trial_intervals = Intervals(inter)
         
     def __str__(self): 
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))

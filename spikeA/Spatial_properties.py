@@ -39,6 +39,9 @@ class Spatial_properties:
         self.spike_posi
         """
         # calculate the interpolatation function for x and y position data
+        # WARNING: this will give valid position to spikes with invalid position because of the interpolation
+        # Make sure you have set_intervals() on the Spike_train object so that spikes outside intervals are not considered
+        
         self.fx = interp1d(self.ap.pose[:,0], self.ap.pose[:,1], bounds_error=False)
         self.fy = interp1d(self.ap.pose[:,0], self.ap.pose[:,2], bounds_error=False)
 
@@ -171,6 +174,8 @@ class Spatial_properties:
         Method of the Spatial_properties class to calculate the information score of a single neuron.
         
         The formula is from Skaggs and colleagues (1996, Hippocampus).
+        
+        You should have calculated firing_rate_maps without smoothing before calling this function
         
         Return
         Information score
