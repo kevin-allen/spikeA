@@ -4,6 +4,7 @@ from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Session import *
+from spikeA.Neuron import *
 
 
 class Spike_waveform:
@@ -46,6 +47,9 @@ class Spike_waveform:
             blocks = np.ndarray((len(channels), block_size, self.st.n_spikes()))
             spike_time_sample = self.st.st * self.st.sampling_rate
         else:
+            if n_spikes > self.st.n_spikes():
+                    n_spikes= self.st.n_spikes()
+            
             blocks = np.ndarray((len(channels), block_size, n_spikes))
             spike_time_sample = self.st.st[:n_spikes] * self.st.sampling_rate
         
@@ -60,19 +64,17 @@ class Spike_waveform:
         self.spike_waveform = blocks
         self.mean_waveforms =  np.mean(blocks, axis = 2)
         
-        
-        def largest_amplitude_waveform(self):
-            
-            """
-            A function to get the largest amplitude waveform
-            self.mean_waveforms is a 2D array with time and channel as dimentions
-            here we find the channel with the largest amplitude and return the waveform associated to that. 
-            """
-            pass 
-        
-        #for n in ses.cg.neuron_list:
-        #n.set_spike_waveform(ses)
-        
-        #for n in ses.cg.neuron_list:
-        #n.spike_waveform.mean_waveform(block_size=100, channels=range(ses.n_channels-1), n_spikes=300)
+    def largest_amplitude_waveform(self):
 
+        """
+        A function to get the largest amplitude waveform
+        self.mean_waveforms is a 2D array with time and channel as dimentions
+        here we find the channel with the largest amplitude and return the waveform associated to that.
+
+        returns: the largest_amplitude waveform 
+        """
+        if self.mean_waveforms is None:
+            raise ValueError("set_mean_waveforms should be set before running the largest_amplitude_waveform")
+
+        #self.largest_wf= wf[np.argmax(np.ptp(wf,axis=1)),:]
+        self.largest_wf= self.mean_waveforms[np.argmax(np.ptp(self.mean_waveforms,axis=1)),:]
