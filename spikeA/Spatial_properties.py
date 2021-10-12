@@ -4,6 +4,8 @@ from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from scipy import ndimage
 import spikeA.spatial_properties
+import math
+
 
 class Spatial_properties:
     """
@@ -43,6 +45,9 @@ class Spatial_properties:
         self.spike_posi
         """
         # calculate the interpolatation function for x and y position data
+        # WARNING: this will give valid position to spikes with invalid position because of the interpolation
+        # Make sure you have set_intervals() on the Spike_train object so that spikes outside intervals are not considered
+        
         self.fx = interp1d(self.ap.pose[:,0], self.ap.pose[:,1], bounds_error=False)
         self.fy = interp1d(self.ap.pose[:,0], self.ap.pose[:,2], bounds_error=False)
 
@@ -213,9 +218,9 @@ class Spatial_properties:
             
         data = self.spatial_autocorrelation_map
         
-        data_max = filters.maximum_filter(data, neighborhood_size)
+        data_max = ndimage.filters.maximum_filter(data, neighborhood_size)
         maxima = (data == data_max)
-        data_min = filters.minimum_filter(data, neighborhood_size)
+        data_min = ndimage.filters.minimum_filter(data, neighborhood_size)
         diff = ((data_max - data_min) > threshold)
         maxima[diff == 0] = 0
 
@@ -228,7 +233,7 @@ class Spatial_properties:
             y_center = (dy.start + dy.stop - 1)/2    
             y.append(round(y_center))
 
-        return(x,y)
+        self.spatial_autocorrelation_field = (x,y)
     
     def spatial_autocorrelation_field_detection_7(self, neighborhood_size = 5):
         thresholds = np.linspace(0,0.1,100)
@@ -243,6 +248,50 @@ class Spatial_properties:
         print("suitable thresholds:", thresholds_good, ". Use: ",threshold_goodmean)
 
         return(self.spatial_autocorrelation_field_detection(threshold_goodmean, neighborhood_size))
+    
+    
+    def calculate_doughnut(self):
+        # get fields
+        x,y = self.spatial_autocorrelation_field
+
+        maxradius = np.min(np.array(self.spatial_autocorrelation_map.shape))/2
+
+        # get midpoint
+        midpoint = np.array(self.spatial_autocorrelation_map.shape)/2
+        
+        # find proper dimensions for doughnut
+        r_outer_range = np.linspace(0,maxradius,100)
+        r_outer_radii = []
+        for r_outer in r_outer_range:
+            points_inside_dougnut= [ (x_,y_) for x_,y_ in zip(x,y) if math.dist(midpoint, [x_,y_]) < r_outer ]
+            if(len(points_inside_dougnut)>=7):
+                if not len(r_outer_radii):
+                    self.points_inside_dougnut = points_inside_dougnut
+                r_outer_radii.append(r_outer)
+
+        if len(r_outer_radii):
+
+            r_outer_radius_contains6 = r_outer_radii[0] # np.mean(r_outer_radii)
+
+            r_outer_radius_use = r_outer_radius_contains6*1.3
+            r_inner_radius_use = r_outer_radius_contains6*0.5
+
+            r_outer_radius_use = np.round(np.min([r_outer_radius_use, maxradius*0.9]))
+
+        else:
+            r_outer_radius_use = maxradius*0.9
+            r_inner_radius_use = r_outer_radius_use/1.3*0.9
+            
+            
+        # use the autocorrelation map to modify doughnut
+        doughnut = self.spatial_autocorrelation_map
+
+        outsidedoughnut = np.array([ np.array([x_,y_]) for x_,y_ in np.ndindex(self.spatial_autocorrelation_map.shape) if math.dist(midpoint, [x_,y_]) < r_inner_radius_use or math.dist(midpoint, [x_,y_]) > r_outer_radius_use ])
+        outsidedoughnut = (outsidedoughnut[:,0], outsidedoughnut[:,1])
+        doughnut[outsidedoughnut] = np.nan
+        
+        self.doughnut = doughnut
+
         
         
         
@@ -251,6 +300,8 @@ class Spatial_properties:
         Method of the Spatial_properties class to calculate the information score of a single neuron.
         
         The formula is from Skaggs and colleagues (1996, Hippocampus).
+        
+        You should have calculated firing_rate_maps without smoothing before calling this function
         
         Return
         Information score

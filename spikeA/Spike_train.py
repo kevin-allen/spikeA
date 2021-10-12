@@ -346,12 +346,12 @@ class Spike_train:
         Then the spike count array is smooth with a gaussian kernel. (convolution)
         
         Arguments:
-        self.st
-        bin_size_ms:
-        sigma:
+        bin_size_ms: Bin size in ms
+        sigma: Standard deviation of the gaussian filter smoothing, values are in bins
         
         Returns:
-        A tuple containing the ifr, count and edges. These are 1D numpy arrays
+        Saves self.ifr, self.ifr_rate and ifr_bin_size_ms 
+        self.ifr is a tupple containing the ifr, the count, and edges.
         """    
         st_ms=self.st*1000
         count, edges = np.histogram(st_ms, bins = np.arange(0, self.intervals.total_interval_duration_seconds() * 1000+bin_size_ms, bin_size_ms))
