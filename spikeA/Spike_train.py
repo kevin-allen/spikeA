@@ -339,7 +339,7 @@ class Spike_train:
         
         return timestamp
     
-    def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1):
+    def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1, outside_interval_solution="remove"):
         """
         Calculates the instantaneous firing rate. This is the firing rate of the neuron over time.
         The spikes are counted in equal sized time windows. (histogram)
@@ -348,6 +348,7 @@ class Spike_train:
         Arguments:
         bin_size_sec: Bin size in sec
         sigma: Standard deviation of the gaussian filter smoothing, values are in bins
+        outside_interval_solution: What to do with time windows that are outside the set intervals. "remove" or "nan" are accepted.
         
         Returns:
         Saves self.ifr, self.ifr_rate and ifr_bin_size_sec 
@@ -365,9 +366,17 @@ class Spike_train:
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
         keep=self.intervals.is_within_intervals(mid)
-        print("keep:{}".format(np.sum(keep)))
-        
-        self.ifr = ifr[keep],count[keep],mid[keep]
+                
+        if outside_interval_solution == "remove":    
+            self.ifr = ifr[keep],count[keep],mid[keep]    
+        elif outside_interval_solution == "nan":
+            ifr[~keep]=np.nan
+            self.ifr = ifr,count,mid
+            
+        else:
+            print("invalid value for argument outside_interval_solution")
+            raise ValueError("set outside_interval_solution to remove or nan")
+            
         self.ifr_rate = 1/bin_size_sec
         self.ifr_bin_size_sec= bin_size_sec
                 
