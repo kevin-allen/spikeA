@@ -339,47 +339,53 @@ class Spike_train:
         
         return timestamp
     
-    def instantaneous_firing_rate(self,bin_size_ms = 1, sigma = 1):
+    def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1):
         """
         Calculates the instantaneous firing rate. This is the firing rate of the neuron over time.
         The spikes are counted in equal sized time windows. (histogram)
         Then the spike count array is smooth with a gaussian kernel. (convolution)
         
         Arguments:
-        bin_size_ms: Bin size in ms
+        bin_size_sec: Bin size in sec
         sigma: Standard deviation of the gaussian filter smoothing, values are in bins
         
         Returns:
-        Saves self.ifr, self.ifr_rate and ifr_bin_size_ms 
-        self.ifr is a tupple containing the ifr, the count, and edges.
+        Saves self.ifr, self.ifr_rate and ifr_bin_size_sec 
+        self.ifr is a tupple containing the ifr, the count, and mid point of the bin.
         """    
-        st_ms=self.st*1000
-        count, edges = np.histogram(st_ms, bins = np.arange(0, self.intervals.total_interval_duration_seconds() * 1000+bin_size_ms, bin_size_ms))
+        
+        count, edges = np.histogram(self.st, bins = np.arange(0, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec))
         
         # from spike count to rate 
-        hz = count / (bin_size_ms / 1000)
+        hz = count / (bin_size_sec)
         
         ifr = gaussian_filter1d(hz.astype(np.float32), sigma = sigma)
         
-        self.ifr = ifr,count,edges
-        self.ifr_rate = 1000/bin_size_ms
-        self.ifr_bin_size_ms= bin_size_ms
+        
+        # we need to remove the time bins that are not in the intervals
+        mid = self.mid_point_from_edges(edges)
+        keep=self.intervals.is_within_intervals(mid)
+        print("keep:{}".format(np.sum(keep)))
+        
+        self.ifr = ifr[keep],count[keep],mid[keep]
+        self.ifr_rate = 1/bin_size_sec
+        self.ifr_bin_size_sec= bin_size_sec
                 
       
-    def instantaneous_firing_rate_autocorrelation(self, normed= False, max_lag_ms= 200):
+    def instantaneous_firing_rate_autocorrelation(self, normed= False, max_lag_sec= 1):
         """
         Calculates the autocorrelation of the instantaneous firing rate array (self.isi)
         
         Arguments:
         The instantaneous_firing_rate() arrays saved in self.ifr
         normed:
-        max_lag_ms:
+        max_lag_sec:
         
         Returns:
         The results are saved in self.ifr_autocorrelation
         """
         res= np.correlate(self.ifr[0],self.ifr[0],mode='full')
-        maxlag= max_lag_ms/self.ifr_bin_size_ms
+        maxlag= max_lag_sec/self.ifr_bin_size_sec
         res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
         if normed== False:
             self.ifr_autocorrelation= res
@@ -410,14 +416,14 @@ class Spike_train:
         f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
         self.ifr_power_spectrum = f, ps
     
-    def instantaneous_firing_rate_crosscorelation(self,spike2=None,normed= False, max_lag_ms= 200):
+    def instantaneous_firing_rate_crosscorelation(self,spike2=None,normed= False, max_lag_sec= 0.2):
         """
         Calculates the instantaneous firing rate crosscorrelation.
         
         Arguments:
         spike2:
         normed: 
-        max_lag_ms:
+        max_lag_sec:
         The instantaneous_firing_rate() arrays saved in self.ifr
         
         Returns:
@@ -432,7 +438,7 @@ class Spike_train:
         
         if normed== False:  
             res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
-            maxlag= max_lag_ms/self.ifr_bin_size_ms
+            maxlag= max_lag_sec/self.ifr_bin_size_sec
             res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
             self.ifr_crosscorrelation=res
         elif normed==True:
