@@ -3,8 +3,10 @@ from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from scipy import ndimage
+from scipy.stats import pearsonr
 import spikeA.spatial_properties
 import math
+import cv2
 
 
 class Spatial_properties:
@@ -341,5 +343,46 @@ class Spatial_properties:
         v = self.firing_rate_map
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
         
-
+            
+    def correlation_from_doughnut_rotation(self, degree):
+        
+        """
+        Method of the Spatial_properties class to calculate the correlations for different angles of rotation of the doughnut. 
+        Return
+        correlation spectrum
+        """
+        if not hasattr(self, 'doughnut'):            
+            calculate_doughnut(self)
+            
+        # get the center of the image    
+        (h, w) = self.doughnut.shape[:2]
+        (cX, cY) = (w // 2, h // 2)
+        # rotate by 60°, same scale
+        M = cv2.getRotationMatrix2D((cX, cY), degree, 1.0)
+        self.doughnut_rotated = cv2.warpAffine(self.doughnut, M, (w, h), borderValue = np.nan)    
     
+        indices = np.logical_and(~np.isnan(self.doughnut), ~np.isnan(self.doughnut_rotated))
+        r,p = pearsonr(self.doughnut[indices],self.doughnut_rotated[indices])
+    
+        return r
+    
+    
+    def grid_score(self):
+        
+        """
+        Method of the Spatial_properties class to calculate the grid score.
+        Return
+        grid score 
+        """
+        if not hasattr(self, 'spatial_autocorrelation_map'):
+            raise TypeError("Call spatial_properties.spatial_autocorrelation_map_2d() before calling spatial_properties.grid_score().")
+
+        rotations60 = [60, 120]
+        rotations30= [30, 90, 150]
+
+        corr60 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations60]
+        corr30 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations30]
+
+        grid_score = np.mean(corr60)-np.mean(corr30)
+
+        return grid_score
