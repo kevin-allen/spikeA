@@ -103,7 +103,20 @@ class Dat_file_reader:
         """
         s,e = self.get_first_last_samples_each_file()
         return np.stack([s/sampling_rate,e/sampling_rate],axis=1)
+    
+    def get_file_duration_seconds(self,sampling_rate=20000):
+        """
+        Calculate the duration in second of each .dat files
         
+        Argument:
+        sampling_rate: sampling rate (Hz) to calculate time in seconds, default 20000
+        
+        Returns:
+        1D numpy array with the duration in seconds for each .dat files
+        """
+        
+        s,e = self.get_first_last_samples_each_file()
+        return (e-s)/sampling_rate
     
     def get_data_one_block(self,start_sample,end_sample,channels):
         """
