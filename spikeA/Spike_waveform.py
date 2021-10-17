@@ -59,7 +59,7 @@ class Spike_waveform:
         bl=0
         
         for f1,i1,f2,i2 in my_list_of_tuples :
-            blocks[:,:,bl] = self.df.read_one_block(f1,int(np.round(i1)),f2,int(np.round(i2)),block_size,channels)
+            blocks[:,:,bl] = self.df.read_one_block(f1,np.round(i1),f2,np.round(i2),block_size,channels)
             bl=bl+1
             
         self.spike_waveform = blocks
