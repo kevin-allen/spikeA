@@ -31,7 +31,7 @@ class Spike_waveform:
         
         self.ses = Session    
         self.st = spike_train
-        self.df = dat_file
+        self.df = dat_file  ## we shuld give the list of dat files to the dat file reader 
         
         return
     
@@ -54,7 +54,8 @@ class Spike_waveform:
             spike_time_sample = self.st.st[:n_spikes] * self.st.sampling_rate
         
         my_list_of_tuples = [self.df.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
-        my_list_of_tuples = [t for t in my_list_of_tuples if not any(np.isnan(t))] # remove spikes for which the start or end index goes beyond the first or last trial respectively
+        #my_list_of_tuples = [t for t in my_list_of_tuples if not any(np.isnan(t))] # remove spikes for which the start or end index goes beyond the first or last trial respectively
+        my_list_of_tuples =[t for t in my_list_of_tuples if not pd.isnull(t)]
         bl=0
         
         for f1,i1,f2,i2 in my_list_of_tuples :
