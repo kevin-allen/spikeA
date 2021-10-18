@@ -220,28 +220,23 @@ class Dat_file_reader:
         Return:
         A tuple with start_file_no, start_index_within_file, end_file_no, end_index_within_file
         """
+        
+        # check that arguments make sense
+        if start_index < 0:
+            raise ValueError("start_index should be 0 or larger")
+        if end_index <= start_index:
+            raise ValueError("end_index should be larger than start_index")
+        if end_index > self.total_samples:
+            raise ValueError("end_index is larger than the number of samples in the Dat_file_reader object")
+        
         # get the starting point of reading operation in dat files (start_file_no,start_index_within_file)
-        if start_index>=0: # if the first index is before the first trial, return nan
-            #start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].item()
-            start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].tolist()
-
-            start_index_within_file = start_index - self.files_first_sample[start_file_no]
-        else:
-            start_file_no = np.nan
-            start_index_within_file = np.nan
-        #print("start_file_no:",start_file_no)
-        #print("start_index_within_file:",start_index_within_file)
+        start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].item()
+        start_index_within_file = int(start_index - self.files_first_sample[start_file_no])
         
-        # get the end point of reading operation in dat files (end_file_no, end_index_within_file)
-        if end_index<= self.files_last_sample[-1]: # if the end_index goes beyond the last trial, return nan
-            end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index <= self.files_last_sample))[0].item()
-            end_index_within_file = end_index - self.files_first_sample[end_file_no]
-        else:
-            end_file_no = np.nan
-            end_index_within_file = np.nan
-        #print("end_file_no:",end_file_no)
-        #print("end_index_within_file:",end_index_within_file)
-        
+        # get the ending point of reading operation in dat files
+        end_file_no = np.where((end_index >=self.files_first_sample) &  (end_index <= self.files_last_sample))[0].item()
+        end_index_within_file = int(end_index - self.files_first_sample[end_file_no])
+       
         # return a tuple with start and end of reading operation
         return start_file_no, start_index_within_file, end_file_no, end_index_within_file
     
@@ -274,9 +269,9 @@ class Dat_file_reader:
         else:
             print ("read the block from several files")
             # allocate the memory for the whole block
-            my_block = np.empty((self.n_channels,samples_to_read),dtype="int16") # something similar
+            my_block = np.empty((len(channels),samples_to_read),dtype="int16") # something similar
             copied = 0
-            for i in range(len((f1,f2+1))): # loop through the .dat files
+            for i in range(f1,f2+1): # loop through the .dat files we need
                 print("reading from file ",i)
                 my_mapped_file = np.memmap(self.file_names[i], dtype = "int16", mode = "r",
                                        shape = (self.n_channels, self.samples_per_file[i]), order = "F")                       
