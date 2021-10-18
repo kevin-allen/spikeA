@@ -95,7 +95,8 @@ class Neuron:
         if ses.n_channels is None:
             raise TypeError("ses.n_channels is None, run ses.load_parameter_files()")
             
-        file_names=[f"{ses.fileBase}.dat"]
+        #file_names=[f"{ses.fileBase}.dat"]
+        file_names=ses.dat_file_names
         df= Dat_file_reader(file_names,ses.n_channels)
         self.spike_waveform = Spike_waveform(dat_file=df, spike_train=self.spike_train)
         
