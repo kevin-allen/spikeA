@@ -236,6 +236,8 @@ class Spatial_properties:
 
         self.spatial_autocorrelation_field = (x,y)
     
+    
+    
     def spatial_autocorrelation_field_detection_7(self, neighborhood_size = 5):
         thresholds = np.linspace(0,0.1,100)
         numsofpeaks = [ len(self.spatial_autocorrelation_field_detection(threshold, neighborhood_size)[0]) for threshold in thresholds ]
@@ -251,9 +253,10 @@ class Spatial_properties:
         return(self.spatial_autocorrelation_field_detection(threshold_goodmean, neighborhood_size))
     
     
-    def calculate_doughnut(self):
-        if not hasattr(self, 'spatial_autocorrelation_field'):
-            raise TypeError("Call spatial_properties.spatial_autocorrelation_field_detection() before calling spatial_properties.calculate_doughnut()")
+    
+    def calculate_doughnut(self, threshold = 0.1, neighborhood_size = 5):
+        self.spatial_autocorrelation_field_detection(threshold = threshold, neighborhood_size = neighborhood_size)
+            
         # get fields
         x,y = self.spatial_autocorrelation_field
 
@@ -344,20 +347,19 @@ class Spatial_properties:
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
         
             
-    def correlation_from_doughnut_rotation(self, degree):
+    def correlation_from_doughnut_rotation(self, degree, threshold = 0.1, neighborhood_size = 5):
         
         """
         Method of the Spatial_properties class to calculate the correlations for different angles of rotation of the doughnut. 
         Return
         correlation spectrum
         """
-        if not hasattr(self, 'doughnut'):            
-            calculate_doughnut(self)
+        self.calculate_doughnut(threshold = threshold, neighborhood_size = neighborhood_size)
             
         # get the center of the image    
         (h, w) = self.doughnut.shape[:2]
         (cX, cY) = (w // 2, h // 2)
-        # rotate by 60°, same scale
+        # rotate by degree°, same scale
         M = cv2.getRotationMatrix2D((cX, cY), degree, 1.0)
         self.doughnut_rotated = cv2.warpAffine(self.doughnut, M, (w, h), borderValue = np.nan)    
     
@@ -367,7 +369,7 @@ class Spatial_properties:
         return r
     
     
-    def grid_score(self):
+    def grid_score(self, threshold = 0.1, neighborhood_size = 5):
         
         """
         Method of the Spatial_properties class to calculate the grid score.
@@ -380,8 +382,8 @@ class Spatial_properties:
         rotations60 = [60, 120]
         rotations30= [30, 90, 150]
 
-        corr60 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations60]
-        corr30 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations30]
+        corr60 = [self.correlation_from_doughnut_rotation(degree, threshold = threshold, neighborhood_size = neighborhood_size) for degree in rotations60]
+        corr30 = [self.correlation_from_doughnut_rotation(degree, threshold = threshold, neighborhood_size = neighborhood_size) for degree in rotations30]
 
         grid_score = np.mean(corr60)-np.mean(corr30)
 
