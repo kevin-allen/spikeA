@@ -222,7 +222,9 @@ class Dat_file_reader:
         """
         # get the starting point of reading operation in dat files (start_file_no,start_index_within_file)
         if start_index>=0: # if the first index is before the first trial, return nan
-            start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].item()
+            #start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].item()
+            start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].tolist()
+
             start_index_within_file = start_index - self.files_first_sample[start_file_no]
         else:
             start_file_no = np.nan
@@ -274,7 +276,7 @@ class Dat_file_reader:
             # allocate the memory for the whole block
             my_block = np.empty((self.n_channels,samples_to_read),dtype="int16") # something similar
             copied = 0
-            for i in range(f1,f2+1): # loop through the .dat files
+            for i in range(len((f1,f2+1))): # loop through the .dat files
                 print("reading from file ",i)
                 my_mapped_file = np.memmap(self.file_names[i], dtype = "int16", mode = "r",
                                        shape = (self.n_channels, self.samples_per_file[i]), order = "F")                       
