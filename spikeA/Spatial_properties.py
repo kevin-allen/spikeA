@@ -214,8 +214,8 @@ class Spatial_properties:
         """
         
         ### check for autocorrelation map
-        if self.spatial_autocorrelation_map is None:
-            raise TypeError("call spatial_autocorrelation_map_2d to generate the autocorrelation")
+        if not hasattr(self, 'spatial_autocorrelation_map'):
+            self.spatial_autocorrelation_map_2d()
             
         data = self.spatial_autocorrelation_map
         
@@ -347,15 +347,17 @@ class Spatial_properties:
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
         
             
-    def correlation_from_doughnut_rotation(self, degree, threshold = 0.1, neighborhood_size = 5):
+    def correlation_from_doughnut_rotation(self, degree):
         
         """
         Method of the Spatial_properties class to calculate the correlations for different angles of rotation of the doughnut. 
         Return
         correlation spectrum
         """
-        self.calculate_doughnut(threshold = threshold, neighborhood_size = neighborhood_size)
-            
+        
+        if not hasattr(self, 'doughnut'):
+            raise TypeError('You need to call spatial_properties.calculate_doughnut() before calling this function')
+        
         # get the center of the image    
         (h, w) = self.doughnut.shape[:2]
         (cX, cY) = (w // 2, h // 2)
@@ -376,14 +378,14 @@ class Spatial_properties:
         Return
         grid score 
         """
-        if not hasattr(self, 'spatial_autocorrelation_map'):
-            raise TypeError("Call spatial_properties.spatial_autocorrelation_map_2d() before calling spatial_properties.grid_score().")
+        if not hasattr(self, 'doughnut'):
+            raise TypeError('You need to call spatial_properties.calculate_doughnut() before calculation of grid score')
 
         rotations60 = [60, 120]
         rotations30= [30, 90, 150]
 
-        corr60 = [self.correlation_from_doughnut_rotation(degree, threshold = threshold, neighborhood_size = neighborhood_size) for degree in rotations60]
-        corr30 = [self.correlation_from_doughnut_rotation(degree, threshold = threshold, neighborhood_size = neighborhood_size) for degree in rotations30]
+        corr60 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations60]
+        corr30 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations30]
 
         grid_score = np.mean(corr60)-np.mean(corr30)
 
