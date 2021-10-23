@@ -1,6 +1,7 @@
 import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
+from spikeA.Neuron import Neuron
 from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.stats import pearsonr
@@ -25,7 +26,7 @@ class Spatial_properties:
         spatial_autocorrelation_field_detection_7(neighborhood_size)
         
     """
-    def __init__(self, spike_train=None, animal_pose=None):
+    def __init__(self, ses=None, spike_train=None, animal_pose=None):
         """
         Constructor of the Spatial_properties class
         """
@@ -255,6 +256,7 @@ class Spatial_properties:
     
     
     def calculate_doughnut(self, threshold = 0.1, neighborhood_size = 5):
+        
         self.spatial_autocorrelation_field_detection(threshold = threshold, neighborhood_size = neighborhood_size)
             
         # get fields
@@ -352,7 +354,7 @@ class Spatial_properties:
         """
         Method of the Spatial_properties class to calculate the correlations for different angles of rotation of the doughnut. 
         Return
-        correlation spectrum
+        correlation
         """
         
         if not hasattr(self, 'doughnut'):
@@ -371,7 +373,7 @@ class Spatial_properties:
         return r
     
     
-    def grid_score(self, threshold = 0.1, neighborhood_size = 5):
+    def grid_score(self):
         
         """
         Method of the Spatial_properties class to calculate the grid score.
@@ -390,3 +392,45 @@ class Spatial_properties:
         grid_score = np.mean(corr60)-np.mean(corr30)
 
         return grid_score
+    
+    
+    def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True):
+        
+        """
+        Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers. 
+        Return
+        correlation
+        """
+        
+        if len(self.ap.ses.trial_intervals.inter) < trial2 or len(self.ap.ses.trial_intervals.inter) < trial1:
+            raise TypeError("The indicated trial does not exist.")
+        if trial2 == 0 or trial1 == 0:
+            raise TypeError("Trial numbering starts at 1.")
+        
+        trial1_inter = self.ap.ses.trial_intervals.inter[(trial1-1):trial1,:]
+        trial2_inter = self.ap.ses.trial_intervals.inter[(trial2-1):trial2,:]
+        
+        # create firing rate maps:
+        self.st.unset_intervals()
+        self.ap.unset_intervals()
+        self.st.set_intervals(trial1_inter)
+        self.ap.set_intervals(trial1_inter)
+        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing)
+        map1 = self.firing_rate_map
+        
+        self.st.unset_intervals()
+        self.ap.unset_intervals()
+        self.st.set_intervals(trial2_inter)
+        self.ap.set_intervals(trial2_inter)
+        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing)
+        map2 = self.firing_rate_map
+        
+        # check for dimensions
+        if map1.shape != map2.shape:
+            raise TypeError("The firing rate maps have different dimensions")
+            
+        # calculate crosscorrelation
+        indices = np.logical_and(~np.isnan(map1), ~np.isnan(map2))
+        r,p = pearsonr(map1[indices],map2[indices])
+    
+        return r
