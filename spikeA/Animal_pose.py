@@ -29,7 +29,7 @@ class Animal_pose:
         pose_ori: 2D numpy array of the original data loaded
         pose_inter: 2D numpy array of the pose data that are within the intervals set
         speed: 1D numpy array of speed data of the original pose data
-        inter: Interval object
+        intervals: Interval object
         occupancy_cm_per_bin: cm per bin in the occupancy map
         occupancy_map: 2D numpy array containing the occupancy map
         occupancy_bins: list of 2 x 1D array containing the bin edges to create the occupancy map (used when calling np.histogram2d)

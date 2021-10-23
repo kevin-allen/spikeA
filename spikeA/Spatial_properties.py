@@ -43,13 +43,18 @@ class Spatial_properties:
     def spike_position(self):
         """
         Method to calculate the position of each spike of the Spike_train object.
+               
         
         Return
         self.spike_posi
         """
-        # calculate the interpolatation function for x and y position data
-        # WARNING: this will give valid position to spikes with invalid position because of the interpolation
-        # Make sure you have set_intervals() on the Spike_train object so that spikes outside intervals are not considered
+        
+        ## check that the Animal_pose and Spike_train object have the same intervals
+        ## this check is required because if there are spikes at time points with invalid pose values, they will be interpolated to a valid value.
+        if self.ap.intervals.inter.shape != self.st.intervals.inter.shape:
+            raise ValueError("The intervals in the Animal_pose and Spike_train objects are not the same. Please make sure the intervals in the Animal_pose and Spike_train objects are the same before calling spike_position()")
+        if np.any(self.ap.intervals.inter != self.st.intervals.inter):
+            raise ValueError("The intervals in the Animal_pose and Spike_train objects are not the same. Please make sure the intervals in the Animal_pose and Spike_train objects are the same before calling spike_position()")
         
         self.fx = interp1d(self.ap.pose[:,0], self.ap.pose[:,1], bounds_error=False)
         self.fy = interp1d(self.ap.pose[:,0], self.ap.pose[:,2], bounds_error=False)
