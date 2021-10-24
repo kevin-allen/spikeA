@@ -111,13 +111,13 @@ class Spatial_properties:
         Return:
         The Spatial_properties.firing_rate_head_direction_histo is set. It is a 1D numpy array containing the firing rate in Hz as a function of head direction.
         """
-        self.hd_histo_deg_per_bin =deg_per_bin
+        self.hd_histo_deg_per_bin = deg_per_bin
         self.hd_histo_smoothing_sigma_deg = smoothing_sigma_deg
         self.hd_histo_smoothing = smoothing
         
       
         # create a new hd occupancy histogram
-        self.ap.head_direction_occupancy_histogram(deg_per_bin =self.hd_histo_deg_per_bin, 
+        self.ap.head_direction_occupancy_histogram(deg_per_bin = self.hd_histo_deg_per_bin, 
                                                  smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
                                                  smoothing = True, zero_to_nan = True)
         
@@ -137,6 +137,37 @@ class Spatial_properties:
         self.firing_rate_head_direction_histo_edges = self.ap.hd_occupancy_bins
         self.firing_rate_head_direction_histo = spike_count/self.ap.hd_occupancy_histogram
     
+    
+    def head_direction_score(self):
+        """
+        Method to calculate the mean direction and the mean vector length from the hd histogram
+        returns a tuple: mean_direction_deg, mean_vector_length
+        """
+        if not hasattr(self, 'firing_rate_head_direction_histo'):
+            raise TypeError("You need to call spatial_properties.firing_rate_head_direction_histogram() before calling this function")
+            
+        # sum up all spikes
+        sum_histo = np.sum(self.firing_rate_head_direction_histo)
+        # get midth of bins
+        angles = 0.5*(self.firing_rate_head_direction_histo_edges[1:] + self.firing_rate_head_direction_histo_edges[:-1])
+        # get x and y length of triangle
+        x = [np.cos(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
+        y = [np.sin(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
+        # the angle is the arc(tan) of x divided by y
+        if (np.sum(x)>0 and np.sum(y)>0):
+            mean_direction = np.arctan(np.sum(x)/np.sum(y))
+        elif (np.sum(x)<0):
+            mean_direction = np.arctan(np.sum(x)/np.sum(y))+np.pi
+        else:
+            mean_direction = np.arctan(np.sum(x)/np.sum(y)+2*np.pi)
+        mean_direction_deg = mean_direction*360/(2*np.pi)
+        #get mean vector length
+        R = np.sqrt(np.sum(x)**2+np.sum(y)**2)
+        mean_vector_length = R/sum_histo
+        
+        return (mean_direction_deg, mean_vector_length)
+    
+
     def firing_rate_map_2d(self,cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, xy_range=None):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
