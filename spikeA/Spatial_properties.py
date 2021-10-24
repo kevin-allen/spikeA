@@ -1,7 +1,6 @@
 import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
-from spikeA.Neuron import Neuron
 from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.stats import pearsonr
@@ -394,7 +393,7 @@ class Spatial_properties:
         return grid_score
     
     
-    def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True):
+    def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
         
         """
         Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers. 
@@ -415,19 +414,19 @@ class Spatial_properties:
         self.ap.unset_intervals()
         self.st.set_intervals(trial1_inter)
         self.ap.set_intervals(trial1_inter)
-        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing)
+        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
         map1 = self.firing_rate_map
         
         self.st.unset_intervals()
         self.ap.unset_intervals()
         self.st.set_intervals(trial2_inter)
         self.ap.set_intervals(trial2_inter)
-        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing)
+        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
         map2 = self.firing_rate_map
         
         # check for dimensions
         if map1.shape != map2.shape:
-            raise TypeError("The firing rate maps have different dimensions")
+            raise TypeError("The firing rate maps have different dimensions. You have to specify the xy range.")
             
         # calculate crosscorrelation
         indices = np.logical_and(~np.isnan(map1), ~np.isnan(map2))
