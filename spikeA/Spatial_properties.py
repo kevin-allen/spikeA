@@ -3,6 +3,8 @@ from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from scipy import ndimage
+from scipy.ndimage import sum as ndi_sum
+from scipy.ndimage import center_of_mass as ndi_center_of_mass
 from scipy.stats import pearsonr
 import spikeA.spatial_properties
 import math
@@ -23,6 +25,7 @@ class Spatial_properties:
         spatial_autocorrelation_map_2d()
         spatial_autocorrelation_field_detection(threshold, neighborhood_size)
         spatial_autocorrelation_field_detection_7(neighborhood_size)
+        
         
     """
     def __init__(self, ses=None, spike_train=None, animal_pose=None):
@@ -111,13 +114,13 @@ class Spatial_properties:
         Return:
         The Spatial_properties.firing_rate_head_direction_histo is set. It is a 1D numpy array containing the firing rate in Hz as a function of head direction.
         """
-        self.hd_histo_deg_per_bin =deg_per_bin
+        self.hd_histo_deg_per_bin = deg_per_bin
         self.hd_histo_smoothing_sigma_deg = smoothing_sigma_deg
         self.hd_histo_smoothing = smoothing
         
       
         # create a new hd occupancy histogram
-        self.ap.head_direction_occupancy_histogram(deg_per_bin =self.hd_histo_deg_per_bin, 
+        self.ap.head_direction_occupancy_histogram(deg_per_bin = self.hd_histo_deg_per_bin, 
                                                  smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
                                                  smoothing = True, zero_to_nan = True)
         
@@ -137,6 +140,37 @@ class Spatial_properties:
         self.firing_rate_head_direction_histo_edges = self.ap.hd_occupancy_bins
         self.firing_rate_head_direction_histo = spike_count/self.ap.hd_occupancy_histogram
     
+    
+    def head_direction_score(self):
+        """
+        Method to calculate the mean direction and the mean vector length from the hd histogram
+        returns a tuple: mean_direction_deg, mean_vector_length
+        """
+        if not hasattr(self, 'firing_rate_head_direction_histo'):
+            raise TypeError("You need to call spatial_properties.firing_rate_head_direction_histogram() before calling this function")
+            
+        # sum up all spikes
+        sum_histo = np.sum(self.firing_rate_head_direction_histo)
+        # get midth of bins
+        angles = 0.5*(self.firing_rate_head_direction_histo_edges[1:] + self.firing_rate_head_direction_histo_edges[:-1])
+        # get x and y length of triangle
+        x = [np.cos(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
+        y = [np.sin(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
+        # the angle is the arc(tan) of x divided by y
+        if (np.sum(x)>0 and np.sum(y)>0):
+            mean_direction = np.arctan(np.sum(x)/np.sum(y))
+        elif (np.sum(x)<0):
+            mean_direction = np.arctan(np.sum(x)/np.sum(y))+np.pi
+        else:
+            mean_direction = np.arctan(np.sum(x)/np.sum(y)+2*np.pi)
+        mean_direction_deg = mean_direction*360/(2*np.pi)
+        #get mean vector length
+        R = np.sqrt(np.sum(x)**2+np.sum(y)**2)
+        mean_vector_length = R/sum_histo
+        
+        return (mean_direction_deg, mean_vector_length)
+    
+
     def firing_rate_map_2d(self,cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, xy_range=None):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
@@ -182,11 +216,43 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
+    
+    def firing_rate_map_field_detection(self, threshold=13, neighborhood_size=5):
+        """
+        Method of the Spatial_properties class to calculate the center of mass and the size of fields in the firing rate map.
+        
+        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
+        Arguments
+        threshold
+        neighborhood_size
+        Return
+        The Spatial_properties.firing_rate_map_field_size and Spatial_properties.firing_rate_map_field_position are set.
+        """
+        
+        ## check for firing rate map
+        if not hasattr(self, 'firing_rate_map'):
+            raise TypeError("Call spatial_properties.firing_rate_map_2d() before calling spatial_properties.firing_rate_map_field_detection()")
+        
+        data = self.firing_rate_map
+
+        data_max = ndimage.filters.maximum_filter(data, neighborhood_size)
+        maxima = (data == data_max)
+        data_min = ndimage.filters.minimum_filter(data, neighborhood_size)
+        diff = ((data_max - data_min) > threshold)
+        maxima[diff == 0] = 0
+
+        labeled, num_objects = ndimage.label(maxima)
+        slices = ndimage.find_objects(labeled)
+        
+        self.firing_rate_map_field_size = [ndi_sum(data, labeled, i[0]) for i in enumerate(slices)]
+        self.firing_rate_map_field_position = [ndi_center_of_mass(data, labeled, i[0]) for i in enumerate(slices)]
+
+    
     def spatial_autocorrelation_map_2d(self):
         """
         Method of the Spatial_properties class to calculate a spatial autocorrelation map of a single neuron.
         
-        If a compatible firing rate map is not already present in the spatial_properties object, one will be calculated.
+        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
         
         Arguments
         
@@ -398,7 +464,7 @@ class Spatial_properties:
         return grid_score
     
     
-    def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True):
+    def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
         
         """
         Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers. 
@@ -419,19 +485,19 @@ class Spatial_properties:
         self.ap.unset_intervals()
         self.st.set_intervals(trial1_inter)
         self.ap.set_intervals(trial1_inter)
-        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing)
+        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
         map1 = self.firing_rate_map
         
         self.st.unset_intervals()
         self.ap.unset_intervals()
         self.st.set_intervals(trial2_inter)
         self.ap.set_intervals(trial2_inter)
-        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing)
+        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
         map2 = self.firing_rate_map
         
         # check for dimensions
         if map1.shape != map2.shape:
-            raise TypeError("The firing rate maps have different dimensions")
+            raise TypeError("The firing rate maps have different dimensions. You have to specify the xy range.")
             
         # calculate crosscorrelation
         indices = np.logical_and(~np.isnan(map1), ~np.isnan(map2))
