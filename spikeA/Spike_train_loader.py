@@ -175,7 +175,7 @@ class Spike_train_loader:
         # get the clu id of "good" clusters
         g = cluster_group.group == "good"
         good_clusters = cluster_group.cluster_id[g].to_numpy()
-        print("Number of good clusters: {}".format(len(good_clusters)))
+        #print("Number of good clusters: {}".format(len(good_clusters)))
         
         ## only keep the spikes from good clusters
         g = np.isin(spike_clusters,good_clusters).flatten()
