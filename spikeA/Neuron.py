@@ -1,6 +1,7 @@
 import numpy as np
 from spikeA.Spike_train import Spike_train
 from spikeA.Animal_pose import Animal_pose
+from spikeA.Session import Session
 from spikeA.Spatial_properties import Spatial_properties
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Spike_waveform import Spike_waveform
@@ -88,16 +89,26 @@ class Neuron:
         # call the set_spike_train of the Spike_train object of the neuron
         self.spike_train.set_spike_train(st=st)
     
-    def set_spike_waveform(self,ses):
+    def set_spike_waveform(self,session=None,dat_file_reader=None):
+        """
+        set the Spike_waveform object of the Neuron
+        
+        
+        """
         
         if self.spike_train is None:
             raise TypeError("self.spike_train.st should not be None")
-        if ses.n_channels is None:
+        if session.n_channels is None:
             raise TypeError("ses.n_channels is None, run ses.load_parameter_files()")
+        if not isinstance(session, Session):
+            raise TypeError("session is not an instance of the Session class")
+        
+        if dat_file_reader is None:
+            dat_file_reader= Dat_file_reader(session.dat_file_names,session.n_channels)
+        else:
+            if not isinstance(dat_file_reader,Dat_file_reader): 
+                raise TypeError("dat_file is not an instance of Dat_file_reader class")
             
-        #file_names=[f"{ses.fileBase}.dat"]
-        file_names=ses.dat_file_names
-        df= Dat_file_reader(file_names,ses.n_channels)
-        self.spike_waveform = Spike_waveform(dat_file=df, spike_train=self.spike_train)
+        self.spike_waveform = Spike_waveform(session = session, dat_file_reader=dat_file_reader, spike_train=self.spike_train)
         
         

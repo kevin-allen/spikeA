@@ -66,7 +66,8 @@ class Spike_waveform:
         else:
             if n_spikes > self.st.n_spikes(): # if n_spike is larger than number of spikes, set it to number of spikes
                 n_spikes= self.st.n_spikes()
-            
+        
+        
         # Create the blocks array to hold the spike waveform of the spikes in memory 
         blocks = np.ndarray((len(channels), block_size, n_spikes))
         
@@ -74,16 +75,21 @@ class Spike_waveform:
         spike_time_sample = np.round(self.st.st[:n_spikes] * self.st.sampling_rate)
         
         # Remove any spike window that would start before 0 or end after the file ends
-        spike_time_samples=spike_time_sample[np.logical_and(spike_time_sample-block_size/2 > 0,spike_time_sample+block_size/2 < self.dfr.total_samples)]
+        spike_time_sample=spike_time_sample[np.logical_and(spike_time_sample-block_size/2 > 0,spike_time_sample+block_size/2 < self.dfr.total_samples)]
         
         # Get the start and end of the reading operation for each spike
-        read_block_limits = [self.dfr.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
-        print("n_spikes: {}, read from file {} to file {}, shape: {}".format(n_spikes,read_block_limits[0][0],read_block_limits[-1][2],blocks.shape))
+        #read_block_limits = [self.dfr.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
+        #print("n_spikes: {}, read from file {} to file {}, shape: {}".format(n_spikes,read_block_limits[0][0],read_block_limits[-1][2],blocks.shape))
         
         bl=0
-        for f1,i1,f2,i2 in read_block_limits :
-            blocks[:,:,bl] = self.dfr.read_one_block(f1,i1,f2,i2,block_size,channels)
+        #for f1,i1,f2,i2 in read_block_limits :
+        #    blocks[:,:,bl] = self.dfr.read_one_block(f1,i1,f2,i2,block_size,channels)
+        #    bl=bl+1
+        
+        for t in spike_time_sample :
+            blocks[:,:,bl] = self.dfr.get_data_one_block(int(t-block_size/2),int(t+block_size/2),channels)
             bl=bl+1
+        
             
         self.spike_waveform = blocks
         self.mean_waveforms =  np.mean(blocks, axis = 2)

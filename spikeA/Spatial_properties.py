@@ -1,7 +1,6 @@
 import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
-from spikeA.Neuron import Neuron
 from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.stats import pearsonr

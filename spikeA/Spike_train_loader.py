@@ -154,11 +154,11 @@ class Spike_train_loader:
         
         if not os.path.isfile(ks.file_names["spike_times"]):
             raise IOError("{} file not found".format(ks.file_names["spike_times"]))
-        spike_times = np.squeeze(np.load(ks.file_names["spike_times"])/self.sampling_rate)
+        spike_times = np.squeeze(np.load(ks.file_names["spike_times"])/self.sampling_rate).flatten()
         
         if not os.path.isfile(ks.file_names["spike_clusters"]):
             raise IOError("{} file not found".format(ks.file_names["spike_clusters"]))
-        spike_clusters = np.load(ks.file_names["spike_clusters"])
+        spike_clusters = np.load(ks.file_names["spike_clusters"]).flatten()
         
         if spike_clusters.shape[0] != spike_times.shape[0]:
             raise ValueError("the shape of spike_clusters and spike_times should be the same but are {} {}".format(spike_clusters.shape[0],spike_times.shape[0]))
@@ -169,13 +169,16 @@ class Spike_train_loader:
         
         cluster_group = pd.read_csv(ks.file_names["cluster_group"], sep="\t")
 
+        
+        
+        
         # get the clu id of "good" clusters
         g = cluster_group.group == "good"
         good_clusters = cluster_group.cluster_id[g].to_numpy()
         print("Number of good clusters: {}".format(len(good_clusters)))
         
         ## only keep the spikes from good clusters
-        g = np.isin(spike_clusters,good_clusters)
+        g = np.isin(spike_clusters,good_clusters).flatten()
         spike_times = spike_times[g]
         spike_clusters = spike_clusters[g]
         
