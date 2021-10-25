@@ -3,6 +3,8 @@ from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from scipy import ndimage
+from scipy.ndimage import sum as ndi_sum
+from scipy.ndimage import center_of_mass as ndi_center_of_mass
 from scipy.stats import pearsonr
 import spikeA.spatial_properties
 import math
@@ -23,6 +25,7 @@ class Spatial_properties:
         spatial_autocorrelation_map_2d()
         spatial_autocorrelation_field_detection(threshold, neighborhood_size)
         spatial_autocorrelation_field_detection_7(neighborhood_size)
+        
         
     """
     def __init__(self, ses=None, spike_train=None, animal_pose=None):
@@ -213,11 +216,43 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
+    
+    def firing_rate_map_field_detection(self, threshold=13, neighborhood_size=5):
+        """
+        Method of the Spatial_properties class to calculate the center of mass and the size of fields in the firing rate map.
+        
+        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
+        Arguments
+        threshold
+        neighborhood_size
+        Return
+        The Spatial_properties.firing_rate_map_field_size and Spatial_properties.firing_rate_map_field_position are set.
+        """
+        
+        ## check for firing rate map
+        if not hasattr(self, 'firing_rate_map'):
+            raise TypeError("Call spatial_properties.firing_rate_map_2d() before calling spatial_properties.firing_rate_map_field_detection()")
+        
+        data = self.firing_rate_map
+
+        data_max = ndimage.filters.maximum_filter(data, neighborhood_size)
+        maxima = (data == data_max)
+        data_min = ndimage.filters.minimum_filter(data, neighborhood_size)
+        diff = ((data_max - data_min) > threshold)
+        maxima[diff == 0] = 0
+
+        labeled, num_objects = ndimage.label(maxima)
+        slices = ndimage.find_objects(labeled)
+        
+        self.firing_rate_map_field_size = [ndi_sum(data, labeled, i[0]) for i in enumerate(slices)]
+        self.firing_rate_map_field_position = [ndi_center_of_mass(data, labeled, i[0]) for i in enumerate(slices)]
+
+    
     def spatial_autocorrelation_map_2d(self):
         """
         Method of the Spatial_properties class to calculate a spatial autocorrelation map of a single neuron.
         
-        If a compatible firing rate map is not already present in the spatial_properties object, one will be calculated.
+        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
         
         Arguments
         
