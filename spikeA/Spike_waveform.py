@@ -91,7 +91,6 @@ class Spike_waveform:
             bl=bl+1
         
             
-        self.spike_waveform = blocks
         self.mean_waveforms =  np.mean(blocks, axis = 2)
         
     
