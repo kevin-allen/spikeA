@@ -78,6 +78,8 @@ class Dat_file_reader:
         # variables set when loading a chunk of .dat data into RAM
         self.start_sample_in_ram=None
         self.max_sample_in_ram=None
+        self.ram_block_loaded= False 
+        
     
     def __str__(self):
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
@@ -99,14 +101,16 @@ class Dat_file_reader:
             self.max_sample_in_ram = self.total_samples
         print("loading {} GB of data (sample {} to {}) to RAM".format(read_size_gb,self.start_sample_in_ram,self.max_sample_in_ram))
         self.RAM_block = self.get_data_one_block(self.start_sample_in_ram,self.max_sample_in_ram,np.arange(self.n_channels))
-        
+        self.ram_block_loaded= True 
     def release_ram(self):
         """
+        
         Function to free the memory block that was used by the .dat files
         """
         self.start_sample_in_ram=None
         self.max_sample_in_ram=None
         self.RAM_block=None
+        self.ram_block_loaded = False
     
     def get_first_last_samples_each_file(self):
         """
@@ -176,7 +180,7 @@ class Dat_file_reader:
         if channels.ndim != 1:
             raise ValueError("channels should be an np.array of 1 dimension")
 
-        if start_sample > self.start_sample_in_ram and end_sample < self.max_sample_in_ram:
+        if self.ram_block_loaded and start_sample > self.start_sample_in_ram and end_sample < self.max_sample_in_ram:
             # get from RAM data
             return self.RAM_block[channels,start_sample:end_sample]
             
