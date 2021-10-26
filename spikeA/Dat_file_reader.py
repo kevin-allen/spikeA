@@ -97,7 +97,7 @@ class Dat_file_reader:
         self.max_sample_in_ram=int(self.max_read_size/(self.n_channels*2))
         if self.max_sample_in_ram > self.total_samples:
             self.max_sample_in_ram = self.total_samples
-        print("load block from {} to {} to RAM".format(self.start_sample_in_ram,self.max_sample_in_ram))
+        print("loading {} GB of data (sample {} to {}) to RAM".format(read_size_gb,self.start_sample_in_ram,self.max_sample_in_ram))
         self.RAM_block = self.get_data_one_block(self.start_sample_in_ram,self.max_sample_in_ram,np.arange(self.n_channels))
         
     def release_ram(self):
