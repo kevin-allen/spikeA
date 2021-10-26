@@ -54,6 +54,7 @@ class Spike_train:
     spike_time_autocorrelation(): This function calculates the spike-time autocorrelation.
     spike_autocorrelation_plot(): Plots the spike-time autocorrelation using matplotlib.
     spike_time_crosscorrelation(): This function calculate the spike-time crosscorrelation between 2 spike trains.
+    refractory_period_ratio(): Score that indicates whether the spike train has a clean refractory period.
     """
     def __init__(self,name=None, sampling_rate = 20000, st = None):
         """
@@ -585,4 +586,32 @@ class Spike_train:
         spikeA.spike_time.spike_time_crosscorrelation_func(st1,st2New,myHist,min_sec,max_sec,bin_size_sec)
         
         return (myHist,myRange)
+    def refractory_period_ratio(self, bin_size_sec=0.0005, min_sec=0.0, max_sec=0.03,refractory_length_sec=0.002,outside_refractory_min_sec=0.004):
+        """
+        Calculate a ratio between the number of spikes within the refractory period and those outside. 
+        A spike-time autocorrelation is calculate and the mean number of spikes within the refractory period is devided by the mean number of spikes outside of it.
         
+        The function calls spike_time_autocorrelation to construct the spike-time autocorrelation.
+        
+        Arguments:
+        bin_size_sec: bin size in the spike-time autocorrelation
+        min_sec: minimum time in the spike-time autocorrelation
+        max_sec: maximum time in the spike-time autocorrelation
+        refractory_length_sec: length of the refractory period in seconds
+        outside_refractory_min_sec: time from which we are clearly outside the refractory period
+        
+        Return
+        Refractory period ratio
+        
+        """
+        self.spike_time_autocorrelation(bin_size_sec=bin_size_sec, min_sec=min_sec, max_sec=max_sec)
+        timestamp =self.st_autocorrelation_histogram[1][1:] # larger edge of each bin
+        meanRefractory = self.st_autocorrelation_histogram[0][np.logical_and(timestamp>0,timestamp<=refractory_length_sec)].mean()
+        meanOutside = self.st_autocorrelation_histogram[0][timestamp>outside_refractory_min_sec].mean()
+        
+        if meanOutside ==0 :
+            return np.nan
+        else:
+            return meanRefractory/meanOutside
+        
+            
