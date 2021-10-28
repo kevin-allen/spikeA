@@ -77,20 +77,13 @@ class Spike_waveform:
         # Remove any spike window that would start before 0 or end after the file ends
         spike_time_sample=spike_time_sample[np.logical_and(spike_time_sample-block_size/2 > 0,spike_time_sample+block_size/2 < self.dfr.total_samples)]
         
-        # Get the start and end of the reading operation for each spike
-        #read_block_limits = [self.dfr.get_block_start_end_within_files(s-block_size/2, s+block_size/2) for s in spike_time_sample]
-        #print("n_spikes: {}, read from file {} to file {}, shape: {}".format(n_spikes,read_block_limits[0][0],read_block_limits[-1][2],blocks.shape))
-        
-        bl=0
-        #for f1,i1,f2,i2 in read_block_limits :
-        #    blocks[:,:,bl] = self.dfr.read_one_block(f1,i1,f2,i2,block_size,channels)
-        #    bl=bl+1
-        
+        # get a block of data for each spike and save them in our 3D array
+        bl=0        
         for t in spike_time_sample :
             blocks[:,:,bl] = self.dfr.get_data_one_block(int(t-block_size/2),int(t+block_size/2),channels)
             bl=bl+1
         
-            
+        # get the mean of all spikes, results in a 2D array
         self.mean_waveforms =  np.mean(blocks, axis = 2)
         
     
@@ -103,7 +96,7 @@ class Spike_waveform:
         returns: the largest_amplitude waveform 
         """
         if self.mean_waveforms is None:
-            raise ValueError("set_mean_waveforms should be set before running the largest_amplitude_waveform")
+            raise ValueError("mean_waveform() should be run before running largest_amplitude_waveform()")
 
-            
-        self.largest_wf= self.mean_waveforms[np.argmax(np.ptp(self.mean_waveforms,axis=1)),:]
+        self.max_amplitude_channel = np.argmax(np.ptp(self.mean_waveforms,axis=1))
+        self.largest_wf= self.mean_waveforms[self.max_amplitude_channel,:]
