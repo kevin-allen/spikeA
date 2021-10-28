@@ -171,7 +171,7 @@ class Spatial_properties:
         return (mean_direction_deg, mean_vector_length)
     
 
-    def firing_rate_map_2d(self,cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, xy_range=None):
+    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -217,12 +217,13 @@ class Spatial_properties:
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
     
-    def firing_rate_map_field_detection(self, threshold=13, neighborhood_size=5):
+    def firing_rate_map_field_detection(self, cm_per_bin=2, threshold=5, neighborhood_size=9):
         """
         Method of the Spatial_properties class to calculate the center of mass and the size of fields in the firing rate map.
         
-        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
-        Arguments
+        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given. Make sure that the cm_per_bin argument is the same as when generating the firing rate map.
+        Arguments:
+        cm_per_bin
         threshold
         neighborhood_size
         Return
@@ -244,8 +245,11 @@ class Spatial_properties:
         labeled, num_objects = ndimage.label(maxima)
         slices = ndimage.find_objects(labeled)
         
-        self.firing_rate_map_field_size = [ndi_sum(data, labeled, i[0]) for i in enumerate(slices)]
-        self.firing_rate_map_field_position = [ndi_center_of_mass(data, labeled, i[0]) for i in enumerate(slices)]
+        field_size = [ndi_sum(data, labeled, i[0]) for i in enumerate(slices)]
+        field_position = [ndi_center_of_mass(data, labeled, i[0]) for i in enumerate(slices)]
+        
+        self.firing_rate_map_field_size = field_size*cm_per_bin*cm_per_bin # convert to cm2
+        self.firing_rate_map_field_position = field_position*cm_per_bin
 
     
     def spatial_autocorrelation_map_2d(self):
