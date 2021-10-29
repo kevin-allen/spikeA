@@ -586,6 +586,8 @@ class Spike_train:
         spikeA.spike_time.spike_time_crosscorrelation_func(st1,st2New,myHist,min_sec,max_sec,bin_size_sec)
         
         return (myHist,myRange)
+    
+    
     def refractory_period_ratio(self, bin_size_sec=0.0005, min_sec=0.0, max_sec=0.03,refractory_length_sec=0.002,outside_refractory_min_sec=0.004):
         """
         Calculate a ratio between the number of spikes within the refractory period and those outside. 
