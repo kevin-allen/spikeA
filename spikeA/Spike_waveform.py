@@ -34,6 +34,7 @@ class Spike_waveform:
         self.ses = session    
         self.st = spike_train
         self.dfr = dat_file_reader
+        self.channels = None
         
         return
     
@@ -67,9 +68,10 @@ class Spike_waveform:
             if n_spikes > self.st.n_spikes(): # if n_spike is larger than number of spikes, set it to number of spikes
                 n_spikes= self.st.n_spikes()
         
+        self.channels=channels
         
         # Create the blocks array to hold the spike waveform of the spikes in memory 
-        blocks = np.ndarray((len(channels), block_size, n_spikes))
+        blocks = np.ndarray((len(self.channels), block_size, n_spikes))
         
         # Transform spike times from from seconds to samples in .dat files
         spike_time_sample = np.round(self.st.st[:n_spikes] * self.st.sampling_rate)
@@ -80,7 +82,7 @@ class Spike_waveform:
         # get a block of data for each spike and save them in our 3D array
         bl=0        
         for t in spike_time_sample :
-            blocks[:,:,bl] = self.dfr.get_data_one_block(int(t-block_size/2),int(t+block_size/2),channels)
+            blocks[:,:,bl] = self.dfr.get_data_one_block(int(t-block_size/2),int(t+block_size/2),self.channels)
             bl=bl+1
         
         # get the mean of all spikes, results in a 2D array
@@ -98,5 +100,6 @@ class Spike_waveform:
         if self.mean_waveforms is None:
             raise ValueError("mean_waveform() should be run before running largest_amplitude_waveform()")
 
-        self.max_amplitude_channel = np.argmax(np.ptp(self.mean_waveforms,axis=1))
-        self.largest_wf= self.mean_waveforms[self.max_amplitude_channel,:]
+        max_index = np.argmax(np.ptp(self.mean_waveforms,axis=1))
+        self.max_amplitude_channel = self.channels[max_index]
+        self.largest_wf= self.mean_waveforms[max_index,:]
