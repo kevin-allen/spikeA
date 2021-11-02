@@ -4,6 +4,8 @@ File containing the definition of the Dat_file_reader class
 import numpy as np
 import pandas as pd
 import os
+import os.path
+import pickle
 from scipy import stats
 
 class Dat_file_reader:
@@ -281,17 +283,35 @@ class Dat_file_reader:
                     copied = copied + self.samples_per_file[i] 
         return my_block
     
-    def save_selected_to_dat(self, channels, file_name):
+    def merge_trial_dat_files(self,outFileName):
         """
-        I presume this is not right. It should be .T()
-        """
-        #if type(channels) is not np.ndarray:
-        #    raise TypeError("channels should be a numpy.ndarray")
-        #if channels.ndim != 1:
-        #    raise ValueError("channels should be an np.array of 1 dimension")
-
-        #df = np.fromfile(self.file_names[0], dtype = 'uint16').reshape(self.n_channels, self.total_samples)[channels,:]
-        #df.tofile(file_name)
+        Create a single .dat file from the list of .dat files in the Dat_file_reader object.
         
-
+        Under the hood it uses the `cat` command to concatenate the files
+        
+        The function also creates a pickle of the Dat_file_reader (self) so that the user can recreate the single .dat files from the merged .dat file.
+        
+        Argument:
+        outputFileName: path of the output file (single .dat file)
+        """
+       
+        
+        pickle_fn = os.path.splitext(outFileName)[0]+"_Dat_file_reader.pickle"
+        print("Create pickle of the Dat_file_reader: " + pickle_fn)
+        filehandler = open(pickle_fn, 'wb') 
+        pickle.dump(self, filehandler)
+    
+        
+        print("Merged .dat file size:{:.2f} Gb".format(np.sum(self.size_of_files)/1000000000))
+        print("Create " + outFileName)
+        com="cat "+ ' '.join(self.file_names)+" > "+outFileName
+        print("running: " , com)
+        os.system(com)
+        
+        # check the size of the file againts the sum of individual files
+        merge_size = os.path.getsize(outFileName)
+        if merge_size != np.sum(self.size_of_files):
+            raise ValueError("Problem with size of merged file {}, {},{}".format(outFileName,merge_size,np.sum(self.size_of_files)))
+        else:
+            print("File sizes match {}, {},{}".format(outFileName,merge_size,np.sum(self.size_of_files)))
     

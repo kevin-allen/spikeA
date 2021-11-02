@@ -217,7 +217,7 @@ class Spatial_properties:
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
     
-    def firing_rate_map_field_detection(self, cm_per_bin=2, threshold=5, neighborhood_size=9):
+    def firing_rate_map_field_detection(self, cm_per_bin=2, threshold=12, neighborhood_size=5):
         """
         Method of the Spatial_properties class to calculate the center of mass and the size of fields in the firing rate map.
         
@@ -242,13 +242,19 @@ class Spatial_properties:
         diff = ((data_max - data_min) > threshold)
         maxima[diff == 0] = 0
 
-        labeled, num_objects = ndimage.label(maxima)
+        labeled, num_objects = ndimage.label(diff)
         slices = ndimage.find_objects(labeled)
         
-        field_size = [ndi_sum(data, labeled, i[0]) for i in enumerate(slices)]
-        field_position = [ndi_center_of_mass(data, labeled, i[0]) for i in enumerate(slices)]
+        field_size = [ndi_sum(diff, labeled, i[0]) for i in enumerate(slices)]
+        field_position = [ndi_center_of_mass(diff, labeled, i[0]) for i in enumerate(slices)]
+        fields = diff[diff==True]
+        if not len(slices)==0:
+            mean_field_size = fields.shape[0]/len(slices)
+        else:
+            mean_field_size=np.nan
         
         self.firing_rate_map_field_size = field_size*cm_per_bin*cm_per_bin # convert to cm2
+        self.firing_rate_map_mean_field_size = mean_field_size*cm_per_bin*cm_per_bin
         self.firing_rate_map_field_position = field_position*cm_per_bin
 
     

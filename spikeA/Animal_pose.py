@@ -308,9 +308,37 @@ class Animal_pose:
     
         # save the occupancy map for later use
         self.occupancy_map = occ_sm
-        
-        
+     
     
+        
+    def occupancy(self, arena='sqr70'):
+        """
+        Function to calculate the proportions of bins of the occupancy map covered by the animal. Can be used for rectanglular and circular arenas.
+        
+        Arguments
+        arena: specifies the shape of the arena        
+        
+        Return
+        occupancy
+        """
+        if not hasattr(self, 'occupancy_map'):
+            raise TypeError('You have to call ap.occupancy_map_2d() before calling this function')
+        
+        if arena == 'sqr70':
+            area = self.occupancy_map.shape[0]*self.occupancy_map.shape[1] # area of a rectangle
+
+        elif arena == 'circ80':
+            # use the smaller dimension as diameter of the circle as there might be reflections outside the arena
+            area = ((np.min(self.occupancy_map.shape)/2)**2)*np.pi # area of a circle
+            
+        else:
+            raise TypeError("This arena shape is not supported. Only sqr70 or circ80 can be used.")
+
+        occupancy = self.occupancy_map[~np.isnan(self.occupancy_map)].shape[0]/area
+        
+        return occupancy
+     
+        
 
     def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2"):
 

@@ -259,6 +259,8 @@ class Kilosort_session(Session):
         n_trials
         self.trial_names = c[to_skip+4:to_skip+4+n_trials]
         
+        self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
+        # self.dat_file_names is depreciated, use self.file_names["dat"] instead
         self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
         df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
         inter = df.get_file_intervals_in_seconds()
