@@ -544,7 +544,7 @@ class Spike_train:
             plt.bar(timestamp, self.st_autocorrelation_histogram[0]) 
         else:
             plt.plot(timestamp, self.st_autocorrelation_histogram[0])
-  
+        plt.ylim(0,np.max(self.st_autocorrelation_histogram[0]))
         plt.xlabel("Time (ms)")
         plt.ylabel("Count")
         
