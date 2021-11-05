@@ -253,9 +253,9 @@ class Spatial_properties:
         else:
             mean_field_size=np.nan
         
-        self.firing_rate_map_field_size = field_size*cm_per_bin*cm_per_bin # convert to cm2
-        self.firing_rate_map_mean_field_size = mean_field_size*cm_per_bin*cm_per_bin
-        self.firing_rate_map_field_position = field_position*cm_per_bin
+        self.firing_rate_map_field_size = field_size
+        self.firing_rate_map_mean_field_size = mean_field_size
+        self.firing_rate_map_field_position = field_position
 
     
     def spatial_autocorrelation_map_2d(self):
