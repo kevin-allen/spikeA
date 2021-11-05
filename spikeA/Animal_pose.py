@@ -119,7 +119,7 @@ class Animal_pose:
         
         if not os.path.exists(fn):
             raise OSError(fn+" is missing")
-        print("Loading original pose from",fn)
+        #print("Loading original pose from",fn)
         self.pose_ori = np.load(file = fn) 
         self.pose = self.pose_ori
     
