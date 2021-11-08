@@ -163,12 +163,13 @@ class Spatial_properties:
             mean_direction = np.arctan(np.sum(x)/np.sum(y))+np.pi
         else:
             mean_direction = np.arctan(np.sum(x)/np.sum(y)+2*np.pi)
-        mean_direction_deg = mean_direction*360/(2*np.pi)
+        self.hd_mean_direction_deg = mean_direction*360/(2*np.pi)
         #get mean vector length
         R = np.sqrt(np.sum(x)**2+np.sum(y)**2)
-        mean_vector_length = R/sum_histo
-        
-        return (mean_direction_deg, mean_vector_length)
+        self.hd_mean_vector_length = R/sum_histo
+
+        #return (mean_direction_deg, mean_vector_length)
+        return (self.hd_mean_direction_deg, self.hd_mean_vector_length)
     
 
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
