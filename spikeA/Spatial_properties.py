@@ -11,6 +11,7 @@ import math
 import cv2
 
 
+
 class Spatial_properties:
     """
     Class use to calculate the spatial properties of a single neuron.
@@ -28,6 +29,8 @@ class Spatial_properties:
         
         
     """
+
+    
     def __init__(self, ses=None, spike_train=None, animal_pose=None):
         """
         Constructor of the Spatial_properties class
@@ -41,6 +44,24 @@ class Spatial_properties:
         self.st=spike_train
         self.ap=animal_pose
         return
+    
+    def mid_point_from_edges(self, edges):
+        """
+        Find the middle point of the edges of bins (output of np.histogram) and therefore reduce the number of edges by 1.
+        
+        Arguments:
+        edges: np.array containing the edges from np.histogram()
+        
+        Returns:
+        A np.array containing the midpoint of every bin stored in the variable "timestamp".
+        """
+        x = edges
+        diff = x[1] - x[0]
+        median = diff/2
+        
+        timestamp = x[:-1] + median
+        
+        return timestamp
     
     def spike_position(self):
         """
@@ -94,7 +115,7 @@ class Spatial_properties:
         ihds = fhds(self.st.st)
         
         # get radians from cos and sin
-        self.spike_hd = np.arctan2(ihdc,ihds) 
+        self.spike_hd = np.arctan2(ihds,ihdc) 
         
         
         
@@ -123,9 +144,10 @@ class Spatial_properties:
         self.ap.head_direction_occupancy_histogram(deg_per_bin = self.hd_histo_deg_per_bin, 
                                                  smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
                                                  smoothing = True, zero_to_nan = True)
+        #print(self.ap.hd_occupancy_histogram)
         
         self.spike_head_direction()
-        
+        print(self.spike_hd)
         ## calculate the number of spikes per bin in the histogram
         ## we use the bin edges of the occupancy histogram to make sure that the spike count histogram and hd occupancy histogram have the same dimension
         spike_count,edges = np.histogram(self.spike_hd, bins= self.ap.hd_occupancy_bins)
