@@ -119,7 +119,7 @@ class Spatial_properties:
         
         
         
-    def firing_rate_head_direction_histogram(self,deg_per_bin=10, smoothing_sigma_deg = 20, smoothing=True):
+    def firing_rate_head_direction_histogram(self,deg_per_bin=10, smoothing_sigma_deg = 10, smoothing=True):
         """
         Method of the Spatial_properties class to calculate the firing rate of a neuron as a function of head direction.
         
@@ -143,11 +143,11 @@ class Spatial_properties:
         # create a new hd occupancy histogram
         self.ap.head_direction_occupancy_histogram(deg_per_bin = self.hd_histo_deg_per_bin, 
                                                  smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
-                                                 smoothing = True, zero_to_nan = True)
+                                                 smoothing = smoothing, zero_to_nan = True)
         #print(self.ap.hd_occupancy_histogram)
         
         self.spike_head_direction()
-        print(self.spike_hd)
+        
         ## calculate the number of spikes per bin in the histogram
         ## we use the bin edges of the occupancy histogram to make sure that the spike count histogram and hd occupancy histogram have the same dimension
         spike_count,edges = np.histogram(self.spike_hd, bins= self.ap.hd_occupancy_bins)
@@ -165,33 +165,40 @@ class Spatial_properties:
     
     def head_direction_score(self):
         """
-        Method to calculate the mean direction and the mean vector length from the hd histogram
-        returns a tuple: mean_direction_deg, mean_vector_length
+        Method to calculate the mean direction and the mean vector length from the hd-rate histogram
+        
+        returns a tuple: mean_direction_rad mean_direction_deg, mean_vector_length
         """
         if not hasattr(self, 'firing_rate_head_direction_histo'):
             raise TypeError("You need to call spatial_properties.firing_rate_head_direction_histogram() before calling this function")
             
         # sum up all spikes
         sum_histo = np.sum(self.firing_rate_head_direction_histo)
+        
+        # if all rates are at 0, we can't calculate these scores
+        if sum_histo == 0.0:
+            return np.nan, np.nan
+        
         # get midth of bins
-        angles = 0.5*(self.firing_rate_head_direction_histo_edges[1:] + self.firing_rate_head_direction_histo_edges[:-1])
-        # get x and y length of triangle
-        x = [np.cos(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
-        y = [np.sin(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
-        # the angle is the arc(tan) of x divided by y
-        if (np.sum(x)>0 and np.sum(y)>0):
-            mean_direction = np.arctan(np.sum(x)/np.sum(y))
-        elif (np.sum(x)<0):
-            mean_direction = np.arctan(np.sum(x)/np.sum(y))+np.pi
-        else:
-            mean_direction = np.arctan(np.sum(x)/np.sum(y)+2*np.pi)
+        angles=self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
+        
+        
+        # get x and y component of each angle and multiply by firing rate
+        x = np.cos(angles)*self.firing_rate_head_direction_histo
+        y = np.sin(angles)*self.firing_rate_head_direction_histo
+                
+        
+        # the angle is the arctan of x divided by y
+        mean_direction = np.arctan2(np.sum(y),np.sum(x)) #+ np.pi # + np.pi because the values are from -pi to pi
+        
         self.hd_mean_direction_deg = mean_direction*360/(2*np.pi)
+        self.hd_mean_direction_rad = mean_direction
+        
         #get mean vector length
         R = np.sqrt(np.sum(x)**2+np.sum(y)**2)
         self.hd_mean_vector_length = R/sum_histo
 
-        #return (mean_direction_deg, mean_vector_length)
-        return (self.hd_mean_direction_deg, self.hd_mean_vector_length)
+        return (self.hd_mean_direction_rad,self.hd_mean_direction_deg, self.hd_mean_vector_length)
     
 
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
@@ -217,7 +224,7 @@ class Spatial_properties:
         # create a new occupancy map
         self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
                                  smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                 smoothing = True, zero_to_nan = True,xy_range=xy_range)
+                                 smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
         
         ## get the position of every spike
         self.spike_position()
