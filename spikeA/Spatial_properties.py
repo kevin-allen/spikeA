@@ -189,7 +189,7 @@ class Spatial_properties:
                 
         
         # the angle is the arctan of x divided by y
-        mean_direction = np.arctan2(np.sum(y),np.sum(x)) #+ np.pi # + np.pi because the values are from -pi to pi
+        mean_direction = np.arctan2(np.sum(y),np.sum(x))
         
         self.hd_mean_direction_deg = mean_direction*360/(2*np.pi)
         self.hd_mean_direction_rad = mean_direction
