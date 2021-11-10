@@ -182,7 +182,6 @@ class Spatial_properties:
         # get midth of bins
         angles=self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
         
-        
         # get x and y component of each angle and multiply by firing rate
         x = np.cos(angles)*self.firing_rate_head_direction_histo
         y = np.sin(angles)*self.firing_rate_head_direction_histo
@@ -425,10 +424,14 @@ class Spatial_properties:
         Information score
         """      
         
-        # need to check that we have a valid firing rate map already calculated
-        # we need to check that the dimension of occ map and firing rate map are the same
-        # we should not use smoothed firing rate maps
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
+        if self.map_smoothing == True:
+            print("You should not smooth the firing rate map when calculating information score")
         
+        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
+            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
+            
         # probability to be in bin i
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
         
@@ -454,6 +457,14 @@ class Spatial_properties:
         Return
         Sparsity score
         """
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
+        if self.map_smoothing == True:
+            print("You should not smooth the firing rate map when calculating information score")
+        
+        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
+            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
+        
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
         v = self.firing_rate_map
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
@@ -505,16 +516,24 @@ class Spatial_properties:
     
     
     def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
-        
         """
-        Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers. 
-        Return
-        correlation
+        Method of the Spatial_properties class to calculate the Pearson correlation coefficient between two firing rate maps which can be specified by giving the trial numbers. 
+        
+        Arguments:
+        tria1: trial number within the ap.session object. Index starts at 1
+        trial2: trial number within the ap.session object. Index starts at 1
+        cm_per_bin: cm per bins in the firnig rate map
+        smoothing_sigma_cm: sigma of the gaussian kernel used to smooth the maps
+        smooting: boolean indicating whether to smooth the maps
+        xy_range: range used to calculate the firing rate maps
+        
+        Return:
+        correlation coefficient of the firing rates of 2 firing rate maps
         """
         
         if len(self.ap.ses.trial_intervals.inter) < trial2 or len(self.ap.ses.trial_intervals.inter) < trial1:
-            raise TypeError("The indicated trial does not exist.")
-        if trial2 == 0 or trial1 == 0:
+            raise ValueError("The indicated trial index is out of range.")
+        if trial2 < 1 or trial1 < 1:
             raise TypeError("Trial numbering starts at 1.")
         
         trial1_inter = self.ap.ses.trial_intervals.inter[(trial1-1):trial1,:]

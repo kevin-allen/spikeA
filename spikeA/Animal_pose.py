@@ -48,10 +48,13 @@ class Animal_pose:
         save_pose_to_file()
         load_pose_from_file()
         pose_from_positrack_files()
+        percentage_valid_data()
         set_intervals()
         unset_intervals()
         occupancy_map()
         head_direction_occupancy_histogram()
+        speed_from_pose()
+        roll_pose_over_time()
         
     """
     def __init__(self, ses=None):
@@ -78,6 +81,22 @@ class Animal_pose:
         self.smoothing_sigma_cm = None
         self.speed = None
         self.pose_file_extension = ".pose.npy"
+    
+    def roll_pose_over_time(min_roll_sec=20):
+        """
+        Function to roll the spatial data (self.pose[:,1:]) relative to the time (self.pose[0,:]).
+        
+        This function is used to "shuffle" the position data relative to the spike train of neurons in order to get maps that would be expected if the neurons was not spatially selective.
+        This procedure is used to calculated significance thresholds for spatial information score, grid scores, etc.
+        The position data are shifted forward from their original time by a random amount that is larger than min_roll_sec. 
+        You should set your intervals before calling this function.
+        
+        When you are done with the shuffling analysis, calling ap.unset_intervals() will restored the previous self.posi data (with no intervals set).
+        
+        """
+        total_time = self.intervals.total_interval_duration_samples()
+        
+    
     
     def save_pose_to_file(self,file_name=None):
         """
@@ -188,7 +207,7 @@ class Animal_pose:
         Each bin of the array contains the time in seconds that the animal spent in the bin.
         The head-direction occupancy histogram is used to calculate head-direction firing rate histograms
         
-        The calculations are all done in radians. Bin size (deg_per_bin) and smoothing (smoothing_sigma_deg) are provided in degrees as people are generally more familiar with degrees. The outputs are all in radians
+        The calculations are all done in radians [-np.pi,np.pi]. Bin size (deg_per_bin) and smoothing (smoothing_sigma_deg) are provided in degrees as people are generally more familiar with degrees. The outputs are all in radians
         
         Arguments
         cm_per_deg: deg per bins in the occupancy histogram
@@ -314,6 +333,8 @@ class Animal_pose:
     def occupancy(self, arena='sqr70'):
         """
         Function to calculate the proportions of bins of the occupancy map covered by the animal. Can be used for rectanglular and circular arenas.
+        
+        This function is very specific to some recording environment. We should try to make it usable irrespective of the code name of the environment.
         
         Arguments
         arena: specifies the shape of the arena        
