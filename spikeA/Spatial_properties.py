@@ -245,8 +245,6 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
         
-        print("occ: {}, spike count: {}, rate map: {}".format(np.sum(~np.isnan(self.ap.occupancy_map)),np.sum(~np.isnan(spike_count)), np.sum(~np.isnan(self.firing_rate_map))))
-        
   
         
     def information_score(self):
@@ -286,6 +284,29 @@ class Spatial_properties:
         IS = np.nansum(p * v/mr * np.log2(v/mr))
         
         return IS
+    
+    def shuffle_info_score(self, iterations=500,cm_per_bin=2 ):
+        """
+        Get a distribution of information score that would be expected by chance for this neuron
+
+        Argument:
+        iterations: How many shufflings to perform
+        cm_per_bin: cm per bin in the firing rate map
+
+        Return
+        1D numpy array with the information scores obtained by chance for this neuron
+        """
+        self.spatial_info_shuffle=np.empty(iterations)
+        for i in range(iterations):
+            self.ap.roll_pose_over_time() # shuffle the position data 
+            self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=False) # calculate a firing rate map
+            self.spatial_info_shuffle[i] = self.information_score() # calculate the IS from the new map
+
+        # reset the ap.pose to what it was before doing the shuffling
+        self.ap.pose = self.ap.pose_inter
+        return self.spatial_info_shuffle
+
+
     
     def sparsity_score(self):
         """

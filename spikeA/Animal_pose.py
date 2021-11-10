@@ -26,8 +26,9 @@ class Animal_pose:
     Attributes:
     
         pose: 2D numpy array, columns are (time, x,y,z,yaw,pitch,roll). This is a pointer to pose_ori or pose_inter
-        pose_ori: 2D numpy array of the original data loaded
+        pose_ori: 2D numpy array of the original data loaded, it should never be modified
         pose_inter: 2D numpy array of the pose data that are within the intervals set
+        pose_rolled: 2D numpy array of the pose data but shuffled (or rolled) to get shuffling distributions
         speed: 1D numpy array of speed data of the original pose data
         intervals: Interval object
         occupancy_cm_per_bin: cm per bin in the occupancy map
@@ -82,20 +83,46 @@ class Animal_pose:
         self.speed = None
         self.pose_file_extension = ".pose.npy"
     
-    def roll_pose_over_time(min_roll_sec=20):
+    def roll_pose_over_time(self,min_roll_sec=20):
         """
-        Function to roll the spatial data (self.pose[:,1:]) relative to the time (self.pose[0,:]).
+        Function to roll the spatial data (self.pose[:,1:7]) relative to the time (self.pose[0,:]).
         
         This function is used to "shuffle" the position data relative to the spike train of neurons in order to get maps that would be expected if the neurons was not spatially selective.
         This procedure is used to calculated significance thresholds for spatial information score, grid scores, etc.
         The position data are shifted forward from their original time by a random amount that is larger than min_roll_sec. 
         You should set your intervals before calling this function.
         
-        When you are done with the shuffling analysis, calling ap.unset_intervals() will restored the previous self.posi data (with no intervals set).
+        When you are done with the shuffling analysis, just reset the intervals of the Animal_pose to get the original pose back or do ap.pose = ap.pose_inter
+        
+        
+        Example:
         
         """
-        total_time = self.intervals.total_interval_duration_samples()
         
+        # each time we call this function 
+        self.pose = self.pose_inter 
+        
+        total_time_sec = self.intervals.total_interval_duration_seconds()
+        if total_time_sec < 2*min_roll_sec:
+            raise valueError("total time in intervals should be larger than 2*min_roll_sec")
+        
+        # random time shift between what is possible
+        time_shift = np.random.default_rng().uniform(min_roll_sec,total_time_sec-min_roll_sec,1)
+        time_per_datapoint = self.pose[1,0]-self.pose[0,0]
+        shift=int(time_shift/time_per_datapoint)
+        
+        self.pose_rolled = np.empty(self.pose.shape)
+        
+        self.pose_rolled[:,0] = self.pose[:,0] # time does not roll
+        self.pose_rolled[:,1:7] = np.roll(self.pose[:,1:7],shift=shift,axis=0)
+        
+        if self.pose.shape[1] > 7:
+            self.pose_rolled[:,7:] = self.pose[:,7:]
+        
+        
+        self.pose = self.pose_rolled
+        
+        #print(time_shift,time_per_datapoint,shift,self.pose.shape[0])
     
     
     def save_pose_to_file(self,file_name=None):
@@ -124,6 +151,9 @@ class Animal_pose:
         """
         Load the pose data from file.
         
+        The original pose data from the file are stored in self.pose_ori
+        When we set intervals, self.pose points to self.pose_inter. self.pose_inter can be modified as we want.
+        
         Arguments
         file_name: If you want to save to a specific file name, set this argument. Otherwise, the self.ses object will be used to determine the file name.
         """
@@ -149,6 +179,8 @@ class Animal_pose:
         else :
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
+            self.set_intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
+            
     def percentage_valid_data(self,columnIndex=1):
         """
         Function to return the percentage of valid data point in the .pose array
