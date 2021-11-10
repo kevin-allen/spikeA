@@ -177,10 +177,12 @@ class Spatial_properties:
         
         # if all rates are at 0, we can't calculate these scores
         if sum_histo == 0.0:
-            return np.nan, np.nan
+             self.hd_mean_vector_length= np.nan
+        #   return np.nan
         
         # get midth of bins
         angles=self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
+        
         
         # get x and y component of each angle and multiply by firing rate
         x = np.cos(angles)*self.firing_rate_head_direction_histo
@@ -244,7 +246,7 @@ class Spatial_properties:
     
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
-        
+       
   
         
     def information_score(self):
@@ -285,7 +287,7 @@ class Spatial_properties:
         
         return IS
     
-    def shuffle_info_score(self, iterations=500,cm_per_bin=2 ):
+    def shuffle_info_score(self, iterations=500,cm_per_bin=2,percentile=95):
         """
         Get a distribution of information score that would be expected by chance for this neuron
 
@@ -294,7 +296,9 @@ class Spatial_properties:
         cm_per_bin: cm per bin in the firing rate map
 
         Return
-        1D numpy array with the information scores obtained by chance for this neuron
+        tuple: 
+        0: 1D numpy array with the information scores obtained by chance for this neuron
+        1: significance threshold given the percentile
         """
         self.spatial_info_shuffle=np.empty(iterations)
         for i in range(iterations):
@@ -302,10 +306,13 @@ class Spatial_properties:
             self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=False) # calculate a firing rate map
             self.spatial_info_shuffle[i] = self.information_score() # calculate the IS from the new map
 
+        # calculate the threshold
+        self.spatial_info_score_threshold =  np.percentile(self.spatial_info_shuffle,percentile)
+        
         # reset the ap.pose to what it was before doing the shuffling
         self.ap.pose = self.ap.pose_inter
-        return self.spatial_info_shuffle
-
+        
+        return self.spatial_info_shuffle, self.spatial_info_score_threshold
 
     
     def sparsity_score(self):
@@ -327,6 +334,7 @@ class Spatial_properties:
         v = self.firing_rate_map
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
         
+
     
     def firing_rate_map_field_detection(self, cm_per_bin=2, threshold=12, neighborhood_size=5):
         """
@@ -491,8 +499,7 @@ class Spatial_properties:
         
         self.doughnut = doughnut
 
-        
-      
+    
             
     def correlation_from_doughnut_rotation(self, degree):
         
@@ -540,24 +547,16 @@ class Spatial_properties:
     
     
     def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
+        
         """
-        Method of the Spatial_properties class to calculate the Pearson correlation coefficient between two firing rate maps which can be specified by giving the trial numbers. 
-        
-        Arguments:
-        tria1: trial number within the ap.session object. Index starts at 1
-        trial2: trial number within the ap.session object. Index starts at 1
-        cm_per_bin: cm per bins in the firnig rate map
-        smoothing_sigma_cm: sigma of the gaussian kernel used to smooth the maps
-        smooting: boolean indicating whether to smooth the maps
-        xy_range: range used to calculate the firing rate maps
-        
-        Return:
-        correlation coefficient of the firing rates of 2 firing rate maps
+        Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers. 
+        Return
+        correlation
         """
         
         if len(self.ap.ses.trial_intervals.inter) < trial2 or len(self.ap.ses.trial_intervals.inter) < trial1:
-            raise ValueError("The indicated trial index is out of range.")
-        if trial2 < 1 or trial1 < 1:
+            raise TypeError("The indicated trial does not exist.")
+        if trial2 == 0 or trial1 == 0:
             raise TypeError("Trial numbering starts at 1.")
         
         trial1_inter = self.ap.ses.trial_intervals.inter[(trial1-1):trial1,:]
