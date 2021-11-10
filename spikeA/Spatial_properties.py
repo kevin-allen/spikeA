@@ -244,7 +244,9 @@ class Spatial_properties:
     
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
-    
+        
+        print("occ: {}, spike count: {}, rate map: {}".format(np.sum(~np.isnan(self.ap.occupancy_map)),np.sum(~np.isnan(spike_count)), np.sum(~np.isnan(self.firing_rate_map))))
+        
   
         
     def information_score(self):
@@ -271,7 +273,7 @@ class Spatial_properties:
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
         
         # firing rate in bin i
-        v = self.firing_rate_map
+        v = self.firing_rate_map.copy() # we need to make a copy because we will modify it a few lines below
         
         # mean rate is the sum of spike count / sum of occupancy, NOT the mean of the firing rate map bins
         mr = np.nansum(self.spike_count)/np.nansum(self.ap.occupancy_map)
