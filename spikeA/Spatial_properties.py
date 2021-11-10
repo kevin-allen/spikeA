@@ -294,12 +294,38 @@ class Spatial_properties:
         Argument:
         iterations: How many shufflings to perform
         cm_per_bin: cm per bin in the firing rate map
+        percentile: percentile of the distribution of shuffled info scores that is used to get the significance threshold
 
         Return
         tuple: 
         0: 1D numpy array with the information scores obtained by chance for this neuron
-        1: significance threshold given the percentile
+        1: significance threshold for information score
+        
+        Example
+        
+        # get a neuron and set intervals
+        n = ses.cg.neuron_list[7]
+        n.spike_train.set_intervals(aSes.intervalDict[cond])
+        n.spatial_properties.ap.set_intervals(aSes.intervalDict[cond])
+
+        # get the observed value for information score
+        n.spatial_properties.firing_rate_map_2d(cm_per_bin=2, smoothing=False)    
+        IS = n.spatial_properties.information_score()
+
+        # get the shuffled values for information score
+        shuIS,threshold = n.spatial_properties.shuffle_info_score(iterations=100, cm_per_bin=2,percentile=95)
+
+        # plot the results for this neuron
+        res = plt.hist(shuIS,label="shuffled")
+        ymax=np.max(res[0])
+        plt.plot([threshold,threshold],[0,ymax],c="black",label="Threshold")
+        plt.plot([IS,IS],[0,ymax],c="red",label="Observed")
+        plt.xlabel("Information score")
+        plt.ylabel("Count")
+        plt.legend()
+        plt.show()
         """
+        
         self.spatial_info_shuffle=np.empty(iterations)
         for i in range(iterations):
             self.ap.roll_pose_over_time() # shuffle the position data 
