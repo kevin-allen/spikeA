@@ -167,7 +167,7 @@ class Spatial_properties:
         """
         Method to calculate the mean direction and the mean vector length from the hd-rate histogram
         
-        returns a tuple: mean_direction_rad mean_direction_deg, mean_vector_length
+        returns a tuple: mean_direction_rad, mean_direction_deg, mean_vector_length
         """
         if not hasattr(self, 'firing_rate_head_direction_histo'):
             raise TypeError("You need to call spatial_properties.firing_rate_head_direction_histogram() before calling this function")
