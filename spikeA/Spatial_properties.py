@@ -245,6 +245,65 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
     
+  
+        
+    def information_score(self):
+        """
+        Method of the Spatial_properties class to calculate the information score of a single neuron.
+        
+        The formula is from Skaggs and colleagues (1996, Hippocampus).
+        
+        You should have calculated firing_rate_maps without smoothing before calling this function
+        
+        Return
+        Information score
+        """      
+        
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
+        if self.map_smoothing == True:
+            print("You should not smooth the firing rate map when calculating information score")
+        
+        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
+            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
+            
+        # probability to be in bin i
+        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
+        
+        # firing rate in bin i
+        v = self.firing_rate_map
+        
+        # mean rate is the sum of spike count / sum of occupancy, NOT the mean of the firing rate map bins
+        mr = np.nansum(self.spike_count)/np.nansum(self.ap.occupancy_map)
+        
+        # when rate is 0, we get p * 0 * -inf, which should be 0
+        # to avoid -inf * 0, we set the v==0 to np.nan
+        v[v==0]=np.nan
+        
+        # following Skaggs' formula
+        IS = np.nansum(p * v/mr * np.log2(v/mr))
+        
+        return IS
+    
+    def sparsity_score(self):
+        """
+        Method of the Spatial_properties class to calculate the sparsity score of a single neuron.
+        
+        Return
+        Sparsity score
+        """
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
+        if self.map_smoothing == True:
+            print("You should not smooth the firing rate map when calculating information score")
+        
+        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
+            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
+        
+        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
+        v = self.firing_rate_map
+        return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
+        
     
     def firing_rate_map_field_detection(self, cm_per_bin=2, threshold=12, neighborhood_size=5):
         """
@@ -410,65 +469,7 @@ class Spatial_properties:
         self.doughnut = doughnut
 
         
-        
-        
-    def information_score(self):
-        """
-        Method of the Spatial_properties class to calculate the information score of a single neuron.
-        
-        The formula is from Skaggs and colleagues (1996, Hippocampus).
-        
-        You should have calculated firing_rate_maps without smoothing before calling this function
-        
-        Return
-        Information score
-        """      
-        
-        if not hasattr(self, 'firing_rate_map'):
-            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
-        if self.map_smoothing == True:
-            print("You should not smooth the firing rate map when calculating information score")
-        
-        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
-            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
-            
-        # probability to be in bin i
-        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
-        
-        # firing rate in bin i
-        v = self.firing_rate_map
-        
-        # mean rate is the sum of spike count / sum of occupancy, NOT the mean of the firing rate map bins
-        mr = np.nansum(self.spike_count)/np.nansum(self.ap.occupancy_map)
-        
-        # when rate is 0, we get p * 0 * -inf, which should be 0
-        # to avoid -inf * 0, we set the v==0 to np.nan
-        v[v==0]=np.nan
-        
-        # following Skaggs' formula
-        IS = np.nansum(p * v/mr * np.log2(v/mr))
-        
-        return IS
-    
-    def sparsity_score(self):
-        """
-        Method of the Spatial_properties class to calculate the sparsity score of a single neuron.
-        
-        Return
-        Sparsity score
-        """
-        if not hasattr(self, 'firing_rate_map'):
-            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
-        if self.map_smoothing == True:
-            print("You should not smooth the firing rate map when calculating information score")
-        
-        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
-            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
-        
-        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
-        v = self.firing_rate_map
-        return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
-        
+      
             
     def correlation_from_doughnut_rotation(self, degree):
         
