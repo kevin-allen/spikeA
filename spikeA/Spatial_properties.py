@@ -119,7 +119,7 @@ class Spatial_properties:
         
         
         
-    def firing_rate_head_direction_histogram(self,deg_per_bin=10, smoothing_sigma_deg = 20, smoothing=True):
+    def firing_rate_head_direction_histogram(self,deg_per_bin=10, smoothing_sigma_deg = 10, smoothing=True):
         """
         Method of the Spatial_properties class to calculate the firing rate of a neuron as a function of head direction.
         
@@ -143,11 +143,11 @@ class Spatial_properties:
         # create a new hd occupancy histogram
         self.ap.head_direction_occupancy_histogram(deg_per_bin = self.hd_histo_deg_per_bin, 
                                                  smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
-                                                 smoothing = True, zero_to_nan = True)
+                                                 smoothing = smoothing, zero_to_nan = True)
         #print(self.ap.hd_occupancy_histogram)
         
         self.spike_head_direction()
-        print(self.spike_hd)
+        
         ## calculate the number of spikes per bin in the histogram
         ## we use the bin edges of the occupancy histogram to make sure that the spike count histogram and hd occupancy histogram have the same dimension
         spike_count,edges = np.histogram(self.spike_hd, bins= self.ap.hd_occupancy_bins)
@@ -165,33 +165,41 @@ class Spatial_properties:
     
     def head_direction_score(self):
         """
-        Method to calculate the mean direction and the mean vector length from the hd histogram
-        returns a tuple: mean_direction_deg, mean_vector_length
+        Method to calculate the mean direction and the mean vector length from the hd-rate histogram
+        
+        returns a tuple: mean_direction_rad, mean_direction_deg, mean_vector_length
         """
         if not hasattr(self, 'firing_rate_head_direction_histo'):
             raise TypeError("You need to call spatial_properties.firing_rate_head_direction_histogram() before calling this function")
             
         # sum up all spikes
         sum_histo = np.sum(self.firing_rate_head_direction_histo)
+        
+        # if all rates are at 0, we can't calculate these scores
+        if sum_histo == 0.0:
+             self.hd_mean_vector_length= np.nan
+        #   return np.nan
+        
         # get midth of bins
-        angles = 0.5*(self.firing_rate_head_direction_histo_edges[1:] + self.firing_rate_head_direction_histo_edges[:-1])
-        # get x and y length of triangle
-        x = [np.cos(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
-        y = [np.sin(angles[i[0]])* self.firing_rate_head_direction_histo[i[0]] for i in enumerate(self.firing_rate_head_direction_histo)]
-        # the angle is the arc(tan) of x divided by y
-        if (np.sum(x)>0 and np.sum(y)>0):
-            mean_direction = np.arctan(np.sum(x)/np.sum(y))
-        elif (np.sum(x)<0):
-            mean_direction = np.arctan(np.sum(x)/np.sum(y))+np.pi
-        else:
-            mean_direction = np.arctan(np.sum(x)/np.sum(y)+2*np.pi)
+        angles=self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
+        
+        
+        # get x and y component of each angle and multiply by firing rate
+        x = np.cos(angles)*self.firing_rate_head_direction_histo
+        y = np.sin(angles)*self.firing_rate_head_direction_histo
+                
+        
+        # the angle is the arctan of x divided by y
+        mean_direction = np.arctan2(np.sum(y),np.sum(x))
+        
         self.hd_mean_direction_deg = mean_direction*360/(2*np.pi)
+        self.hd_mean_direction_rad = mean_direction
+        
         #get mean vector length
         R = np.sqrt(np.sum(x)**2+np.sum(y)**2)
         self.hd_mean_vector_length = R/sum_histo
 
-        #return (mean_direction_deg, mean_vector_length)
-        return (self.hd_mean_direction_deg, self.hd_mean_vector_length)
+        return (self.hd_mean_direction_rad,self.hd_mean_direction_deg, self.hd_mean_vector_length)
     
 
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
@@ -217,7 +225,7 @@ class Spatial_properties:
         # create a new occupancy map
         self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
                                  smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                 smoothing = True, zero_to_nan = True,xy_range=xy_range)
+                                 smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
         
         ## get the position of every spike
         self.spike_position()
@@ -238,7 +246,121 @@ class Spatial_properties:
     
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
+       
+  
+        
+    def information_score(self):
+        """
+        Method of the Spatial_properties class to calculate the information score of a single neuron.
+        
+        The formula is from Skaggs and colleagues (1996, Hippocampus).
+        
+        You should have calculated firing_rate_maps without smoothing before calling this function
+        
+        Return
+        Information score
+        """      
+        
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
+        if self.map_smoothing == True:
+            print("You should not smooth the firing rate map when calculating information score")
+        
+        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
+            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
+            
+        # probability to be in bin i
+        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
+        
+        # firing rate in bin i
+        v = self.firing_rate_map.copy() # we need to make a copy because we will modify it a few lines below
+        
+        # mean rate is the sum of spike count / sum of occupancy, NOT the mean of the firing rate map bins
+        mr = np.nansum(self.spike_count)/np.nansum(self.ap.occupancy_map)
+        
+        # when rate is 0, we get p * 0 * -inf, which should be 0
+        # to avoid -inf * 0, we set the v==0 to np.nan
+        v[v==0]=np.nan
+        
+        # following Skaggs' formula
+        IS = np.nansum(p * v/mr * np.log2(v/mr))
+        
+        return IS
     
+    def shuffle_info_score(self, iterations=500,cm_per_bin=2,percentile=95):
+        """
+        Get a distribution of information score that would be expected by chance for this neuron
+
+        Argument:
+        iterations: How many shufflings to perform
+        cm_per_bin: cm per bin in the firing rate map
+        percentile: percentile of the distribution of shuffled info scores that is used to get the significance threshold
+
+        Return
+        tuple: 
+        0: 1D numpy array with the information scores obtained by chance for this neuron
+        1: significance threshold for information score
+        
+        Example
+        
+        # get a neuron and set intervals
+        n = ses.cg.neuron_list[7]
+        n.spike_train.set_intervals(aSes.intervalDict[cond])
+        n.spatial_properties.ap.set_intervals(aSes.intervalDict[cond])
+
+        # get the observed value for information score
+        n.spatial_properties.firing_rate_map_2d(cm_per_bin=2, smoothing=False)    
+        IS = n.spatial_properties.information_score()
+
+        # get the shuffled values for information score
+        shuIS,threshold = n.spatial_properties.shuffle_info_score(iterations=100, cm_per_bin=2,percentile=95)
+
+        # plot the results for this neuron
+        res = plt.hist(shuIS,label="shuffled")
+        ymax=np.max(res[0])
+        plt.plot([threshold,threshold],[0,ymax],c="black",label="Threshold")
+        plt.plot([IS,IS],[0,ymax],c="red",label="Observed")
+        plt.xlabel("Information score")
+        plt.ylabel("Count")
+        plt.legend()
+        plt.show()
+        """
+        
+        self.spatial_info_shuffle=np.empty(iterations)
+        for i in range(iterations):
+            self.ap.roll_pose_over_time() # shuffle the position data 
+            self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=False) # calculate a firing rate map
+            self.spatial_info_shuffle[i] = self.information_score() # calculate the IS from the new map
+
+        # calculate the threshold
+        self.spatial_info_score_threshold =  np.percentile(self.spatial_info_shuffle,percentile)
+        
+        # reset the ap.pose to what it was before doing the shuffling
+        self.ap.pose = self.ap.pose_inter
+        
+        return self.spatial_info_shuffle, self.spatial_info_score_threshold
+
+    
+    def sparsity_score(self):
+        """
+        Method of the Spatial_properties class to calculate the sparsity score of a single neuron.
+        
+        Return
+        Sparsity score
+        """
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling self.information_score()')
+        if self.map_smoothing == True:
+            print("You should not smooth the firing rate map when calculating information score")
+        
+        if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
+            raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
+        
+        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
+        v = self.firing_rate_map
+        return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
+        
+
     
     def firing_rate_map_field_detection(self, cm_per_bin=2, threshold=12, neighborhood_size=5):
         """
@@ -403,54 +525,7 @@ class Spatial_properties:
         
         self.doughnut = doughnut
 
-        
-        
-        
-    def information_score(self):
-        """
-        Method of the Spatial_properties class to calculate the information score of a single neuron.
-        
-        The formula is from Skaggs and colleagues (1996, Hippocampus).
-        
-        You should have calculated firing_rate_maps without smoothing before calling this function
-        
-        Return
-        Information score
-        """      
-        
-        # need to check that we have a valid firing rate map already calculated
-        # we need to check that the dimension of occ map and firing rate map are the same
-        # we should not use smoothed firing rate maps
-        
-        # probability to be in bin i
-        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
-        
-        # firing rate in bin i
-        v = self.firing_rate_map
-        
-        # mean rate is the sum of spike count / sum of occupancy, NOT the mean of the firing rate map bins
-        mr = np.nansum(self.spike_count)/np.nansum(self.ap.occupancy_map)
-        
-        # when rate is 0, we get p * 0 * -inf, which should be 0
-        # to avoid -inf * 0, we set the v==0 to np.nan
-        v[v==0]=np.nan
-        
-        # following Skaggs' formula
-        IS = np.nansum(p * v/mr * np.log2(v/mr))
-        
-        return IS
     
-    def sparsity_score(self):
-        """
-        Method of the Spatial_properties class to calculate the sparsity score of a single neuron.
-        
-        Return
-        Sparsity score
-        """
-        p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
-        v = self.firing_rate_map
-        return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
-        
             
     def correlation_from_doughnut_rotation(self, degree):
         
