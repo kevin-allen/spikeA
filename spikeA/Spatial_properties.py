@@ -114,7 +114,7 @@ class Spatial_properties:
         ihdc = fhdc(self.st.st)
         ihds = fhds(self.st.st)
         
-        # get radians from cos and sin
+        # get radians from sin and cos
         self.spike_hd = np.arctan2(ihds,ihdc) 
         
         
