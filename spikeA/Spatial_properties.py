@@ -6,7 +6,6 @@ from scipy import ndimage
 from scipy.ndimage import sum as ndi_sum
 from scipy.ndimage import center_of_mass as ndi_center_of_mass
 from scipy.stats import pearsonr
-import spikeA.spatial_properties
 import math
 import cv2
 

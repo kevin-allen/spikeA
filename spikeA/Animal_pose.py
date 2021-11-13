@@ -6,6 +6,7 @@ from scipy import ndimage
 from scipy.ndimage import gaussian_filter1d
 import os.path
 import os
+import spikeA.spatial_properties
 
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.ttl import detectTTL
@@ -22,6 +23,7 @@ class Animal_pose:
     
     Position data are in cm.
     Angular data are in radians to make computations simpler
+    Yaw should be from -180 to 180, 0 is in direction of positive x-axis, pi/2 up, -pi/2 down.
     
     Attributes:
     
@@ -620,6 +622,27 @@ class Animal_pose:
         
         # apply gaussian filter for smoothing
         self.speed = gaussian_filter1d(speed, sigma=sigma)
+    
+    def detect_border_pixels_in_occupancy_map_rectangular_environment(self):
+        """
+        Method to detect the border pixesl in an occupancy map when the environment is rectangular.
+        
+        This function in implemented in c code located in spatial_properties.c, spatial_properties.h and _spatial_properties.pyx
+        
+        """
+        
+        ## convert nan values to -1 for C function
+        occ_map = self.occupancy_map.copy()
+        
+        occ_map[np.isnan(occ_map)]=-1.0
+        
+        ## create an empty array of the appropriate dimensions to store the border pixels
+        border_map = np.zeros_like(occ_map,dtype="int")
 
+        print(occ_map.dtype, border_map.dtype)
+        ## create the spatial autocorrelation calling a C function
+        
+        spikeA.spatial_properties.detect_border_pixels_in_occupancy_map_rectangular_environment_func(occ_map.astype('float'),border_map.astype('int'))
+                                                                         
 
 
