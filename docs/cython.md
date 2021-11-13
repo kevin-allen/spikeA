@@ -11,6 +11,10 @@ Based on this introduction, I decided to use [cython](https://cython.org/) to in
 
 Cython has its own language that I did not learn. 
 
+* [Interactions with c libraries and Cython](https://cython.readthedocs.io/en/latest/src/tutorial/clibraries.html)
+* [Working with NumPy array and Cython](http://docs.cython.org/en/latest/src/tutorial/numpy.html)
+
+
 
 ## Installation
 

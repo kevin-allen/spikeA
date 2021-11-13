@@ -118,7 +118,7 @@ class Spatial_properties:
         
         
         
-    def firing_rate_head_direction_histogram(self,deg_per_bin=10, smoothing_sigma_deg = 10, smoothing=True):
+    def firing_rate_head_direction_histogram(self, deg_per_bin=10, smoothing_sigma_deg=10, smoothing=True):
         """
         Method of the Spatial_properties class to calculate the firing rate of a neuron as a function of head direction.
         
@@ -199,6 +199,62 @@ class Spatial_properties:
         self.hd_mean_vector_length = R/sum_histo
 
         return (self.hd_mean_direction_rad,self.hd_mean_direction_deg, self.hd_mean_vector_length)
+    
+    
+    def shuffle_head_direction_score(self, iterations=500, deg_per_bin=2, smoothing_sigma_deg=10, smoothing=True, percentile=95):
+        """
+        Get a distribution of HD score that would be expected by chance for this neuron
+
+        Argument:
+        iterations: How many shufflings to perform
+        deg_per_bin: cm per bin in the HD histogram
+        smoothing_sigma_deg, smoothing: smoothing in the HD histogram
+        percentile: percentile of the distribution of shuffled info scores that is used to get the significance threshold
+
+        Return
+        tuple: 
+        0: 1D numpy array with the grid scores obtained by chance for this neuron
+        1: significance threshold for HD score
+        
+        Example
+        
+        # get a neuron and set intervals
+        n = cg.neuron_list[7]
+        n.spike_train.set_intervals(aSes.intervalDict[cond])
+        n.spatial_properties.ap.set_intervals(aSes.intervalDict[cond])
+
+        # get the observed value for HD score
+        n.spatial_properties.firing_rate_head_direction_histogram()  
+        HDS = n.spatial_properties.head_direction_score()[2]
+
+        # get the shuffled values for grid score
+        shuHDS,threshold = n.spatial_properties.shuffle_head_direction_score(iterations=100,percentile=95)
+
+        # plot the results for this neuron
+        res = plt.hist(shuHDS,label="shuffled")
+        ymax=np.max(res[0])
+        plt.plot([threshold,threshold],[0,ymax],c="black",label="Threshold")
+        plt.plot([HDS,HDS],[0,ymax],c="red",label="Observed")
+        plt.xlabel("HD score")
+        plt.ylabel("Count")
+        plt.legend()
+        plt.show()
+        """
+        
+        #self.head_direction_shuffle=np.tile([np.zeros(3)], (iterations,1)) # to get shuffled direction as well
+        self.head_direction_shuffle=np.empty(iterations)
+        for i in range(iterations):
+            self.ap.roll_pose_over_time() # shuffle the position data 
+            self.firing_rate_head_direction_histogram(deg_per_bin=deg_per_bin, smoothing_sigma_deg = smoothing_sigma_deg, smoothing=smoothing)  
+            self.head_direction_shuffle[i] = self.head_direction_score()[2] # calculate the new HD score (vector length only) with the shuffled HD data
+
+        # calculate the threshold
+        self.head_direction_score_threshold =  np.percentile(self.head_direction_shuffle,percentile)
+        
+        # reset the ap.pose to what it was before doing the shuffling
+        self.ap.pose = self.ap.pose_inter
+        
+        return self.head_direction_shuffle, self.head_direction_score_threshold
     
 
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
@@ -438,9 +494,8 @@ class Spatial_properties:
         The list of peaks x,y        
         """
         
-        ### check for autocorrelation map
-        if not hasattr(self, 'spatial_autocorrelation_map'):
-            self.spatial_autocorrelation_map_2d()
+        ### calculate new autocorrelation map
+        self.spatial_autocorrelation_map_2d()
             
         data = self.spatial_autocorrelation_map
         
@@ -516,7 +571,7 @@ class Spatial_properties:
             
             
         # use the autocorrelation map to modify doughnut
-        doughnut = self.spatial_autocorrelation_map
+        doughnut = self.spatial_autocorrelation_map.copy()
 
         outsidedoughnut = np.array([ np.array([x_,y_]) for x_,y_ in np.ndindex(self.spatial_autocorrelation_map.shape) if math.dist(midpoint, [x_,y_]) < r_inner_radius_use or math.dist(midpoint, [x_,y_]) > r_outer_radius_use ])
         outsidedoughnut = (outsidedoughnut[:,0], outsidedoughnut[:,1])
@@ -550,15 +605,14 @@ class Spatial_properties:
         return r
     
     
-    def grid_score(self):
+    def grid_score(self, threshold=0.1, neighborhood_size=5):
         
         """
         Method of the Spatial_properties class to calculate the grid score.
         Return
         grid score 
         """
-        if not hasattr(self, 'doughnut'):
-            raise TypeError('You need to call spatial_properties.calculate_doughnut() before calculation of grid score')
+        self.calculate_doughnut(threshold = threshold, neighborhood_size = neighborhood_size)
 
         rotations60 = [60, 120]
         rotations30= [30, 90, 150]
@@ -569,6 +623,62 @@ class Spatial_properties:
         grid_score = np.mean(corr60)-np.mean(corr30)
 
         return grid_score
+    
+    
+    def shuffle_grid_score(self, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
+        """
+        Get a distribution of grid score that would be expected by chance for this neuron
+
+        Argument:
+        iterations: How many shufflings to perform
+        cm_per_bin: cm per bin in the firing rate map
+        smoothing_sigma_cm: smoothing in the firing rate map
+        smoothing: smoothing in the firing rate map
+        percentile: percentile of the distribution of shuffled info scores that is used to get the significance threshold
+
+        Return
+        tuple: 
+        0: 1D numpy array with the grid scores obtained by chance for this neuron
+        1: significance threshold for grid score
+        
+        Example
+        
+        # get a neuron and set intervals
+        n = cg.neuron_list[7]
+        n.spike_train.set_intervals(aSes.intervalDict[cond])
+        n.spatial_properties.ap.set_intervals(aSes.intervalDict[cond])
+
+        # get the observed value for information score
+        n.spatial_properties.firing_rate_map_2d(cm_per_bin=2, smoothing=True)    
+        GS = n.spatial_properties.grid_score()
+
+        # get the shuffled values for grid score
+        shuGS,threshold = n.spatial_properties.shuffle_grid_score(iterations=100, cm_per_bin=2,percentile=95)
+
+        # plot the results for this neuron
+        res = plt.hist(shuGS,label="shuffled")
+        ymax=np.max(res[0])
+        plt.plot([threshold,threshold],[0,ymax],c="black",label="Threshold")
+        plt.plot([GS,GS],[0,ymax],c="red",label="Observed")
+        plt.xlabel("Grid score")
+        plt.ylabel("Count")
+        plt.legend()
+        plt.show()
+        """
+        
+        self.grid_shuffle=np.empty(iterations)
+        for i in range(iterations):
+            self.ap.roll_pose_over_time() # shuffle the position data 
+            self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm) # calculate a firing rate map
+            self.grid_shuffle[i] = self.grid_score() # calculate the grid score from the new map
+
+        # calculate the threshold
+        self.grid_score_threshold =  np.percentile(self.grid_shuffle,percentile)
+        
+        # reset the ap.pose to what it was before doing the shuffling
+        self.ap.pose = self.ap.pose_inter
+        
+        return self.grid_shuffle, self.grid_score_threshold
     
     
     def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
