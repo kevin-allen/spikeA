@@ -242,18 +242,24 @@ class Spatial_properties:
         plt.show()
         """
         
-        #self.head_direction_shuffle=np.tile([np.zeros(3)], (iterations,1)) # to get shuffled direction as well
+          
+        # keep a copy of the pose that we started with
+        pose_at_start = self.ap.pose.copy()
+        
+        # allocate memory for the shuffle data
         self.head_direction_shuffle=np.empty(iterations)
+        
+        
         for i in range(iterations):
             self.ap.roll_pose_over_time() # shuffle the position data 
             self.firing_rate_head_direction_histogram(deg_per_bin=deg_per_bin, smoothing_sigma_deg = smoothing_sigma_deg, smoothing=smoothing)  
             self.head_direction_shuffle[i] = self.head_direction_score()[2] # calculate the new HD score (vector length only) with the shuffled HD data
+            
+            self.ap.pose=pose_at_start # reset the pose to the one we started with
 
         # calculate the threshold
         self.head_direction_score_threshold =  np.percentile(self.head_direction_shuffle,percentile)
         
-        # reset the ap.pose to what it was before doing the shuffling
-        self.ap.pose = self.ap.pose_inter
         
         return self.head_direction_shuffle, self.head_direction_score_threshold
     
@@ -382,18 +388,20 @@ class Spatial_properties:
         plt.show()
         """
         
+        # keep a copy of the pose that we started with
+        pose_at_start = self.ap.pose.copy()
+        
         self.spatial_info_shuffle=np.empty(iterations)
         for i in range(iterations):
             self.ap.roll_pose_over_time() # shuffle the position data 
             self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=False) # calculate a firing rate map
             self.spatial_info_shuffle[i] = self.information_score() # calculate the IS from the new map
+            self.ap.pose=pose_at_start
 
         # calculate the threshold
         self.spatial_info_score_threshold =  np.percentile(self.spatial_info_shuffle,percentile)
         
-        # reset the ap.pose to what it was before doing the shuffling
-        self.ap.pose = self.ap.pose_inter
-        
+       
         return self.spatial_info_shuffle, self.spatial_info_score_threshold
 
     
@@ -667,17 +675,19 @@ class Spatial_properties:
         plt.show()
         """
         
+        # keep a copy of the pose that we started with
+        pose_at_start = self.ap.pose.copy()
+        
         self.grid_shuffle=np.empty(iterations)
         for i in range(iterations):
             self.ap.roll_pose_over_time() # shuffle the position data 
             self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm) # calculate a firing rate map
             self.grid_shuffle[i] = self.grid_score() # calculate the grid score from the new map
+            self.ap.pose=pose_at_start
 
         # calculate the threshold
         self.grid_score_threshold =  np.percentile(self.grid_shuffle,percentile)
         
-        # reset the ap.pose to what it was before doing the shuffling
-        self.ap.pose = self.ap.pose_inter
         
         return self.grid_shuffle, self.grid_score_threshold
     

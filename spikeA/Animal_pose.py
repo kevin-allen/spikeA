@@ -28,7 +28,7 @@ class Animal_pose:
     Attributes:
     
         pose: 2D numpy array, columns are (time, x,y,z,yaw,pitch,roll). This is a pointer to pose_ori or pose_inter
-        pose_ori: 2D numpy array of the original data loaded, it should never be modified
+        pose_ori: 2D numpy array of the original data loaded, This array should never be modified!
         pose_inter: 2D numpy array of the pose data that are within the intervals set
         pose_rolled: 2D numpy array of the pose data but shuffled (or rolled) to get shuffling distributions
         speed: 1D numpy array of speed data of the original pose data
@@ -91,18 +91,35 @@ class Animal_pose:
         
         This function is used to "shuffle" the position data relative to the spike train of neurons in order to get maps that would be expected if the neurons was not spatially selective.
         This procedure is used to calculated significance thresholds for spatial information score, grid scores, etc.
-        The position data are shifted forward from their original time by a random amount that is larger than min_roll_sec. 
+        The position data are shifted forward from their current time by a random amount that is larger than min_roll_sec. 
         You should set your intervals before calling this function.
         
-        When you are done with the shuffling analysis, just reset the intervals of the Animal_pose to get the original pose back or do ap.pose = ap.pose_inter
+        This function will set self.pose to self.pose_rolled
+        It is recommended to make a copy of pose before the shuffling procedure and reset ap.pose to the original copy when you are done.
         
         
         Example:
         
-        """
+        # keep a copy of the pose that we started with
+        pose_at_start = sp.ap.pose.copy()
         
-        # each time we call this function 
-        self.pose = self.pose_inter 
+        # allocate memory for the shuffle data
+        sp.head_direction_shuffle=np.empty(iterations)
+        
+        
+        for i in range(iterations):
+            sp.ap.roll_pose_over_time() # shuffle the position data 
+            sp.firing_rate_head_direction_histogram(deg_per_bin=deg_per_bin, smoothing_sigma_deg = smoothing_sigma_deg, smoothing=smoothing)  
+            sp.head_direction_shuffle[i] = sp.head_direction_score()[2] # calculate the new HD score (vector length only) with the shuffled HD data
+            
+            sp.ap.pose=pose_at_start # reset the pose to the one we started with
+
+        # calculate the threshold
+        sp.head_direction_score_threshold =  np.percentile(sp.head_direction_shuffle,percentile)
+        
+        
+        
+        """
         
         total_time_sec = self.intervals.total_interval_duration_seconds()
         if total_time_sec < 2*min_roll_sec:
@@ -124,7 +141,6 @@ class Animal_pose:
         
         self.pose = self.pose_rolled
         
-        #print(time_shift,time_per_datapoint,shift,self.pose.shape[0])
     
     
     def save_pose_to_file(self,file_name=None):
