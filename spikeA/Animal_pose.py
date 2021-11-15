@@ -172,7 +172,7 @@ class Animal_pose:
             raise OSError(fn+" is missing")
         #print("Loading original pose from",fn)
         self.pose_ori = np.load(file = fn) 
-        self.pose = self.pose_ori
+        self.pose = self.pose_ori.copy() # the self.pose should not point to the self.pose_ori
     
         ## create intervals that cover all the data in self.pose
         if self.intervals is not None:
@@ -214,7 +214,7 @@ class Animal_pose:
         self.intervals.set_inter(inter)
         
         # only use the poses that are within the intervals
-        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] 
+        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] # this should create a copy of self.pose_ori, not a reference
         # self.st is now pointing to self.st_inter
         self.pose = self.pose_inter
         #print("Number of poses: {}".format(self.pose.shape[0]))
@@ -229,7 +229,8 @@ class Animal_pose:
         if self.pose is None:
             raise ValueError("pose should be set before setting the intervals")
         
-        self.pose = self.pose_ori
+        self.pose = self.pose_ori.copy() # create a copy of our pose_ori, not a pointer
+
         # set default time intervals from 0 to just after the last spike
         self.intervals.set_inter(inter=np.array([[0,self.pose[:,0].max()+1]]))
         #print("Number of poses: {}".format(self.pose.shape[0]))
