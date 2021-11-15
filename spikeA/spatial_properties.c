@@ -150,13 +150,12 @@ map.
 
 void detect_border_pixels_in_occupancy_map(double* occ_map, int* border_map, int num_bins_x, int num_bins_y)
 {
+    // This function return a border map in which the border pixels have a value of 1 and the rest 0
+    
     int num_bins_border=0;
     int total_bins=num_bins_x*num_bins_y;
     int* border_x =  (int*) malloc(total_bins*sizeof(int)); // list of x index for border bins
     int* border_y = (int*) malloc(total_bins*sizeof(int)); // list of y index for border bins
-    
-    printf("detect_border_pixels_in_occupancy_map: %d %d\n",num_bins_x,num_bins_y);
-    
     identify_border_pixels_in_occupancy_map(occ_map, num_bins_x, num_bins_y, border_map, 
                                                 border_x, border_y, &num_bins_border);
     
@@ -266,8 +265,8 @@ int find_border_starting_point(double* occ_map, int num_bins_x, int num_bins_y,
                                int* border_map,
                                int* border_x,int* border_y,int* num_bins_border)
 {
-  printf("find_border_starting_point\n");
-  printf("num_bins_x: %d, num_bins_y: %d\n",num_bins_x,num_bins_y);
+  //printf("find_border_starting_point\n");
+  //printf("num_bins_x: %d, num_bins_y: %d\n",num_bins_x,num_bins_y);
   for (int x = 0 ; x < num_bins_x; x++)
   {
     for (int y = 0; y < num_bins_y; y++)

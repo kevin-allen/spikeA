@@ -27,6 +27,7 @@ def map_autocorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not 
 				one_auto.shape[0], one_auto.shape[1], 1)
 
     
+    
 def detect_border_pixels_in_occupancy_map_func(np.ndarray[double, ndim=2, mode="c"] occ_map not None,
                                                np.ndarray[int, ndim=2, mode="c"] border_map not None):
     

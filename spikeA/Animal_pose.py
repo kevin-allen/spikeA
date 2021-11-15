@@ -623,12 +623,18 @@ class Animal_pose:
         # apply gaussian filter for smoothing
         self.speed = gaussian_filter1d(speed, sigma=sigma)
     
-    def detect_border_pixels_in_occupancy_map_rectangular_environment(self):
+    def detect_border_pixels_in_occupancy_map(self):
         """
-        Method to detect the border pixesl in an occupancy map when the environment is rectangular.
+        Method to detect the border pixels in an occupancy map
+        
+        A border map is created in which all pixels are 0 and border pixels are 1.
         
         This function in implemented in c code located in spatial_properties.c, spatial_properties.h and _spatial_properties.pyx
         
+        No arguments:
+        
+        Returns:
+        2D numpy array containing with the border pixels set to 1 and the rest set to 0
         """
         
         ## convert nan values to -1 for C function
@@ -637,12 +643,8 @@ class Animal_pose:
         occ_map[np.isnan(occ_map)]=-1.0
         
         ## create an empty array of the appropriate dimensions to store the border pixels
-        border_map = np.zeros_like(occ_map,dtype="int")
-
-        print(occ_map.dtype, border_map.dtype)
-        ## create the spatial autocorrelation calling a C function
-        
-        spikeA.spatial_properties.detect_border_pixels_in_occupancy_map_rectangular_environment_func(occ_map.astype('float'),border_map.astype('int'))
-                                                                         
+        border_map = np.zeros_like(occ_map,dtype=np.int32)
+        spikeA.spatial_properties.detect_border_pixels_in_occupancy_map_func(occ_map,border_map)
+        return border_map                                 
 
 
