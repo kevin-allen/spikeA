@@ -528,7 +528,6 @@ class Spatial_properties:
     
             
     def correlation_from_doughnut_rotation(self, degree):
-        
         """
         Method of the Spatial_properties class to calculate the correlations for different angles of rotation of the doughnut. 
         Return
@@ -552,7 +551,6 @@ class Spatial_properties:
     
     
     def grid_score(self):
-        
         """
         Method of the Spatial_properties class to calculate the grid score.
         Return
