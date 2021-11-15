@@ -676,6 +676,8 @@ class Animal_pose:
         
         To undo, call self.unset_intervals() or self.set_intervals(). unset_intervals() and set_intervals() use the data stored in self.ori_pose
         
+        This function should be called **after** setting any relevant Intervals for the analysis.
+        
         Arguments:
         shape: "circle"
         radius: radius of a circle, only needed if working with circle
