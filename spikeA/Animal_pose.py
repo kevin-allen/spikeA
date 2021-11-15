@@ -635,6 +635,27 @@ class Animal_pose:
         
         Returns:
         2D numpy array containing with the border pixels set to 1 and the rest set to 0
+        
+        Example
+        
+        from spikeA.Animal_pose import Animal_pose
+        import numpy as np
+        import matplotlib.pyplot as plt
+        
+        # create a circular environment
+        points = np.arange(-20,20,1)
+        xs,ys = np.meshgrid(points,points)
+        occ_map = np.sqrt(xs**2+ys**2)
+        occ_map[occ_map>10] = -1.0
+        
+        ap = Animal_pose()
+        ap.occupancy_map=occ_map
+        brd = ap.detect_border_pixels_in_occupancy_map()
+        
+        fig,ax = plt.subplots(1,2)
+        ax[0].imshow(occ_map)
+        ax[1].imshow(brd)
+        plt.show()
         """
         
         ## convert nan values to -1 for C function
@@ -647,4 +668,36 @@ class Animal_pose:
         spikeA.spatial_properties.detect_border_pixels_in_occupancy_map_func(occ_map,border_map)
         return border_map                                 
 
-
+    def invalid_outside_spatial_area(self, shape = None, radius = None, center = None):
+        """
+        Method that set the position data (self.pose[:,1:4]) outside a defined zone to np.nan.
+        
+        The area can be a circle. We should write it for rectangle when we have time.
+        
+        To undo, call self.unset_intervals() or self.set_intervals(). unset_intervals() and set_intervals() use the data stored in self.ori_pose
+        
+        Arguments:
+        shape: "circle"
+        radius: radius of a circle, only needed if working with circle
+        center: 1D np.array of size 2, [x,y], center of a circle, only needed if working with circle
+        
+        Return:
+        Nothing is returned. self.pose[,1:4] are set to np.nan if the animal is not in the zone.
+        """
+        valid_shapes = ["circle"]
+        
+        if not shape in valid_shapes:
+            raise ValueError("shape should be part of the list {}".format(valid_shapes))
+        
+        # deal with circle
+        if shape == "circle":
+            if radius is None:
+                raise ValueError("set the radius argument")
+            if center is None:
+                raise ValueError("set the center argument")
+            
+            # calculate distance to center
+            dist = np.sqrt((self.pose[:,1]-center[0])**2 + (self.pose[:,2]-center[1])**2)
+            # outside circle = np.nan
+            self.pose[dist>radius,1:4] = np.nan
+                             
