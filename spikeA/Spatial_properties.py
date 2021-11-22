@@ -424,48 +424,111 @@ class Spatial_properties:
         v = self.firing_rate_map
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
         
-
-    
-    def firing_rate_map_field_detection(self, cm_per_bin=2, threshold=12, neighborhood_size=5):
-        """
-        Method of the Spatial_properties class to calculate the center of mass and the size of fields in the firing rate map.
         
-        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given. Make sure that the cm_per_bin argument is the same as when generating the firing rate map.
+    def find_field_pixels(self, p, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate):
+        """
+        Method of the Spatial_properties class to determine if adjacent pixels to a start pixel belong to the firing field in the firing rate map.
+        
+        This function is recursive. 
+        It is called by detect_one_field() called by firing_rate_field_detection().
         Arguments:
-        cm_per_bin
-        threshold
-        neighborhood_size
+        p: start pixel
+        field_pixels: list containing the pixels belonging to the field (contains the start pixel at first and then the adjacent field pixels are appended)
+        rate_map: copy of the firing rate map
+        peak_rate: peak rate in the firing rate map
+        min_fraction_of_peak_rate: threshold firing rate of a pixel to be considered a field pixel (as fraction of peak rate)
         Return
-        The Spatial_properties.firing_rate_map_field_size and Spatial_properties.firing_rate_map_field_position are set.
+        The field pixels are appended to the field_pixels list
         """
+        # check all 8 adjacent pixels
+        y=p[0];x=p[1]
+        adjacent_pixels=[(y+1,x),(y+1,x+1),(y,x+1),(y-1,x+1),(y-1,x),(y-1,x-1),(y,x-1),(y+1,x-1)]
+        for p in adjacent_pixels:
+            # to be considered a field pixel, a pixel should be wihin the range of the firing rate map and have a firing rate > min_fraction_of_peak_rate peak rate
+            if p not in field_pixels and p[0]<rate_map.shape[0] and p[1]<rate_map.shape[1] and rate_map[p]>peak_rate*min_fraction_of_peak_rate:
+                field_pixels.append(p)
+                # use field pixel as new starting point to detect all pixels belonging to the same firing field
+                self.find_field_pixels(p, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate)
         
+
+    def detect_one_field(self, rate_map, fields, peak_rate, min_pixel_number_per_field, min_peak_rate, min_fraction_of_peak_rate):
+        """
+        Method of the Spatial_properties class to detect firing fields in the firing rate map.
+        
+        This function is recursive. 
+        It is called by firing_rate_field_detection().
+        Arguments:
+        rate_map: copy of the firing rate map
+        fields: the list to which detected fields are appended (empty at first)
+        peak_rate: the max firing rate in the original firing rate map
+        min_pixel_number_per_field: minimal pixel number so that a putative field is considered a field
+        min_fraction_of_peak_rate: threshold firing rate of a pixel to be considered a field pixel (as fraction of peak rate)
+        
+        Return
+        The fields are appended to the fields list. The fields list is returned.
+        """
+        # the start pixel should have the maximal firing rate in the map. Detected fields and attempted start pixels are removed from the map so that we get a new start pixel each time.
+        peak_pixel_rate = np.nanmax(rate_map)
+        # The start pixel should have a rate higher than min_peak_rate. If several pixels have the highest firing rate and fulfill this criterion, the first one is selected.
+        if peak_pixel_rate > min_peak_rate:
+            peak_pixel = np.where(rate_map == peak_pixel_rate)
+            if peak_pixel[0].shape[0]>1:
+                start_pixel=(peak_pixel[0][0], peak_pixel[1][0])
+            else:
+                start_pixel=peak_pixel
+            field_pixels=[start_pixel]
+
+            # determine if the adjacent pixels belong to the putative field
+            self.find_field_pixels(start_pixel, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate)
+            # set the start pixel to nan so that it will not be selected again as start pixel
+            rate_map[start_pixel]=np.nan
+            # a firing field must have a minimal number of pixels
+            if len(field_pixels)>min_pixel_number_per_field:
+                fields.append(field_pixels)
+                # set all field pixels to nan so that they will not be assigned to other fields
+                for p in field_pixels:
+                    rate_map[p]=np.nan
+            # check if there could be more fields (no more fields when all pixels are nan or have too low firing rate)
+            if not all(all(np.isnan(rate_map[:,r])) for r in range(rate_map.shape[1])) or all(all(rate_map[:,r]<peak_rate*min_fraction_of_peak_rate) for r in range(rate_map.shape[1])):
+                self.detect_one_field(rate_map, fields, peak_rate, min_pixel_number_per_field, min_peak_rate, min_fraction_of_peak_rate)
+        return(fields)
+    
+    
+    def firing_rate_map_field_detection(self, min_pixel_number_per_field=25, min_peak_rate=4, min_fraction_of_peak_rate=0.2, cm_per_bin=2):
+        """
+        Method of the Spatial_properties class to calculate the position and size of fields in the firing rate map.
+        
+        If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
+        Arguments:
+        min_pixel_number_per_field: minimal number of pixels so that the putative firing field will be appended to the fields list
+        min_peak_rate: minimal firing rate in a field
+        min_fraction_of_peak_rate: threshold firing rate of a pixel to be considered a field pixel (as fraction of peak rate)
+        cm_per_bin: cm_per_bin as for calculation of firing rate map
+        Return
+        The Spatial_properties.firing_rate_map_field_size and Spatial_properties.firing_rate_map_fields are set.
+        """
         ## check for firing rate map
         if not hasattr(self, 'firing_rate_map'):
             raise TypeError("Call spatial_properties.firing_rate_map_2d() before calling spatial_properties.firing_rate_map_field_detection()")
         
-        data = self.firing_rate_map
-
-        data_max = ndimage.filters.maximum_filter(data, neighborhood_size)
-        maxima = (data == data_max)
-        data_min = ndimage.filters.minimum_filter(data, neighborhood_size)
-        diff = ((data_max - data_min) > threshold)
-        maxima[diff == 0] = 0
-
-        labeled, num_objects = ndimage.label(diff)
-        slices = ndimage.find_objects(labeled)
-        
-        field_size = [ndi_sum(diff, labeled, i[0]) for i in enumerate(slices)]
-        field_position = [ndi_center_of_mass(diff, labeled, i[0]) for i in enumerate(slices)]
-        fields = diff[diff==True]
-        if not len(slices)==0:
-            mean_field_size = fields.shape[0]/len(slices)
+        # work on a copy of the firing rate map because fields will be set to nan
+        rate_map = self.firing_rate_map.copy()
+        # invalid pixels should be nan
+        rate_map[rate_map==-1]=np.nan
+        # create an empty list to which the detected fields will be appended
+        fields = []
+        # get the peak rate of the whole map
+        peak_rate = np.nanmax(rate_map)
+        # call the recursive function detect_one_field which will find all the fields
+        fields = self.detect_one_field(rate_map, fields, peak_rate, min_pixel_number_per_field, min_peak_rate, min_fraction_of_peak_rate)
+        self.firing_rate_map_fields = fields
+        # calculate the field size in cm2
+        if fields:
+            self.firing_rate_map_field_size = [len(fields[i])*cm_per_bin**2 for i in range(len(fields))]
         else:
-            mean_field_size=np.nan
-        
-        self.firing_rate_map_field_size = field_size
-        self.firing_rate_map_mean_field_size = mean_field_size
-        self.firing_rate_map_field_position = field_position
+            self.firing_rate_map_field_size = []
 
+    
     
     def spatial_autocorrelation_map_2d(self):
         """
