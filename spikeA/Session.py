@@ -277,7 +277,7 @@ class Kilosort_session(Session):
         self.templates = np.load(self.file_names["templates"])
         print("templates.shape",self.templates.shape)
         n_clusters, n_timepoints, n_channels = self.templates.shape
-        print("Clusters:",n_clusters, "timepoints:",n_timepoints,", Channels:",n_channels)
+        print("Clusters:",n_clusters, ", timepoints:",n_timepoints, ", Channels:",n_channels)
         self.n_channels = n_channels
         
         # load the channel mapping
