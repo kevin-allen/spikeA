@@ -156,7 +156,7 @@ class Spatial_properties:
         
         ## smooth the spike count array
         if smoothing:
-            spike_count = ndimage.gaussian_filter1d(spike_count, sigma=self.hd_histo_smoothing_sigma_deg/self.hd_histo_deg_per_bin)
+            spike_count = ndimage.gaussian_filter1d(spike_count, sigma=self.hd_histo_smoothing_sigma_deg/self.hd_histo_deg_per_bin,mode="wrap")
     
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_head_direction_histo_edges = self.ap.hd_occupancy_bins

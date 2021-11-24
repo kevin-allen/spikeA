@@ -299,7 +299,7 @@ class Animal_pose:
         
         # smoothin of occupancy map
         if smoothing:
-            occ_sm = ndimage.gaussian_filter1d(occ,sigma=smoothing_sigma_deg/deg_per_bin)
+            occ_sm = ndimage.gaussian_filter1d(occ,sigma=smoothing_sigma_deg/deg_per_bin,mode="wrap")
         else:
             occ_sm = occ # if no smoothing just get a reference to occ, because we want to use occ_sm for the rest of the function
           
