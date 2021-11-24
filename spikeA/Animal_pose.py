@@ -214,7 +214,9 @@ class Animal_pose:
         
     def set_intervals(self,inter,timeColumnIndex=0):
         """
-        Function to limit the analysis to poses within a set of set specific time intervals
+        Function to limit the analysis to poses within a set of set specific time intervals.
+        
+        Each time it is called, it starts from the data in self.pose_ori, which is the data that was loaded from file and never change.
         
         Arguments:
         inter: 2D numpy array, one interval per row, time in seconds
@@ -230,7 +232,9 @@ class Animal_pose:
         self.intervals.set_inter(inter)
         
         # only use the poses that are within the intervals
+        # always start over from the original pose that should never change
         self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] # this should create a copy of self.pose_ori, not a reference
+        
         # self.st is now pointing to self.st_inter
         self.pose = self.pose_inter
         #print("Number of poses: {}".format(self.pose.shape[0]))
@@ -315,6 +319,8 @@ class Animal_pose:
         The occupancy map is a 2D array covering the entire environment explored by the animal.
         Each bin of the array contains the time in seconds that the animal spent in the bin.
         The occupancy map is used to calculate firing rate maps
+        The x and y data will end up being the rows and columns of the 2D array. The same will apply to the spike position. This is because the first axis of a numpy array is the row and second is column.
+        
         
         Arguments
         cm_per_bin: cm per bins in the occupancy map
@@ -687,7 +693,7 @@ class Animal_pose:
 
     def invalid_outside_spatial_area(self, shape = None, radius = None, center = None):
         """
-        Method that set the position data (self.pose[:,1:4]) outside a defined zone to np.nan.
+        Method that set the position data (self.pose[:,1:7]) outside a defined zone to np.nan.
         
         The area can be a circle. We should write it for rectangle when we have time.
         
@@ -701,7 +707,7 @@ class Animal_pose:
         center: 1D np.array of size 2, [x,y], center of a circle, only needed if working with circle
         
         Return:
-        Nothing is returned. self.pose[,1:4] are set to np.nan if the animal is not in the zone.
+        Nothing is returned. self.pose[,1:7] are set to np.nan if the animal is not in the zone.
         """
         valid_shapes = ["circle"]
         
@@ -718,5 +724,5 @@ class Animal_pose:
             # calculate distance to center
             dist = np.sqrt((self.pose[:,1]-center[0])**2 + (self.pose[:,2]-center[1])**2)
             # outside circle = np.nan
-            self.pose[dist>radius,1:4] = np.nan
+            self.pose[dist>radius,1:7] = np.nan
                              
