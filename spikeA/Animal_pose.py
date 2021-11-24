@@ -387,14 +387,14 @@ class Animal_pose:
      
     
         
-    def occupancy(self, arena='sqr70'):
+    def occupancy(self, arena):
         """
         Function to calculate the proportions of bins of the occupancy map covered by the animal. Can be used for rectanglular and circular arenas.
         
         This function is very specific to some recording environment. We should try to make it usable irrespective of the code name of the environment.
         
         Arguments
-        arena: specifies the shape of the arena        
+        arena: specifies the shape of the arena:circle/square        
         
         Return
         occupancy
@@ -402,15 +402,15 @@ class Animal_pose:
         if not hasattr(self, 'occupancy_map'):
             raise TypeError('You have to call ap.occupancy_map_2d() before calling this function')
         
-        if arena == 'sqr70':
+        if arena == 'square':
             area = self.occupancy_map.shape[0]*self.occupancy_map.shape[1] # area of a rectangle
 
-        elif arena == 'circ80':
+        elif arena == 'circle':
             # use the smaller dimension as diameter of the circle as there might be reflections outside the arena
             area = ((np.min(self.occupancy_map.shape)/2)**2)*np.pi # area of a circle
             
         else:
-            raise TypeError("This arena shape is not supported. Only sqr70 or circ80 can be used.")
+            raise TypeError("This arena shape is not supported. Only square or circle can be used.")
 
         occupancy = self.occupancy_map[~np.isnan(self.occupancy_map)].shape[0]/area
         
@@ -691,38 +691,69 @@ class Animal_pose:
         spikeA.spatial_properties.detect_border_pixels_in_occupancy_map_func(occ_map,border_map)
         return border_map                                 
 
-    def invalid_outside_spatial_area(self, shape = None, radius = None, center = None):
+    
+    def invalid_outside_spatial_area(self, shape=None, radius=None, length=None, center=None):
         """
         Method that set the position data (self.pose[:,1:7]) outside a defined zone to np.nan.
         
-        The area can be a circle. We should write it for rectangle when we have time.
+        The area can be a circle or a square.
         
         To undo, call self.unset_intervals() or self.set_intervals(). unset_intervals() and set_intervals() use the data stored in self.ori_pose
         
         This function should be called **after** setting any relevant Intervals for the analysis.
         
         Arguments:
-        shape: "circle"
+        shape: "circle","square"
         radius: radius of a circle, only needed if working with circle
-        center: 1D np.array of size 2, [x,y], center of a circle, only needed if working with circle
+        length: length of a square
+        center: 1D np.array of size 2, [x,y], center of a circle/square
         
         Return:
         Nothing is returned. self.pose[,1:7] are set to np.nan if the animal is not in the zone.
         """
-        valid_shapes = ["circle"]
+        valid_shapes = ["circle","square"]
         
         if not shape in valid_shapes:
             raise ValueError("shape should be part of the list {}".format(valid_shapes))
         
+        # if center is not specified, determine from center of mass of the occupancy map
+        if center is None:
+            self.occupancy_map_2d()
+            occ_map = self.occupancy_map.copy()
+            # nan values need to be 0
+            occ_map[np.isnan(occ_map)]=0.0
+            # the occupancy map is rotated by -90° to the pose date. We need to rotate back.
+            occ_map=ndimage.rotate(occ_map, 90)
+            # get the center of mass of the occupancy map
+            center_occ=ndimage.measurements.center_of_mass(occ_map)
+            # we need to transform back from the occupancy map to the pose data. 
+            # The y axis starts in the top left orner for the occ_map, but in the bottom left corner for the pose data.
+            x_range_pose = np.nanmax(self.pose[:,1]-np.nanmin(self.pose[:,1]))
+            x_range_occ = occ_map.shape[0]
+            y_range_pose = np.nanmax(self.pose[:,2]-np.nanmin(self.pose[:,2]))
+            y_range_occ = occ_map.shape[1]
+            center = (np.nanmin(self.pose[:,1])+center_occ[1]*x_range_pose/x_range_occ,np.nanmax(self.pose[:,2])-center_occ[0]*y_range_pose/y_range_occ)
+
+                
         # deal with circle
         if shape == "circle":
             if radius is None:
                 raise ValueError("set the radius argument")
-            if center is None:
-                raise ValueError("set the center argument")
             
             # calculate distance to center
             dist = np.sqrt((self.pose[:,1]-center[0])**2 + (self.pose[:,2]-center[1])**2)
             # outside circle = np.nan
             self.pose[dist>radius,1:7] = np.nan
+            
+        # deal with square
+        if shape == "square":
+            if length is None:
+                raise ValueError("set the radius argument")
+            
+            # set pixels outside square of length length np.nan
+            self.pose[self.pose[:,1]>center[0]+length/2,1:7]=np.nan
+            self.pose[self.pose[:,2]>center[1]+length/2,1:7]=np.nan
+            self.pose[self.pose[:,1]<(center[0]-length/2),1:7]=np.nan
+            self.pose[self.pose[:,2]<(center[1]-length/2),1:7]=np.nan
+
                              

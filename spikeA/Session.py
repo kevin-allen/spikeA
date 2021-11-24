@@ -204,6 +204,7 @@ class Kilosort_session(Session):
                            "pc_features": self.path +"/pc_features.npy",
                            "pc_feature_ind": self.path +"/pc_feature_ind.npy",
                            "spike_templates": self.path +"/spike_templates.npy",
+                           "templates": self.path +"/templates.npy",
                            "spike_times": self.path +"/spike_times.npy",
                            "spike_clusters": self.path +"/spike_clusters.npy",
                            "cluster_group": self.path +"/cluster_group.tsv"}
@@ -256,7 +257,7 @@ class Kilosort_session(Session):
         f.close()
         to_skip = int(c[2].split()[0])
         n_trials = int(c[3+to_skip])
-        n_trials
+        #print("n_trials",n_trials)
         self.trial_names = c[to_skip+4:to_skip+4+n_trials]
         
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
@@ -265,6 +266,48 @@ class Kilosort_session(Session):
         df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
         inter = df.get_file_intervals_in_seconds()
         self.trial_intervals = Intervals(inter)
+        
+        
+    def load_waveforms(self):
+        """
+        load the template waveforms from kilosorted files in that session
+        """
+        # load the template waveforms (3 dimensional array)
+        ## for each cluster (n_clusters) there is a for each channel (n_channels) the voltage for some sample time (n_timepoints)
+        self.templates = np.load(self.file_names["templates"])
+        print("templates.shape",self.templates.shape)
+        n_clusters, n_timepoints, n_channels = self.templates.shape
+        print("Clusters:",n_clusters, ", timepoints:",n_timepoints, ", Channels:",n_channels)
+        self.n_channels = n_channels
+        
+        # load the channel mapping
+        self.channel_map = np.load(self.file_names["channel_map"]).flatten()
+        
+    def get_channels_from_cluster(self, clu, cnt = 5):
+        """
+        get $cnt channels with highest peak-to-peak amplitude in cluster $clu
+        Returns: array with channel ids with highest amplitude of length $cnt
+        """
+        # get peak-to-peak amplitude for each channel
+        
+        if not (clu < len(self.templates)):
+            return([])
+        
+        template_cluster = self.templates[clu]
+        amps = np.ptp(template_cluster,axis=0)
+        channel_amps = np.array([range(self.n_channels),amps]).T
+        channel_amps = np.flip(sorted(channel_amps, key=lambda x: x[1]))
+        channels_with_highest_amp = channel_amps[:cnt,1]
+        channels = channels_with_highest_amp.astype(int)
+        return(channels) # the enumerated (non-translated, i.e. not mapped) channel ids
+    
+    def get_waveform(self, clu, channel):
+        """
+        get the template waveform of cluster $clu in channel $channel
+        Returns: ( mapped channel name, template of that cluster in that specific channel )
+        """        
+        template_cluster = self.templates[clu]        
+        return ( self.channel_map[channel] , template_cluster[:,channel] )
         
         
     def __str__(self): 
