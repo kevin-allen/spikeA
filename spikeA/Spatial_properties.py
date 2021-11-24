@@ -755,37 +755,41 @@ class Spatial_properties:
         return self.grid_shuffle, self.grid_score_threshold
     
     
-    def map_crosscorrelation(self, trial1, trial2, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
+    def map_crosscorrelation(self, trial1=None, trial2=None, map1=None, map2=None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
         
         """
-        Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers. 
+        Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers or by providing 2 maps. 
         Return
         correlation
         """
+        if (trial1==None or trial2==None) and (map1.all()==None or map2.all()==None):
+            raise TypeError("You have to specify 2 maps or 2 trials")
+            
+        if isinstance(trial1,int) and isinstance(trial2,int):
+            if len(self.ap.ses.trial_intervals.inter) < trial2 or len(self.ap.ses.trial_intervals.inter) < trial1:
+                raise TypeError("The indicated trial does not exist.")
+            if trial2 == 0 or trial1 == 0:
+                raise TypeError("Trial numbering starts at 1.")
+
+            trial1_inter = self.ap.ses.trial_intervals.inter[(trial1-1):trial1,:]
+            trial2_inter = self.ap.ses.trial_intervals.inter[(trial2-1):trial2,:]
+
+            # create firing rate maps:
+            self.st.unset_intervals()
+            self.ap.unset_intervals()
+            self.st.set_intervals(trial1_inter)
+            self.ap.set_intervals(trial1_inter)
+            self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
+            map1 = self.firing_rate_map
+
+            self.st.unset_intervals()
+            self.ap.unset_intervals()
+            self.st.set_intervals(trial2_inter)
+            self.ap.set_intervals(trial2_inter)
+            self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
+            map2 = self.firing_rate_map
         
-        if len(self.ap.ses.trial_intervals.inter) < trial2 or len(self.ap.ses.trial_intervals.inter) < trial1:
-            raise TypeError("The indicated trial does not exist.")
-        if trial2 == 0 or trial1 == 0:
-            raise TypeError("Trial numbering starts at 1.")
-        
-        trial1_inter = self.ap.ses.trial_intervals.inter[(trial1-1):trial1,:]
-        trial2_inter = self.ap.ses.trial_intervals.inter[(trial2-1):trial2,:]
-        
-        # create firing rate maps:
-        self.st.unset_intervals()
-        self.ap.unset_intervals()
-        self.st.set_intervals(trial1_inter)
-        self.ap.set_intervals(trial1_inter)
-        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
-        map1 = self.firing_rate_map
-        
-        self.st.unset_intervals()
-        self.ap.unset_intervals()
-        self.st.set_intervals(trial2_inter)
-        self.ap.set_intervals(trial2_inter)
-        self.firing_rate_map_2d(cm_per_bin = cm_per_bin, smoothing_sigma_cm = smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
-        map2 = self.firing_rate_map
-        
+    
         # check for dimensions
         if map1.shape != map2.shape:
             raise TypeError("The firing rate maps have different dimensions. You have to specify the xy range.")
