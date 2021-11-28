@@ -344,7 +344,11 @@ class Spatial_properties:
         
         if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
             raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
-            
+        
+        
+        if np.nanmax(self.firing_rate_map)==0.0: # if there is no spike in the map, we can't really tell what the information is.
+            return np.nan
+        
         # probability to be in bin i
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
         
