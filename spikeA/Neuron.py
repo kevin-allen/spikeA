@@ -11,7 +11,7 @@ class Neuron:
     Class containing information about a single neuron.
     
     Attributes:
-        name: Name of the session. Usually used as the beginning of the file names. Format is assumed to be subject-date-time
+        name: Name of the neuron. Usually used as the beginning of the file names. Format is assumed to be subject-date-time
         subject: Name of the subject (animal).
         brain_area: Brain area in which the neuron was recorded
         channels: Channels on which the neuron was recorded. This is used to get the spike waveforms.

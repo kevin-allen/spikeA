@@ -214,7 +214,9 @@ class Animal_pose:
         
     def set_intervals(self,inter,timeColumnIndex=0):
         """
-        Function to limit the analysis to poses within a set of set specific time intervals
+        Function to limit the analysis to poses within a set of set specific time intervals.
+        
+        Each time it is called, it starts from the data in self.pose_ori, which is the data that was loaded from file and never change.
         
         Arguments:
         inter: 2D numpy array, one interval per row, time in seconds
@@ -230,7 +232,9 @@ class Animal_pose:
         self.intervals.set_inter(inter)
         
         # only use the poses that are within the intervals
+        # always start over from the original pose that should never change
         self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] # this should create a copy of self.pose_ori, not a reference
+        
         # self.st is now pointing to self.st_inter
         self.pose = self.pose_inter
         #print("Number of poses: {}".format(self.pose.shape[0]))
@@ -295,7 +299,7 @@ class Animal_pose:
         
         # smoothin of occupancy map
         if smoothing:
-            occ_sm = ndimage.gaussian_filter1d(occ,sigma=smoothing_sigma_deg/deg_per_bin)
+            occ_sm = ndimage.gaussian_filter1d(occ,sigma=smoothing_sigma_deg/deg_per_bin,mode="wrap")
         else:
             occ_sm = occ # if no smoothing just get a reference to occ, because we want to use occ_sm for the rest of the function
           
@@ -315,6 +319,8 @@ class Animal_pose:
         The occupancy map is a 2D array covering the entire environment explored by the animal.
         Each bin of the array contains the time in seconds that the animal spent in the bin.
         The occupancy map is used to calculate firing rate maps
+        The x and y data will end up being the rows and columns of the 2D array. The same will apply to the spike position. This is because the first axis of a numpy array is the row and second is column.
+        
         
         Arguments
         cm_per_bin: cm per bins in the occupancy map
@@ -689,7 +695,7 @@ class Animal_pose:
     
     def invalid_outside_spatial_area(self, shape=None, radius=None, length=None, center=None):
         """
-        Method that set the position data (self.pose[:,1:4]) outside a defined zone to np.nan.
+        Method that set the position data (self.pose[:,1:7]) outside a defined zone to np.nan.
         
         The area can be a circle or a square.
         
@@ -704,7 +710,7 @@ class Animal_pose:
         center: 1D np.array of size 2, [x,y], center of a circle/square
         
         Return:
-        Nothing is returned. self.pose[,1:4] are set to np.nan if the animal is not in the zone.
+        Nothing is returned. self.pose[,1:7] are set to np.nan if the animal is not in the zone.
         """
         valid_shapes = ["circle","square"]
         
@@ -740,7 +746,7 @@ class Animal_pose:
             # calculate distance to center
             dist = np.sqrt((self.pose[:,1]-center[0])**2 + (self.pose[:,2]-center[1])**2)
             # outside circle = np.nan
-            self.pose[dist>radius,1:4] = np.nan
+            self.pose[dist>radius,1:7] = np.nan
             
         # deal with square
         if shape == "square":
@@ -748,9 +754,72 @@ class Animal_pose:
                 raise ValueError("set the length argument")
             
             # set pixels outside square of length length np.nan
-            self.pose[self.pose[:,1]>center[0]+length/2,1:4]=np.nan
-            self.pose[self.pose[:,2]>center[1]+length/2,1:4]=np.nan
-            self.pose[self.pose[:,1]<(center[0]-length/2),1:4]=np.nan
-            self.pose[self.pose[:,2]<(center[1]-length/2),1:4]=np.nan
+            self.pose[self.pose[:,1]>center[0]+length/2,1:7]=np.nan
+            self.pose[self.pose[:,2]>center[1]+length/2,1:7]=np.nan
+            self.pose[self.pose[:,1]<(center[0]-length/2),1:7]=np.nan
+            self.pose[self.pose[:,2]<(center[1]-length/2),1:7]=np.nan
 
-                             
+
+    def invalid_outside_head_direction_range(self, loc = 0, sigma = np.pi/4):
+        """
+        Method that set the position data (self.pose[:,1:7]) outside a defined head direction range to to np.nan.
+        
+        To undo, call self.unset_intervals() or self.set_intervals(). unset_intervals() and set_intervals() use the data stored in self.ori_pose
+        
+        This function should be called **after** setting any relevant Intervals for the analysis.
+        
+        Arguments:
+        loc: angle in radian that will be kept
+        sigma: distance from loc (in radians) for which the angles are considered valid
+        
+        Return:
+        Nothing is returned. self.pose[,1:7] are set to np.nan if the animal head direction is not within the set range
+        """
+        
+        
+        # angle between loc and HD
+        loc_vector = np.array([np.cos(loc)],np.sin(loc))
+        hd = self.pose[:,4]
+        hdx = np.cos(hd)
+        hdy = np.sin(hd)
+        
+        
+        loc_vector=np.array([[np.cos(loc)],[np.sin(loc)]])
+    
+
+        hd = self.pose[:,4]
+        hdx = np.cos(hd)
+        hdy = np.sin(hd)
+        hd_vector = np.concatenate([np.expand_dims(hdx,axis=1),np.expand_dims(hdy,axis=1)],axis=1)
+        
+        delta = np.arccos(hd_vector@loc_vector).flatten()
+        self.pose[delta>sigma,1:7] = np.nan
+        
+        
+    def positrack_type(self,ses=None):
+        """
+        Function trying to answer if the data were collected with positrack or positrack2
+        
+        Return Type of tracking as a string. Can be "positrack", "positrack2" or "None" 
+        """
+        if ses is None and self.ses is None:
+            raise TypeError("Please provide a session object with the ses argument")
+        
+        if ses is not None:
+            if not (issubclass(type(ses),Session) or isinstance(ses,Session)): 
+                raise TypeError("ses should be a subclass of the Session class")
+            self.ses = ses # update what is in the self.ses
+        
+        t = self.ses.trial_names[0]
+        positrack_file_name = self.ses.path + "/" + t+".positrack"
+        positrack_file = Path(positrack_file_name)
+        if positrack_file.exists() :
+            return "positrack"
+        
+        
+        positrack_file_name = self.ses.path + "/" + t+".positrack2"
+        positrack_file = Path(positrack_file_name)
+        if positrack_file.exists() :
+            return "positrack2"
+        
+        return "None"

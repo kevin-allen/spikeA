@@ -156,10 +156,11 @@ class Spatial_properties:
         
         ## smooth the spike count array
         if smoothing:
-            spike_count = ndimage.gaussian_filter1d(spike_count, sigma=self.hd_histo_smoothing_sigma_deg/self.hd_histo_deg_per_bin)
+            spike_count = ndimage.gaussian_filter1d(spike_count, sigma=self.hd_histo_smoothing_sigma_deg/self.hd_histo_deg_per_bin,mode="wrap")
     
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_head_direction_histo_edges = self.ap.hd_occupancy_bins
+        self.firing_rate_head_direction_mid_angles=self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
         self.firing_rate_head_direction_histo = spike_count/self.ap.hd_occupancy_histogram
     
     
@@ -167,7 +168,11 @@ class Spatial_properties:
         """
         Method to calculate the mean direction and the mean vector length from the hd-rate histogram
         
-        returns a tuple: mean_direction_rad, mean_direction_deg, mean_vector_length
+        The stats are based on self.firing_rate_head_direction_histo
+        
+        To get valid scores (not np.nan), the sum of firing rates should be larger than 0 and there should be no np.nan in the firing_rate_head_direction_histo
+        
+        returns a tuple: mean_direction_rad, mean_direction_deg, mean_vector_length, peak_angle_rad, peak_rate
         """
         if not hasattr(self, 'firing_rate_head_direction_histo'):
             raise TypeError("You need to call spatial_properties.firing_rate_head_direction_histogram() before calling this function")
@@ -175,10 +180,15 @@ class Spatial_properties:
         # sum up all spikes
         sum_histo = np.sum(self.firing_rate_head_direction_histo)
         
-        # if all rates are at 0, we can't calculate these scores
-        if sum_histo == 0.0:
-             self.hd_mean_vector_length= np.nan
-        #   return np.nan
+        # if all rates are at 0 or some at np.nan, we can't calculate these scores reliably
+        if sum_histo == 0.0 or np.isnan(sum_histo):
+            self.hd_mean_vector_length= np.nan
+            self.hd_peak_angle_rad = np.nan
+            self.hd_peak_rate = np.nan
+            self.hd_mean_direction_deg = np.nan
+            self.hd_mean_direction_rad = np.nan
+            return (self.hd_mean_direction_rad,self.hd_mean_direction_deg, self.hd_mean_vector_length, self.hd_peak_angle_rad, self.hd_peak_rate)
+        
         
         # get midth of bins
         angles=self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
@@ -192,6 +202,10 @@ class Spatial_properties:
         # the angle is the arctan of x divided by y
         mean_direction = np.arctan2(np.sum(y),np.sum(x))
         
+        # angle of the peak
+        self.hd_peak_angle_rad = angles[np.argmax(self.firing_rate_head_direction_histo)]
+        self.hd_peak_rate = np.nanmax(self.firing_rate_head_direction_histo)
+        
         self.hd_mean_direction_deg = mean_direction*360/(2*np.pi)
         self.hd_mean_direction_rad = mean_direction
         
@@ -199,10 +213,10 @@ class Spatial_properties:
         R = np.sqrt(np.sum(x)**2+np.sum(y)**2)
         self.hd_mean_vector_length = R/sum_histo
 
-        return (self.hd_mean_direction_rad,self.hd_mean_direction_deg, self.hd_mean_vector_length)
+        return (self.hd_mean_direction_rad,self.hd_mean_direction_deg, self.hd_mean_vector_length, self.hd_peak_angle_rad, self.hd_peak_rate)
     
     
-    def shuffle_head_direction_score(self, iterations=500, deg_per_bin=2, smoothing_sigma_deg=10, smoothing=True, percentile=95):
+    def shuffle_head_direction_score(self, iterations=500, deg_per_bin=10, smoothing_sigma_deg=10, smoothing=True, percentile=95):
         """
         Get a distribution of HD score that would be expected by chance for this neuron
 
@@ -330,7 +344,11 @@ class Spatial_properties:
         
         if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
             raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
-            
+        
+        
+        if np.nanmax(self.firing_rate_map)==0.0: # if there is no spike in the map, we can't really tell what the information is.
+            return np.nan
+        
         # probability to be in bin i
         p = self.ap.occupancy_map/np.nansum(self.ap.occupancy_map)
         
