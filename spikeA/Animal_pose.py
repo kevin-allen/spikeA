@@ -414,7 +414,6 @@ class Animal_pose:
 
     def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2"):
 
-
         """
         Method to calculute pose at fixed interval from a positrack file.
         
@@ -610,6 +609,7 @@ class Animal_pose:
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
             
+            
     def speed_from_pose(self, sigma=1):
         """
         Method to calculute the speed (in cm/s) of the animal from the position data
@@ -639,6 +639,7 @@ class Animal_pose:
         
         # apply gaussian filter for smoothing
         self.speed = gaussian_filter1d(speed, sigma=sigma)
+    
     
     def detect_border_pixels_in_occupancy_map(self):
         """
@@ -720,13 +721,15 @@ class Animal_pose:
             occ_map=ndimage.rotate(occ_map, 90)
             # get the center of mass of the occupancy map
             center_occ=ndimage.measurements.center_of_mass(occ_map)
+            #print(center_occ)
             # we need to transform back from the occupancy map to the pose data. 
             # The y axis starts in the top left orner for the occ_map, but in the bottom left corner for the pose data.
             x_range_pose = np.nanmax(self.pose[:,1]-np.nanmin(self.pose[:,1]))
-            x_range_occ = occ_map.shape[0]
+            x_range_occ = occ_map.shape[1]
             y_range_pose = np.nanmax(self.pose[:,2]-np.nanmin(self.pose[:,2]))
-            y_range_occ = occ_map.shape[1]
+            y_range_occ = occ_map.shape[0]
             center = (np.nanmin(self.pose[:,1])+center_occ[1]*x_range_pose/x_range_occ,np.nanmax(self.pose[:,2])-center_occ[0]*y_range_pose/y_range_occ)
+            #print(center)
 
                 
         # deal with circle
@@ -742,7 +745,7 @@ class Animal_pose:
         # deal with square
         if shape == "square":
             if length is None:
-                raise ValueError("set the radius argument")
+                raise ValueError("set the length argument")
             
             # set pixels outside square of length length np.nan
             self.pose[self.pose[:,1]>center[0]+length/2,1:4]=np.nan
