@@ -853,6 +853,7 @@ class Spatial_properties:
 
         # loop through the detected fields to calculate CM and DM
         number_common_pixels = np.zeros(len(field_pixel))
+        #copy to get the correct shape
         distance_field_border= self.firing_rate_map_fields.copy()
         firing_rate_field = self.firing_rate_map_fields.copy()
         weighted_distance = np.zeros(len(field_pixel))
@@ -864,7 +865,7 @@ class Spatial_properties:
 
                 # loop through the field pixels and calculate the distance to the closest border as well as the firing rate in each field pixel
                 for p,pixel in enumerate(field):
-                    distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-border_pixel[1])**2) for b_pixel in border_pixel]
+                    distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-b_pixel[1])**2) for b_pixel in border_pixel]
                     distance_field_border[number_of_fields][p]=np.nanmin(distance)
                     firing_rate_field[number_of_fields][p]=self.firing_rate_map[pixel[0],pixel[1]]
 
@@ -934,7 +935,7 @@ class Spatial_properties:
         for i in range(iterations):
             self.ap.roll_pose_over_time() # shuffle the position data 
             # no need to recalculate the firing rate map as it will be calculated in course of border score calculation
-            self.border_shuffle[i] = self.border_score(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm, xy_range=xy_range) # calculate the grid score from the new map
+            self.border_shuffle[i] = self.border_score(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm, xy_range=xy_range) # calculate the border score from the new map
             self.ap.pose=pose_at_start
 
         # calculate the threshold

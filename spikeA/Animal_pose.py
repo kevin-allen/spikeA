@@ -391,8 +391,6 @@ class Animal_pose:
         """
         Function to calculate the proportions of bins of the occupancy map covered by the animal. Can be used for rectanglular and circular arenas.
         
-        This function is very specific to some recording environment. We should try to make it usable irrespective of the code name of the environment.
-        
         Arguments
         arena: specifies the shape of the arena:circle/square        
         
@@ -415,6 +413,47 @@ class Animal_pose:
         occupancy = self.occupancy_map[~np.isnan(self.occupancy_map)].shape[0]/area
         
         return occupancy
+    
+    
+    
+    def head_direction_occupancy_histogram_per_occupancy_bin(self):
+        """
+        Function to calculate the hd occupancy histogram for each bin in the occupancy map.
+        
+        No arguments       
+        
+        Return
+        Nothing. The ap.hd_occupancy_histogram_per_occupancy_bin 3D array is set.
+        """
+        if not hasattr(self, 'occupancy_map'):
+            raise TypeError('You have to call ap.occupancy_map_2d() before calling this function')
+        if not hasattr(self, 'hd_occupancy_histogram'):
+            raise TypeError('You have to call ap.head_direction_occupancy_histogram() before calling this function')
+        
+        deg_per_bin = self.hd_occupancy_deg_per_bin
+        # create an empty 3d array to fill with the data
+        array=np.zeros(self.occupancy_map.shape[0]*self.occupancy_map.shape[1]*int(360/deg_per_bin))
+        pose_hd_hist=np.reshape(array, (self.occupancy_map.shape[0],self.occupancy_map.shape[1],int(360/deg_per_bin)))
+
+        #include position data only if hd value is valid
+        invalid = np.isnan(self.pose[:,4])
+        pose_val=self.pose[~invalid,1:3]
+        hd_val=self.pose[~invalid,4]
+
+        #calculate the hd occupancy histogram for each bin in the occupancy map 
+        for i,j in np.nditer(np.meshgrid(range(self.occupancy_map.shape[0]), range(self.occupancy_map.shape[1]))):
+            val=[]
+            if not np.isnan(self.occupancy_map[i][j]):
+                # to improve speed a statement like the one commented out would be better instead of the for loop
+                #val = hd_val[pose_val[:,0].any()>ap.occupancy_bins[0][i] and pose_val[:,0].any()<ap.occupancy_bins[0][i+1] and pose_val[:,1].any()>ap.occupancy_bins[1][j] and pose_val[:,1].any()<ap.occupancy_bins[1][j+1]]
+                for k,h in enumerate(hd_val):
+                    if pose_val[k,0]>=self.occupancy_bins[0][i] and pose_val[k,0]<self.occupancy_bins[0][i+1] and pose_val[k,1]>=self.occupancy_bins[1][j] and pose_val[k,1]<self.occupancy_bins[1][j+1]:
+                        val.append(h)
+
+            occ,edges = np.histogram(val, bins=self.hd_occupancy_bins)
+            pose_hd_hist[i,j,:]=occ
+        
+        self.hd_occupancy_histogram_per_occupancy_bin = pose_hd_hist
      
         
 
