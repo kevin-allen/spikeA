@@ -9,6 +9,7 @@ from scipy.ndimage import center_of_mass as ndi_center_of_mass
 from scipy.stats import pearsonr
 import math
 import cv2
+import itertools
 
 
 
@@ -102,10 +103,11 @@ class Spatial_properties:
         self.spike_hd
         """
         
+        
         # transform hd data to cos and sin components
         c = np.cos(self.ap.pose[:,4])
         s = np.sin(self.ap.pose[:,4])
-        
+
         # fit
         fhdc = interp1d(self.ap.pose[:,0], c, bounds_error=False) # time, cos
         fhds = interp1d(self.ap.pose[:,0], s, bounds_error=False) # time, sin
@@ -724,7 +726,7 @@ class Spatial_properties:
         cm_per_bin: cm per bin in the firing rate map
         smoothing_sigma_cm: smoothing in the firing rate map
         smoothing: smoothing in the firing rate map
-        percentile: percentile of the distribution of shuffled info scores that is used to get the significance threshold
+        percentile: percentile of the distribution of shuffled grid scores that is used to get the significance threshold
 
         Return
         tuple: 
@@ -817,3 +819,126 @@ class Spatial_properties:
         r,p = pearsonr(map1[indices],map2[indices])
     
         return r
+
+    
+    def border_score(self, xy_range, cm_per_bin=2, smoothing=True, smoothing_sigma_cm=2, min_pixel_number_per_field=25, min_peak_rate=4, min_fraction_of_peak_rate=0.2):
+        """
+        Calculate the border score of a neuron. 
+        Score is calculated like in the first border cell paper: https://www.science.org/doi/suppl/10.1126/science.1166466/suppl_file/solstad.som.pdf
+
+        Arguments:
+        see arguments of spatial_properties.firing_rate_map_2d()
+        The xy-range needs to be specified.
+        see arguments of spatial_properties.firing_rate_map_field_detection()
+        The default values might still have to be adjusted to optimize field detection.
+
+        Return
+        border score
+    
+        """
+        
+        # For border detection, the arena borders must not touch the borders of the occupancy map. Set the xy-range accordingly when creating the firing rate map.
+        self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing_sigma_cm=smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
+        
+        # get the firing fields of the cell
+        self.firing_rate_map_field_detection(min_pixel_number_per_field=min_pixel_number_per_field, min_peak_rate=min_peak_rate, min_fraction_of_peak_rate=min_fraction_of_peak_rate, cm_per_bin=cm_per_bin)
+        field_pixel = self.firing_rate_map_fields
+
+        #detect the borders in the occupancy map
+        border_map = self.ap.detect_border_pixels_in_occupancy_map()
+        border_pixel_array = np.where(border_map!=0)
+
+        # get the border pixels in form of an array of tuples (x,y)
+        border_pixel = [(np.asarray(x),np.asarray(y)) for x,y in zip(border_pixel_array[0], border_pixel_array[1])]
+
+        # loop through the detected fields to calculate CM and DM
+        number_common_pixels = np.zeros(len(field_pixel))
+        distance_field_border= self.firing_rate_map_fields.copy()
+        firing_rate_field = self.firing_rate_map_fields.copy()
+        weighted_distance = np.zeros(len(field_pixel))
+
+        if field_pixel:
+            for number_of_fields,field in enumerate(field_pixel):
+                # to find the field that shares most pixels with the borders, get the number of common field-border pixels for the field
+                number_common_pixels[number_of_fields]=len([b for b,f in itertools.product(border_pixel,field) if b==f])
+
+                # loop through the field pixels and calculate the distance to the closest border as well as the firing rate in each field pixel
+                for p,pixel in enumerate(field):
+                    distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-border_pixel[1])**2) for b_pixel in border_pixel]
+                    distance_field_border[number_of_fields][p]=np.nanmin(distance)
+                    firing_rate_field[number_of_fields][p]=self.firing_rate_map[pixel[0],pixel[1]]
+
+                # to calculate DM weigh the distance of each pixel of the field
+                weighted_distance[number_of_fields]=np.nansum([distance*firing_rate for distance,firing_rate in zip(distance_field_border[number_of_fields], firing_rate_field[number_of_fields])])
+            #normalize by dividing by the highest mean firing rate in a field pixel
+            DM=np.nansum(weighted_distance)/np.nansum(np.nanmax(firing_rate_field))
+            # normalize by dividing by the half of the shortest side of the environment
+            DM=DM/(np.min(self.firing_rate_map.shape)/2)
+            # CM is the maximal number of pixels common between border pixels and field pixel
+            CM=np.nanmax(number_common_pixels)
+
+            border_score=(CM-DM)/(CM+DM)
+        else:
+            border_score=np.nan
+            
+        return border_score
+    
+    
+    def shuffle_border_score(self, xy_range, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, percentile=95):
+        """
+        Get a distribution of border score that would be expected by chance for this neuron
+
+        Argument:
+        iterations: How many shufflings to perform
+        cm_per_bin: cm per bin in the firing rate map
+        smoothing_sigma_cm: smoothing in the firing rate map
+        smoothing: smoothing in the firing rate map
+        percentile: percentile of the distribution of shuffled border scores that is used to get the significance threshold
+
+        Return
+        tuple: 
+        0: 1D numpy array with the border scores obtained by chance for this neuron
+        1: significance threshold for border score
+        
+        Example
+        
+        # get a neuron and set intervals
+        n = cg.neuron_list[7]
+        n.set_spatial_properties(ap)
+        n.spike_train.set_intervals(aSes.intervalDict[cond])
+        n.spatial_properties.ap.set_intervals(aSes.intervalDict[cond])
+
+        # get the observed value for border score
+        # it is important to set the xy-range for the occupancy map so that there is some space between the arena borders and the map borders
+        # because otherwise the border detection will not work properly
+        BS = n.spatial_properties.border_score(xy_range=np.array([[0,0],[125,125]]))
+
+        # get the shuffled values for border score
+        shuBS,threshold = n.spatial_properties.shuffle_border_score(iterations=100, cm_per_bin=2,percentile=95, xy_range=np.array([[0,0],[125,125]]))
+
+        # plot the results for this neuron
+        res = plt.hist(shuBS,label="shuffled")
+        ymax=np.max(res[0])
+        plt.plot([threshold,threshold],[0,ymax],c="black",label="Threshold")
+        plt.plot([BS,BS],[0,ymax],c="red",label="Observed")
+        plt.xlabel("Border score")
+        plt.ylabel("Count")
+        plt.legend()
+        plt.show()
+        """
+        
+        # keep a copy of the pose that we started with
+        pose_at_start = self.ap.pose.copy()
+        
+        self.border_shuffle=np.empty(iterations)
+        for i in range(iterations):
+            self.ap.roll_pose_over_time() # shuffle the position data 
+            # no need to recalculate the firing rate map as it will be calculated in course of border score calculation
+            self.border_shuffle[i] = self.border_score(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm, xy_range=xy_range) # calculate the grid score from the new map
+            self.ap.pose=pose_at_start
+
+        # calculate the threshold
+        self.border_score_threshold =  np.percentile(self.border_shuffle,percentile)
+        
+        
+        return self.border_shuffle, self.border_score_threshold

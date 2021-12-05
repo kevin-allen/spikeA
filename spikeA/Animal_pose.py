@@ -493,7 +493,7 @@ class Animal_pose:
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
                 # if there are just 1 or 2 ttl pulses missing from positrack, copy the last 1 or 2 lines
-                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2)):
+                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2) or ttl.shape[0] == (pt.shape[0]+3)):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     missing = ttl.shape[0]-pt.shape[0]
                     pt_mod = pt.append(pt[(pt.shape[0]-missing):(pt.shape[0]+1)])
@@ -501,7 +501,7 @@ class Animal_pose:
                     os.rename(positrack_file_name, original_positrack_file)
                     pt_mod.to_csv(positrack_file_name, sep=' ')
                     pt = pt_mod
-                    print("Alignment problem solved by adding one or two ttl pulses to positrack")
+                    print("Alignment problem solved by adding up to 3 ttl pulses to positrack")
                 elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     pt_mod = pt[:ttl.shape[0]]
@@ -651,6 +651,8 @@ class Animal_pose:
         """
         Method to detect the border pixels in an occupancy map
         
+        Make sure you set the xy-range for the occupancy map. If the arena borders and the map borders touch, the border detection will not work properly.
+        
         A border map is created in which all pixels are 0 and border pixels are 1.
         
         This function in implemented in c code located in spatial_properties.c, spatial_properties.h and _spatial_properties.pyx
@@ -681,6 +683,10 @@ class Animal_pose:
         ax[1].imshow(brd)
         plt.show()
         """
+        
+        # check for occupancy map
+        if not hasattr(self, 'occupancy_map'):
+            raise TypeError("You need to call ap.occupancy_map_2d(xy_range=np.array([[...,...],[...,...]])) before calling ap.detect_border_pixels_in_occupancy_map()")
         
         ## convert nan values to -1 for C function
         occ_map = self.occupancy_map.copy()
