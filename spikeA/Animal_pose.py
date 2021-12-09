@@ -555,16 +555,25 @@ class Animal_pose:
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
             # set invalid values to np.nan
-            d[d==-1.]=np.nan
+            if extension =="positrack":
+                d[d==-1.0]=np.nan
 
+            # if data are in degrees, turn into radians
+            hdMin, hdMax = np.nanmin(d[:,2]),np.nanmax(d[:,2])
+            hdRange = hdMax - hdMin
+            print("hdRange: {}".format(hdRange))
+            if hdRange > 2*np.pi:
+                print("degree to radian transformation")
+                d[:,2] = d[:,2]/180*np.pi
+                
             # we want to treat hd values as cos and sin for interpolation
-            c = np.cos(d[:,2]/180*np.pi)
-            s = np.sin(d[:,2]/180*np.pi)
+            c = np.cos(d[:,2]) # x component of angle
+            s = np.sin(d[:,2]) # y component of angle
             # add cos and sin to our d array
             x = np.stack([c,s]).T
-            d = np.hstack([d,x])
-            print(d.shape)
-
+            d = np.hstack([d,x]) # now x, y , hd, cos(hd), sin(hd)
+          
+        
             valid = np.sum(~np.isnan(d))
             invalid = np.sum(np.isnan(d))
             prop_invalid = invalid/d.size
@@ -629,8 +638,9 @@ class Animal_pose:
         new_hds = fhds(nt)
 
         # get back the angle from the cosin and sin
-        new_hd = np.arctan2(new_hdc,new_hds) # this does not work at the moment.
-
+        new_hd = np.arctan2(new_hds,new_hdc) # np.arctan2(y_value,x_value)
+        
+        
         # contain time, x,y,z, yaw, pitch, roll
         # index:    0   1,2,3, 4,    5,     6
         self.pose_ori = np.empty((new_x.shape[0],7),float) # create the memory
