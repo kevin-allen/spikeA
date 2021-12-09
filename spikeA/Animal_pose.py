@@ -444,11 +444,7 @@ class Animal_pose:
         for i,j in np.nditer(np.meshgrid(range(self.occupancy_map.shape[0]), range(self.occupancy_map.shape[1]))):
             val=[]
             if not np.isnan(self.occupancy_map[i][j]):
-                # to improve speed a statement like the one commented out would be better instead of the for loop
-                #val = hd_val[pose_val[:,0].any()>ap.occupancy_bins[0][i] and pose_val[:,0].any()<ap.occupancy_bins[0][i+1] and pose_val[:,1].any()>ap.occupancy_bins[1][j] and pose_val[:,1].any()<ap.occupancy_bins[1][j+1]]
-                for k,h in enumerate(hd_val):
-                    if pose_val[k,0]>=self.occupancy_bins[0][i] and pose_val[k,0]<self.occupancy_bins[0][i+1] and pose_val[k,1]>=self.occupancy_bins[1][j] and pose_val[k,1]<self.occupancy_bins[1][j+1]:
-                        val.append(h)
+                val = hd_val[(pose_val[:,0]>=self.occupancy_bins[0][i]) & (pose_val[:,0]<self.occupancy_bins[0][i+1]) & (pose_val[:,1]>=self.occupancy_bins[1][j]) & (pose_val[:,1]<self.occupancy_bins[1][j+1])]
 
             occ,edges = np.histogram(val, bins=self.hd_occupancy_bins)
             pose_hd_hist[i,j,:]=occ
@@ -532,7 +528,7 @@ class Animal_pose:
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
                 # if there are just 1 or 2 ttl pulses missing from positrack, copy the last 1 or 2 lines
-                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2) or ttl.shape[0] == (pt.shape[0]+3)):
+                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2) or ttl.shape[0] == (pt.shape[0]+3) or ttl.shape[0] == (pt.shape[0]+4)):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     missing = ttl.shape[0]-pt.shape[0]
                     pt_mod = pt.append(pt[(pt.shape[0]-missing):(pt.shape[0]+1)])
@@ -540,7 +536,7 @@ class Animal_pose:
                     os.rename(positrack_file_name, original_positrack_file)
                     pt_mod.to_csv(positrack_file_name, sep=' ')
                     pt = pt_mod
-                    print("Alignment problem solved by adding up to 3 ttl pulses to positrack")
+                    print("Alignment problem solved by adding up to 4 ttl pulses to positrack")
                 elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     pt_mod = pt[:ttl.shape[0]]
