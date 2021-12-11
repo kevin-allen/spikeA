@@ -646,11 +646,25 @@ class Animal_pose:
         self.pose_ori = np.empty((new_x.shape[0],7),float) # create the memory
         self.pose = self.pose_ori # self.pose points to the same memory as self.pose_ori
         
+                
+        ##the hd data should be aligned with the position data
+        ##in positrack this is currently not the case, as you can see via this code:
+        #distance = np.diff(ap.pose[:,1:3], axis=0, append=np.nan)
+        #movement_direction= np.arctan2(distance[:,1],distance[:,0])
+        #hd = ap.pose[:,4]
+        #plt.scatter(movement_direction,hd, s=1)
+        ##if the hd data and the position data were aligned, you could fit a linear function going through the origin
+        ##to achieve this, the hd data need to be shifted by -pi/2
+        if extension=="positrack":
+            new_hd=new_hd-np.pi/2
+            new_hd[new_hd<=-np.pi]=new_hd[new_hd<=-np.pi]+2*np.pi
+        
         self.pose[:] = np.nan
         self.pose[:,0] = nt/self.ses.sampling_rate # from sample number to time in seconds
         self.pose[:,1] = new_x/self.ses.px_per_cm # transform to cm
         self.pose[:,2] = new_y/self.ses.px_per_cm # transform to cm
         self.pose[:,4] = new_hd
+
         
         ## create intervals that cover the entire session
         if self.intervals is not None:
