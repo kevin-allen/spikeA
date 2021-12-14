@@ -518,7 +518,7 @@ class Animal_pose:
             if extension=="positrack" :
                 pt = pd.read_csv(positrack_file_name, delimiter=" ", index_col=False)
 
-            elif extension=="positrack2":
+            elif extension=="positrack2" or extension=="positrack2_post":
                 pt = pd.read_csv(positrack_file_name)
             elif extension=="trk":
                 data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
@@ -531,6 +531,19 @@ class Animal_pose:
     
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
+                
+                
+                if ttl.shape[0] < pt.shape[0]:
+                    print("{} more video frames than ttl pulses".format(pt.shape[0]-ttl.shape[0]))
+                    print("first ttl sample: {}".format(ttl[0]))
+                    print("last ttl sample: {}".format(ttl[-1]))
+                    print("samples in dat file: {}".format(df.total_samples))
+                    timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
+                    print("last tttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
+                    if (timeToEnd<0.10):
+                          print("positrack process did not stop before the end of .dat file")
+                
+                
                 # if there are just 1 or 2 ttl pulses missing from positrack, copy the last 1 or 2 lines
                 if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2) or ttl.shape[0] == (pt.shape[0]+3)):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
