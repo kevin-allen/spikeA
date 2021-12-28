@@ -356,16 +356,16 @@ class Spike_train:
         self.ifr is a tupple containing the ifr, the count, and mid point of the bin.
         """    
         
-        count, edges = np.histogram(self.st, bins = np.arange(0, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec))
+        bins =  np.arange(np.min(self.intervals.inter), np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
+        count, edges = np.histogram(self.st, bins = bins)
         
         # from spike count to rate 
         hz = count / (bin_size_sec)
         
         ifr = gaussian_filter1d(hz.astype(np.float32), sigma = sigma)
         
-        
         # we need to remove the time bins that are not in the intervals
-        mid = self.mid_point_from_edges(edges)
+        mid = np.round(self.mid_point_from_edges(edges),6) # round it to 0.000001 seconds to have round numbers
         keep=self.intervals.is_within_intervals(mid)
                 
         if outside_interval_solution == "remove":    
