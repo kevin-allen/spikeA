@@ -63,6 +63,7 @@ class Tetrode_session(Session):
         self.file_names = {"par":self.fileBase +".par",
                           "desen":self.fileBase +".desen",
                           "desel":self.fileBase +".desel",
+                           "stimulation":self.fileBase + ".stimulation",
                           "sampling_rate":self.fileBase +".sampling_rate_dat",
                           "clu": self.fileBase + ".clu",
                           "res": self.fileBase + ".res",
@@ -195,6 +196,7 @@ class Kilosort_session(Session):
                            "desen":self.fileBase +".desen",
                             "desel":self.fileBase +".desel",
                             "sampling_rate":self.fileBase +".sampling_rate_dat",
+                            "stimulation":self.fileBase +".stimulation",
                             "px_per_cm": self.fileBase + ".px_per_cm",
                            # files created by kilosort
                             "params": self.path +"/params.py",
@@ -240,8 +242,11 @@ class Kilosort_session(Session):
         # read the desel file 
         if not os.path.isfile(self.file_names["desel"]):
             raise IOError("{} file not found".format(self.file_names["desel"]))
-        # read the desel file
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
+        #read the stimulation file
+        if not os.path.isfile(self.file_names["stimulation"]):
+            raise IOError("{} file not found".format(self.file_names["stimulation"]))
+        self.stimulation = open(self.file_names["stimulation"]).read().split('\n')[:-1]
         
         # check if the px_per_cm file is there
         if not os.path.isfile(self.file_names["px_per_cm"]):
