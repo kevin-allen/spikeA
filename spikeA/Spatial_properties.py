@@ -280,6 +280,45 @@ class Spatial_properties:
         return self.head_direction_shuffle, self.head_direction_score_threshold
     
 
+    def head_direction_tuning_distributive_ratio(self):
+        """
+        Method to calculate the distributive ratio of the observed and predicted hd tuning curve. The aim is to distinguish between hd selectivity and spatial selectivity.
+        See eLife 2018;7:e35949 doi: 10.7554/eLife.35949
+        
+        No arguments
+        
+        Return
+        distributive ratio
+        """
+        
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling spatial_properties.head_direction_tuning_distributive_ratio()')
+        if not hasattr(self.ap, 'hd_occupancy_histogram_per_occupancy_bin'):
+            raise ValueError('Call ap.head_direction_occupancy_histogram_per_occupancy_bin() before calling spatial_properties.head_direction_tuning_distributive_ratio()')
+        if not hasattr(self.ap, 'occupancy_map'):
+            raise ValueError('Call ap.occupancy_map_2d() before calling spatial_properties.head_direction_tuning_distributive_ratio()')
+        
+        fr_map=self.firing_rate_map
+        occ_map=self.ap.occupancy_map
+        
+        if not hasattr(self.ap, 'hd_occupancy_histogram_per_occupancy_bin'):
+            self.ap.head_direction_occupancy_histogram_per_occupancy_bin()
+        pose_hd_hist=self.ap.hd_occupancy_histogram_per_occupancy_bin
+        
+        if not hasattr(self, 'firing_rate_head_direction_histo'):
+            self.firing_rate_head_direction_histogram()
+        obs_tuning_curve=self.firing_rate_head_direction_histo
+        
+        deg_per_bin = self.ap.hd_occupancy_deg_per_bin
+        
+        pred_tuning_curve=np.asarray([np.nansum([fr_map[i,j]*pose_hd_hist[i,j,angle] for i,j in np.nditer(np.meshgrid(range(occ_map.shape[0]), range(occ_map.shape[1])))])/np.nansum(pose_hd_hist[:,:,angle], axis=(0,1)) for angle in range(int(360/deg_per_bin))])
+        pred_tuning_curve[pred_tuning_curve==np.inf]=np.nan
+        
+        DR=np.nansum(np.abs(np.log((1+obs_tuning_curve)/(1+pred_tuning_curve))))/int(360/deg_per_bin)
+        
+        return DR
+        
+    
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
