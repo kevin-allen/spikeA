@@ -864,13 +864,14 @@ class Spatial_properties:
     #the goal is to identify the 2 horizontal or the 2 vertical walls in a square arena
         if len(walls)<2:
             #one wall is where the number of border pixels is highest
-            wall = number_in_array[np.where(counts==np.max(counts))]
+            array_index = np.where(counts==np.max(counts))
             #if 2 numbers occur equally often
-            if wall.shape[0]>1:
-                wall=wall[0]
+            if array_index[0].shape[0]>1:
+                array_index=array_index[0]
+            wall = number_in_array[array_index[0]]
             #remove from the lists so that the second wall can also be found
-            number_in_array = np.delete(number_in_array, np.where(counts==np.nanmax(counts)))
-            counts = np.delete(counts,np.where(counts==np.nanmax(counts)))
+            number_in_array = np.delete(number_in_array, array_index[0])
+            counts = np.delete(counts, array_index[0])
             #if the function has already identified one wall, check if the putative other wall has sufficient distance
             if len(walls)==1:
                 if wall in range(int(walls[0]-2),int(walls[0]+2)):
