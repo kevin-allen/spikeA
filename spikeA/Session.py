@@ -287,6 +287,8 @@ class Kilosort_session(Session):
         
         # load the channel mapping
         self.channel_map = np.load(self.file_names["channel_map"]).flatten()
+        # load the channel positions
+        self.channel_positions = np.load(self.file_names["channel_positions"])
         
     def get_channels_from_cluster(self, clu, cnt = 5):
         """
