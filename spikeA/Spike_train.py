@@ -426,7 +426,7 @@ class Spike_train:
         f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
         self.ifr_power_spectrum = f, ps
     
-    def instantaneous_firing_rate_crosscorelation(self,spike2=None,normed= False, max_lag_sec= 0.2):
+    def instantaneous_firing_rate_crosscorrelation(self,spike2=None,normed= False, max_lag_sec= 0.2):
         """
         Calculates the instantaneous firing rate crosscorrelation.
         
@@ -452,9 +452,9 @@ class Spike_train:
             res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
             self.ifr_crosscorrelation=res
         elif normed==True:
-            self.ifr_corsscorrelation= res/np.max(res)
+            self.ifr_crosscorrelation= res/np.max(res)
             
-    def instantaneous_firing_rate_crosscorelation_plot(self,timewindow=None):
+    def instantaneous_firing_rate_crosscorrelation_plot(self,timewindow=None):
         """
         Plots the instantaneous firing rate crosscorrelation.
         

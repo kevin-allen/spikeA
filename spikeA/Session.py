@@ -63,6 +63,7 @@ class Tetrode_session(Session):
         self.file_names = {"par":self.fileBase +".par",
                           "desen":self.fileBase +".desen",
                           "desel":self.fileBase +".desel",
+                           "stimulation":self.fileBase + ".stimulation",
                           "sampling_rate":self.fileBase +".sampling_rate_dat",
                           "clu": self.fileBase + ".clu",
                           "res": self.fileBase + ".res",
@@ -195,6 +196,7 @@ class Kilosort_session(Session):
                            "desen":self.fileBase +".desen",
                             "desel":self.fileBase +".desel",
                             "sampling_rate":self.fileBase +".sampling_rate_dat",
+                            "stimulation":self.fileBase +".stimulation",
                             "px_per_cm": self.fileBase + ".px_per_cm",
                            # files created by kilosort
                             "params": self.path +"/params.py",
@@ -240,8 +242,11 @@ class Kilosort_session(Session):
         # read the desel file 
         if not os.path.isfile(self.file_names["desel"]):
             raise IOError("{} file not found".format(self.file_names["desel"]))
-        # read the desel file
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
+        #read the stimulation file
+        if not os.path.isfile(self.file_names["stimulation"]):
+            raise IOError("{} file not found".format(self.file_names["stimulation"]))
+        self.stimulation = open(self.file_names["stimulation"]).read().split('\n')[:-1]
         
         # check if the px_per_cm file is there
         if not os.path.isfile(self.file_names["px_per_cm"]):
@@ -273,15 +278,17 @@ class Kilosort_session(Session):
         load the template waveforms from kilosorted files in that session
         """
         # load the template waveforms (3 dimensional array)
-        ## for each cluster (n_clusters) there is a for each channel (n_channels) the voltage for some sample time (n_timepoints)
+        ## for each cluster (wv_clusters) there is a for each channel (wv_channels) the voltage for some sample time (wv_timepoints)
         self.templates = np.load(self.file_names["templates"])
         print("templates.shape",self.templates.shape)
-        n_clusters, n_timepoints, n_channels = self.templates.shape
-        print("Clusters:",n_clusters, ", timepoints:",n_timepoints, ", Channels:",n_channels)
-        self.n_channels = n_channels
+        wv_clusters, wv_timepoints, wv_channels = self.templates.shape
+        print("Clusters:",wv_clusters, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
+        self.wv_channels = wv_channels
         
         # load the channel mapping
         self.channel_map = np.load(self.file_names["channel_map"]).flatten()
+        # load the channel positions
+        self.channel_positions = np.load(self.file_names["channel_positions"])
         
     def get_channels_from_cluster(self, clu, cnt = 5):
         """
@@ -295,7 +302,7 @@ class Kilosort_session(Session):
         
         template_cluster = self.templates[clu]
         amps = np.ptp(template_cluster,axis=0)
-        channel_amps = np.array([range(self.n_channels),amps]).T
+        channel_amps = np.array([range(self.wv_channels),amps]).T
         channel_amps = np.flip(sorted(channel_amps, key=lambda x: x[1]))
         channels_with_highest_amp = channel_amps[:cnt,1]
         channels = channels_with_highest_amp.astype(int)
