@@ -365,7 +365,7 @@ class Spike_train:
         ifr = gaussian_filter1d(hz.astype(np.float32), sigma = sigma)
         
         # we need to remove the time bins that are not in the intervals
-        mid = np.round(self.mid_point_from_edges(edges),6) # round it to 0.000001 seconds to have round numbers
+        mid = self.mid_point_from_edges(edges)
         keep=self.intervals.is_within_intervals(mid)
                 
         if outside_interval_solution == "remove":    

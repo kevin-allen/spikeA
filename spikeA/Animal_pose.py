@@ -453,7 +453,7 @@ class Animal_pose:
      
         
 
-    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2"):
+    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2", use_previous_up_detection=True):
 
         """
         Method to calculute pose at fixed interval from a positrack file.
@@ -504,18 +504,29 @@ class Animal_pose:
             if not positrack_file.exists() :
                 raise OSError("positrack file {} missing".format(positrack_file_name))
 
-            # read the ttl channel for positrack
+            
+            # get ttl pulses from dat file or from previously stored file (much faster)
             df = Dat_file_reader(file_names=[dat_file_name],n_channels = self.ses.n_channels)
-            ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
-            ttl,downs = detectTTL(ttl_data = ttl_channel_data)
+            up_file_name = self.ses.path + "/" + t+".ttl_up.npy"
+            up_file = Path(up_file_name)
+            
+            if use_previous_up_detection and up_file.exists() :
+                print("Getting ttl pulses time from",up_file)
+                ttl = np.load(up_file)    # read up file
+            else: # get the ttl pulses from .dat file
+               
+                ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
+                ttl,downs = detectTTL(ttl_data = ttl_channel_data)
+            
             print("Number of ttl pulses detected: {}".format(ttl.shape[0]))
-
+                
             # read the positrack file
-            if extension=="positrack" :
+            if extension=="positrack":
                 pt = pd.read_csv(positrack_file_name, delimiter=" ", index_col=False)
 
-            elif extension=="positrack2" or extension=="positrack2_post":
+            elif extension=="positrack2" or extension=="positrack2_post" or extension=="positrack_kf" or extension=="positrack2_kf":
                 pt = pd.read_csv(positrack_file_name)
+                
             elif extension=="trk":
                 data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
                 data = data.astype(np.float32)
@@ -565,6 +576,11 @@ class Animal_pose:
                 else:
                     raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
+            
+            if up_file.exists() == False:
+                print("saving",up_file)
+                np.save(up_file, ttl)
+            
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
             # set invalid values to np.nan
