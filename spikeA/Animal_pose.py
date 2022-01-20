@@ -463,6 +463,7 @@ class Animal_pose:
         ttl_pulse_channel: channel on which the ttl pulses were recorded. If not provided, the last channel is assumed
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
+        use_previous_up_detection: if True, it will look for a file containing the time of ttl pulses instead of detecting the ttl pulses from the dat file (slow)
                 
         Return
         No value is returned but self.time and self.pose are set
@@ -578,7 +579,7 @@ class Animal_pose:
 
             
             if up_file.exists() == False:
-                print("saving",up_file)
+                print("Saving",up_file)
                 np.save(up_file, ttl)
             
             # create a numpy array with the position data
