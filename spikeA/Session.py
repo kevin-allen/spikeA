@@ -260,11 +260,12 @@ class Kilosort_session(Session):
         f = open(self.file_names["par"], "r")
         c = f.read().split('\n')
         f.close()
-        to_skip = int(c[2].split()[0])
-        n_trials = int(c[3+to_skip])
-        #print("n_trials",n_trials)
-        self.trial_names = c[to_skip+4:to_skip+4+n_trials]
-        
+
+        to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
+        self.n_trials = int(c[3+to_skip]) # read the number of trials
+        #print("n_trials",self.n_trials)
+        self.trial_names = c[to_skip+4:to_skip+4+self.n_trials]
+
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
         # self.dat_file_names is depreciated, use self.file_names["dat"] instead
         self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
@@ -289,7 +290,26 @@ class Kilosort_session(Session):
         self.channel_map = np.load(self.file_names["channel_map"]).flatten()
         # load the channel positions
         self.channel_positions = np.load(self.file_names["channel_positions"])
-        
+
+    def init_shanks(self):
+        """
+        loads the shanks from the channel positions
+        """
+        # get shanks (assume x coordinate in channel_position) of channels
+        self.shanks_all = np.unique(self.channel_positions[:,0])
+
+    def get_active_shanks(self, channels):
+        """
+        get information about shanks with these channels
+        returns: shanks by name, by index, electrode locations (should be unique, len==1)
+        """
+        active_shanks = np.unique(self.channel_positions[channels][:,0])
+        #shanks_arr = np.zeros(len(self.shanks_all))
+        #shanks_arr[[list(self.shanks_all).index(shank) for shank in active_shanks]]=1
+        shanks_arr = np.array([ 1 if self.shanks_all[i] in active_shanks else 0 for i in range(len(self.shanks_all)) ]) # indices of active_shanks in shanks_all
+        electrodes = np.unique(self.desel[shanks_arr]) # filter relevant electrode location
+        return shanks_arr, active_shanks, electrodes
+
     def get_channels_from_cluster(self, clu, cnt = 5):
         """
         get $cnt channels with highest peak-to-peak amplitude in cluster $clu

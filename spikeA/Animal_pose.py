@@ -547,7 +547,7 @@ class Animal_pose:
                     print("last ttl sample: {}".format(ttl[-1]))
                     print("samples in dat file: {}".format(df.total_samples))
                     timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
-                    print("last tttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
+                    print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
                     if (timeToEnd<0.10):
                           print("positrack process did not stop before the end of .dat file")
                 
@@ -619,9 +619,9 @@ class Animal_pose:
 
             # estimate functions to interpolate
             fx = interp1d(ttl[:], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
-            fy = interp1d(ttl[:], d[:,1], bounds_error=False) # y 
-            fhdc = interp1d(ttl[:], d[:,3], bounds_error=False) # cos
-            fhds = interp1d(ttl[:], d[:,4], bounds_error=False) # sin
+            fy = interp1d(ttl[:], d[:,1], bounds_error=False) # y
+            fhdc = interp1d(ttl[:], d[:,3], bounds_error=False) # cos(hd)
+            fhds = interp1d(ttl[:], d[:,4], bounds_error=False) # sin(hd)
 
             # set the time points at which we want a position
             new_time = np.arange(0, df.total_samples,interpolation_step)
@@ -843,16 +843,23 @@ class Animal_pose:
             # outside circle = np.nan
             self.pose[dist>radius,1:7] = np.nan
             
+            r = radius
         # deal with square
         if shape == "square":
             if length is None:
                 raise ValueError("set the length argument")
             
             # set pixels outside square of length length np.nan
-            self.pose[self.pose[:,1]>center[0]+length/2,1:7]=np.nan
-            self.pose[self.pose[:,2]>center[1]+length/2,1:7]=np.nan
-            self.pose[self.pose[:,1]<(center[0]-length/2),1:7]=np.nan
-            self.pose[self.pose[:,2]<(center[1]-length/2),1:7]=np.nan
+            self.pose[self.pose[:,1] > center[0]+length/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] > center[1]+length/2, 1:7] = np.nan
+            self.pose[self.pose[:,1] < center[0]-length/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] < center[1]-length/2, 1:7] = np.nan
+            
+            r = length/2
+
+        center = np.array(center) # tuple to numpy array
+        xy_range = np.array([center - r, center + r]) # square that covers the valid range
+        return xy_range # useful to have this for restricting the area later
 
 
     def invalid_outside_head_direction_range(self, loc = 0, sigma = np.pi/4):
