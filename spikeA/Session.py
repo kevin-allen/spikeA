@@ -306,8 +306,11 @@ class Kilosort_session(Session):
         active_shanks = np.unique(self.channel_positions[channels][:,0])
         #shanks_arr = np.zeros(len(self.shanks_all))
         #shanks_arr[[list(self.shanks_all).index(shank) for shank in active_shanks]]=1
+        ##shank_id = position[0] # = x coordinate of the position
+        ##if channel in channels:
+        ##    shanks_arr[np.where(shanks_all==shank_id)[0][0]]=1 # mark shank as active for this cluster
         shanks_arr = np.array([ 1 if self.shanks_all[i] in active_shanks else 0 for i in range(len(self.shanks_all)) ]) # indices of active_shanks in shanks_all
-        electrodes = np.unique(self.desel[shanks_arr]) # filter relevant electrode location
+        electrodes = list(np.unique(np.array(self.desel)[shanks_arr==1])) # filter relevant electrode location
         return shanks_arr, active_shanks, electrodes
 
     def get_channels_from_cluster(self, clu, cnt = 5):
