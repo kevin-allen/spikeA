@@ -193,11 +193,13 @@ class Kilosort_session(Session):
         # get a dictionnary containing the files with the session configuration
         self.file_names = { # files used in the Allen lab
                             "par":self.fileBase +".par",
-                           "desen":self.fileBase +".desen",
+                            "desen":self.fileBase +".desen",
                             "desel":self.fileBase +".desel",
                             "sampling_rate":self.fileBase +".sampling_rate_dat",
                             "stimulation":self.fileBase +".stimulation",
                             "px_per_cm": self.fileBase + ".px_per_cm",
+                            "setup": self.fileBase + ".setup",
+                            "environmentFamiliarity": self.fileBase + ".environmentFamiliarity",
                            # files created by kilosort
                             "params": self.path +"/params.py",
                             "amplitudes": self.path +"/amplitudes.npy",
@@ -239,16 +241,28 @@ class Kilosort_session(Session):
         if not os.path.isfile(self.file_names["desen"]):
             raise IOError("{} file not found".format(self.file_names["desen"]))
         self.desen = open(self.file_names["desen"]).read().split('\n')[:-1]
+        
         # read the desel file 
         if not os.path.isfile(self.file_names["desel"]):
             raise IOError("{} file not found".format(self.file_names["desel"]))
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
-        #read the stimulation file
+        
+        # read the stimulation file
         if not os.path.isfile(self.file_names["stimulation"]):
             raise IOError("{} file not found".format(self.file_names["stimulation"]))
         self.stimulation = open(self.file_names["stimulation"]).read().split('\n')[:-1]
         
-        # check if the px_per_cm file is there
+        # read the setup file
+        if not os.path.isfile(self.file_names["setup"]):
+            raise IOError("{} file not found".format(self.file_names["setup"]))
+        self.setup = open(self.file_names["setup"]).read().split('\n')[:-1]
+        
+        # read the environmentFamiliarity file
+        if not os.path.isfile(self.file_names["environmentFamiliarity"]):
+            raise IOError("{} file not found".format(self.file_names["environmentFamiliarity"]))
+        self.environmentFamiliarity = open(self.file_names["environmentFamiliarity"]).read().split('\n')[:-1]
+        
+        # read the px_per_cm file
         if not os.path.isfile(self.file_names["px_per_cm"]):
             raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
         self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
@@ -266,6 +280,16 @@ class Kilosort_session(Session):
         #print("n_trials",self.n_trials)
         self.trial_names = c[to_skip+4:to_skip+4+self.n_trials]
 
+        # checks: these 4 files must have a line for each trial
+        if len(self.desen) != self.n_trials:
+            raise ValueError("Length of desen is not matching the number of trials")
+        if len(self.environmentFamiliarity) != self.n_trials:
+            raise ValueError("Length of environmentFamiliarity is not matching the number of trials")
+        if len(self.setup) != self.n_trials:
+            raise ValueError("Length of setup is not matching the number of trials")
+        if len(self.stimulation) != self.n_trials:
+            raise ValueError("Length of stimulation is not matching the number of trials")
+        
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
         # self.dat_file_names is depreciated, use self.file_names["dat"] instead
         self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
