@@ -276,11 +276,12 @@ class Kilosort_session(Session):
         f.close()
 
         to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
-        self.n_trials = int(c[3+to_skip]) # read the number of trials
+        self.n_shanks = to_skip
+        self.n_trials = int(c[3+to_skip]) # read the number of trials, begins after shank channel list
         #print("n_trials",self.n_trials)
         self.trial_names = c[to_skip+4:to_skip+4+self.n_trials]
 
-        # checks: these 4 files must have a line for each trial
+        # checks: these 4 files must have exactly one line for each trial, so that the length must match n_trials
         if len(self.desen) != self.n_trials:
             raise ValueError("Length of desen is not matching the number of trials")
         if len(self.environmentFamiliarity) != self.n_trials:
@@ -289,6 +290,10 @@ class Kilosort_session(Session):
             raise ValueError("Length of setup is not matching the number of trials")
         if len(self.stimulation) != self.n_trials:
             raise ValueError("Length of stimulation is not matching the number of trials")
+            
+        # check: the electrode configuration file must have one line per electrode, so that the length must match n_shanks
+        if len(self.desel) != self.n_shanks:
+            raise ValueError("Length of desel is not matching the number of shanks")
         
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
         # self.dat_file_names is depreciated, use self.file_names["dat"] instead

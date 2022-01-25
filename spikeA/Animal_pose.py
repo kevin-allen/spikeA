@@ -32,6 +32,7 @@ class Animal_pose:
         pose_inter: 2D numpy array of the pose data that are within the intervals set
         pose_rolled: 2D numpy array of the pose data but shuffled (or rolled) to get shuffling distributions
         speed: 1D numpy array of speed data of the original pose data
+        distance: 1D numpy array of total distance of the original pose data
         intervals: Interval object
         occupancy_cm_per_bin: cm per bin in the occupancy map
         occupancy_map: 2D numpy array containing the occupancy map
@@ -715,7 +716,7 @@ class Animal_pose:
         sigma: for Gaussian kernel
                 
         Return
-        No value is returned but self.speed is set
+        No value is returned but self.speed and self.distance is set
         
         """
         if self.pose is None:
@@ -729,11 +730,14 @@ class Animal_pose:
         sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
         
         # calculate the distance covered between the position data and divide by time per sample
-        distance = np.diff(self.pose, axis=0, append=np.nan)
-        speed = np.sqrt(distance[:,1]**2 + distance[:,2]**2)/sec_per_sample
+        delta = np.diff(self.pose, axis=0, append=np.nan)
+        distance = np.sqrt(delta[:,1]**2 + delta[:,2]**2)
+        # speed = distance/sec_per_sample
         
         # apply gaussian filter for smoothing
-        self.speed = gaussian_filter1d(speed, sigma=sigma)
+        distance = gaussian_filter1d(distance, sigma=sigma)
+        self.speed = distance / sec_per_sample
+        self.distance = np.nancumsum(distance) # total distance
     
     
     def detect_border_pixels_in_occupancy_map(self):
