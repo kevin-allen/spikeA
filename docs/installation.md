@@ -17,13 +17,11 @@ If you are not familiar with git, I would suggest reading a tutorial online.
 
 If you don't already have a python environment for your data analysis, create one.
 
-You might want to change `kevin` for your user name.
-
 ```
 conda deactivate
-mkdir /home/kevin/python_virtual_environments
-python3 -m venv /home/kevin/python_virtual_environments/spikeAenv
-source /home/kevin/python_virtual_environments/spikeAenv/bin/activate
+mkdir ~/python_virtual_environments
+python3 -m venv ~/python_virtual_environments/spikeAenv
+source ~/python_virtual_environments/spikeAenv/bin/activate
 ```
 ## Update pip
 

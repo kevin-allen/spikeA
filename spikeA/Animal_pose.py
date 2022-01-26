@@ -32,6 +32,7 @@ class Animal_pose:
         pose_inter: 2D numpy array of the pose data that are within the intervals set
         pose_rolled: 2D numpy array of the pose data but shuffled (or rolled) to get shuffling distributions
         speed: 1D numpy array of speed data of the original pose data
+        distance: 1D numpy array of total distance of the original pose data
         intervals: Interval object
         occupancy_cm_per_bin: cm per bin in the occupancy map
         occupancy_map: 2D numpy array containing the occupancy map
@@ -453,7 +454,7 @@ class Animal_pose:
      
         
 
-    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2"):
+    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2", use_previous_up_detection=True):
 
         """
         Method to calculute pose at fixed interval from a positrack file.
@@ -463,6 +464,7 @@ class Animal_pose:
         ttl_pulse_channel: channel on which the ttl pulses were recorded. If not provided, the last channel is assumed
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
+        use_previous_up_detection: if True, it will look for a file containing the time of ttl pulses instead of detecting the ttl pulses from the dat file (slow)
                 
         Return
         No value is returned but self.time and self.pose are set
@@ -504,18 +506,29 @@ class Animal_pose:
             if not positrack_file.exists() :
                 raise OSError("positrack file {} missing".format(positrack_file_name))
 
-            # read the ttl channel for positrack
+            
+            # get ttl pulses from dat file or from previously stored file (much faster)
             df = Dat_file_reader(file_names=[dat_file_name],n_channels = self.ses.n_channels)
-            ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
-            ttl,downs = detectTTL(ttl_data = ttl_channel_data)
+            up_file_name = self.ses.path + "/" + t+".ttl_up.npy"
+            up_file = Path(up_file_name)
+            
+            if use_previous_up_detection and up_file.exists() :
+                print("Getting ttl pulses time from",up_file)
+                ttl = np.load(up_file)    # read up file
+            else: # get the ttl pulses from .dat file
+               
+                ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
+                ttl,downs = detectTTL(ttl_data = ttl_channel_data)
+            
             print("Number of ttl pulses detected: {}".format(ttl.shape[0]))
-
+                
             # read the positrack file
-            if extension=="positrack" :
+            if extension=="positrack":
                 pt = pd.read_csv(positrack_file_name, delimiter=" ", index_col=False)
 
-            elif extension=="positrack2" or extension=="positrack2_post":
+            elif extension=="positrack2" or extension=="positrack2_post" or extension=="positrack_kf" or extension=="positrack2_kf":
                 pt = pd.read_csv(positrack_file_name)
+                
             elif extension=="trk":
                 data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
                 data = data.astype(np.float32)
@@ -535,7 +548,7 @@ class Animal_pose:
                     print("last ttl sample: {}".format(ttl[-1]))
                     print("samples in dat file: {}".format(df.total_samples))
                     timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
-                    print("last tttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
+                    print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
                     if (timeToEnd<0.10):
                           print("positrack process did not stop before the end of .dat file")
                 
@@ -565,6 +578,11 @@ class Animal_pose:
                 else:
                     raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
+            
+            if up_file.exists() == False:
+                print("Saving",up_file)
+                np.save(up_file, ttl)
+            
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
             # set invalid values to np.nan
@@ -602,9 +620,9 @@ class Animal_pose:
 
             # estimate functions to interpolate
             fx = interp1d(ttl[:], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
-            fy = interp1d(ttl[:], d[:,1], bounds_error=False) # y 
-            fhdc = interp1d(ttl[:], d[:,3], bounds_error=False) # cos
-            fhds = interp1d(ttl[:], d[:,4], bounds_error=False) # sin
+            fy = interp1d(ttl[:], d[:,1], bounds_error=False) # y
+            fhdc = interp1d(ttl[:], d[:,3], bounds_error=False) # cos(hd)
+            fhds = interp1d(ttl[:], d[:,4], bounds_error=False) # sin(hd)
 
             # set the time points at which we want a position
             new_time = np.arange(0, df.total_samples,interpolation_step)
@@ -698,7 +716,7 @@ class Animal_pose:
         sigma: for Gaussian kernel
                 
         Return
-        No value is returned but self.speed is set
+        No value is returned but self.speed and self.distance is set
         
         """
         if self.pose is None:
@@ -712,11 +730,14 @@ class Animal_pose:
         sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
         
         # calculate the distance covered between the position data and divide by time per sample
-        distance = np.diff(self.pose, axis=0, append=np.nan)
-        speed = np.sqrt(distance[:,1]**2 + distance[:,2]**2)/sec_per_sample
+        delta = np.diff(self.pose, axis=0, append=np.nan)
+        distance = np.sqrt(delta[:,1]**2 + delta[:,2]**2)
+        # speed = distance/sec_per_sample
         
         # apply gaussian filter for smoothing
-        self.speed = gaussian_filter1d(speed, sigma=sigma)
+        distance = gaussian_filter1d(distance, sigma=sigma)
+        self.speed = distance / sec_per_sample
+        self.distance = np.nancumsum(distance) # total distance
     
     
     def detect_border_pixels_in_occupancy_map(self):
@@ -826,16 +847,23 @@ class Animal_pose:
             # outside circle = np.nan
             self.pose[dist>radius,1:7] = np.nan
             
+            r = radius
         # deal with square
         if shape == "square":
             if length is None:
                 raise ValueError("set the length argument")
             
             # set pixels outside square of length length np.nan
-            self.pose[self.pose[:,1]>center[0]+length/2,1:7]=np.nan
-            self.pose[self.pose[:,2]>center[1]+length/2,1:7]=np.nan
-            self.pose[self.pose[:,1]<(center[0]-length/2),1:7]=np.nan
-            self.pose[self.pose[:,2]<(center[1]-length/2),1:7]=np.nan
+            self.pose[self.pose[:,1] > center[0]+length/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] > center[1]+length/2, 1:7] = np.nan
+            self.pose[self.pose[:,1] < center[0]-length/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] < center[1]-length/2, 1:7] = np.nan
+            
+            r = length/2
+
+        center = np.array(center) # tuple to numpy array
+        xy_range = np.array([center - r, center + r]) # square that covers the valid range
+        return xy_range # useful to have this for restricting the area later
 
 
     def invalid_outside_head_direction_range(self, loc = 0, sigma = np.pi/4):

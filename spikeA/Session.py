@@ -193,11 +193,13 @@ class Kilosort_session(Session):
         # get a dictionnary containing the files with the session configuration
         self.file_names = { # files used in the Allen lab
                             "par":self.fileBase +".par",
-                           "desen":self.fileBase +".desen",
+                            "desen":self.fileBase +".desen",
                             "desel":self.fileBase +".desel",
                             "sampling_rate":self.fileBase +".sampling_rate_dat",
                             "stimulation":self.fileBase +".stimulation",
                             "px_per_cm": self.fileBase + ".px_per_cm",
+                            "setup": self.fileBase + ".setup",
+                            "environmentFamiliarity": self.fileBase + ".environmentFamiliarity",
                            # files created by kilosort
                             "params": self.path +"/params.py",
                             "amplitudes": self.path +"/amplitudes.npy",
@@ -239,16 +241,28 @@ class Kilosort_session(Session):
         if not os.path.isfile(self.file_names["desen"]):
             raise IOError("{} file not found".format(self.file_names["desen"]))
         self.desen = open(self.file_names["desen"]).read().split('\n')[:-1]
+        
         # read the desel file 
         if not os.path.isfile(self.file_names["desel"]):
             raise IOError("{} file not found".format(self.file_names["desel"]))
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
-        #read the stimulation file
+        
+        # read the stimulation file
         if not os.path.isfile(self.file_names["stimulation"]):
             raise IOError("{} file not found".format(self.file_names["stimulation"]))
         self.stimulation = open(self.file_names["stimulation"]).read().split('\n')[:-1]
         
-        # check if the px_per_cm file is there
+        # read the setup file
+        if not os.path.isfile(self.file_names["setup"]):
+            raise IOError("{} file not found".format(self.file_names["setup"]))
+        self.setup = open(self.file_names["setup"]).read().split('\n')[:-1]
+        
+        # read the environmentFamiliarity file
+        if not os.path.isfile(self.file_names["environmentFamiliarity"]):
+            raise IOError("{} file not found".format(self.file_names["environmentFamiliarity"]))
+        self.environmentFamiliarity = open(self.file_names["environmentFamiliarity"]).read().split('\n')[:-1]
+        
+        # read the px_per_cm file
         if not os.path.isfile(self.file_names["px_per_cm"]):
             raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
         self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
@@ -260,10 +274,26 @@ class Kilosort_session(Session):
         f = open(self.file_names["par"], "r")
         c = f.read().split('\n')
         f.close()
-        to_skip = int(c[2].split()[0])
-        n_trials = int(c[3+to_skip])
-        #print("n_trials",n_trials)
-        self.trial_names = c[to_skip+4:to_skip+4+n_trials]
+
+        to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
+        self.n_shanks = to_skip
+        self.n_trials = int(c[3+to_skip]) # read the number of trials, begins after shank channel list
+        #print("n_trials",self.n_trials)
+        self.trial_names = c[to_skip+4:to_skip+4+self.n_trials]
+
+        # checks: these 4 files must have exactly one line for each trial, so that the length must match n_trials
+        if len(self.desen) != self.n_trials:
+            raise ValueError("Length of desen is not matching the number of trials")
+        if len(self.environmentFamiliarity) != self.n_trials:
+            raise ValueError("Length of environmentFamiliarity is not matching the number of trials")
+        if len(self.setup) != self.n_trials:
+            raise ValueError("Length of setup is not matching the number of trials")
+        if len(self.stimulation) != self.n_trials:
+            raise ValueError("Length of stimulation is not matching the number of trials")
+            
+        # check: the electrode configuration file must have one line per electrode, so that the length must match n_shanks
+        if len(self.desel) != self.n_shanks:
+            raise ValueError("Length of desel is not matching the number of shanks")
         
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
         # self.dat_file_names is depreciated, use self.file_names["dat"] instead
@@ -289,7 +319,29 @@ class Kilosort_session(Session):
         self.channel_map = np.load(self.file_names["channel_map"]).flatten()
         # load the channel positions
         self.channel_positions = np.load(self.file_names["channel_positions"])
-        
+
+    def init_shanks(self):
+        """
+        loads the shanks from the channel positions
+        """
+        # get shanks (assume x coordinate in channel_position) of channels
+        self.shanks_all = np.unique(self.channel_positions[:,0])
+
+    def get_active_shanks(self, channels):
+        """
+        get information about shanks with these channels
+        returns: shanks by name, by index, electrode locations (should be unique, len==1)
+        """
+        active_shanks = np.unique(self.channel_positions[channels][:,0])
+        #shanks_arr = np.zeros(len(self.shanks_all))
+        #shanks_arr[[list(self.shanks_all).index(shank) for shank in active_shanks]]=1
+        ##shank_id = position[0] # = x coordinate of the position
+        ##if channel in channels:
+        ##    shanks_arr[np.where(shanks_all==shank_id)[0][0]]=1 # mark shank as active for this cluster
+        shanks_arr = np.array([ 1 if self.shanks_all[i] in active_shanks else 0 for i in range(len(self.shanks_all)) ]) # indices of active_shanks in shanks_all
+        electrodes = list(np.unique(np.array(self.desel)[shanks_arr==1])) # filter relevant electrode location
+        return shanks_arr, active_shanks, electrodes
+
     def get_channels_from_cluster(self, clu, cnt = 5):
         """
         get $cnt channels with highest peak-to-peak amplitude in cluster $clu

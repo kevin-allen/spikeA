@@ -42,6 +42,23 @@ class Cell_group:
         for i,n in enumerate(self.neuron_list):
                n.set_spike_train(st=stl.spike_times[i])
         
+    def set_info_from_session(self, ses, maxchannels=5):
+        """
+        set Neuron information from session (see Neuron class for more information)
+        consider the $maxchannels channels with highest amplitude
+        """
+        
+        ses.load_waveforms()
+        ses.init_shanks()
+        
+        for n in self.neuron_list:
+            clu_id = int(n.name)
+            channels = ses.get_channels_from_cluster(clu_id, maxchannels)
+            shanks_arr, active_shanks, electrodes = ses.get_active_shanks(channels)
+            n.channels = channels
+            n.brain_area = electrodes
+            # n.electrode_id
+    
     def make_pairs(self,pair_type="permutations"):
         """
         Get the indices of neurons in pairs of neurons
