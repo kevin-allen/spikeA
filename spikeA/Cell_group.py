@@ -22,7 +22,7 @@ class Cell_group:
     
     """
     
-    def __init__(self,stl):
+    def __init__(self, stl, animal_pose=None):
         """
         We create a list of Neuron object and set the spike trains of the neurons using a Spike_train_loader object. 
         
@@ -40,7 +40,19 @@ class Cell_group:
         
         ## set the spike_train objects of your neurons
         for i,n in enumerate(self.neuron_list):
-               n.set_spike_train(st=stl.spike_times[i])
+            n.set_spike_train(st=stl.spike_times[i])
+            
+        if not animal_pose is None:
+            self.set_spatial_properties(animal_pose)
+            
+    def set_spatial_properties(self, animal_pose):
+        """
+        set the Spatial properties for each neuron in the Cell_group neuron_list
+        The Neuron.spatial_properties.spike_train will be set to its Neuron.spike_train for each neuron
+        """
+        for n in self.neuron_list:
+            n.set_spatial_properties(animal_pose)
+            n.spike_train.set_intervals(animal_pose.intervals.inter)
         
     def set_info_from_session(self, ses, maxchannels=5):
         """
@@ -58,6 +70,28 @@ class Cell_group:
             n.channels = channels
             n.brain_area = electrodes
             # n.electrode_id
+            
+    def mean_firing_rate(self):
+        """
+        get the mean firing rate for all neurons (total number of spikes of all neurons)
+        sum of mean firing rate = sum of (spikes of neuron / interval duration) = (sum of spikes of neuron) / interval duration
+        
+        Returns:
+        The average number of spikes of all neurons per second (in Hertz)
+        """
+        self.mean_firing_rate_list = [ n.spike_train.mean_firing_rate() for n in self.neuron_list ]
+        return np.sum(self.mean_firing_rate_list)
+    
+    def mean_firing_rate_per_neuron(self):
+        """
+        get the mean firing rate per neuron
+        
+        Returns:
+        The mean firing rate per neuron (in Hertz)
+        """
+        self.mean_firing_rate()
+        return np.mean(self.mean_firing_rate_list)
+    
     
     def make_pairs(self,pair_type="permutations"):
         """

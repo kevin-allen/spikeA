@@ -238,7 +238,7 @@ class Spike_train:
         the total number of spikes of the cluster.
         """
         if self.st is None:
-            raise ValueError("set the spike train before using Spike_train.n_spike()")
+            raise ValueError("set the spike train before using Spike_train.n_spikes()")
         return self.st.shape[0]
     
     def mean_firing_rate(self):

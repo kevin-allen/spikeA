@@ -1086,3 +1086,16 @@ class Spatial_properties:
         
         
         return self.border_shuffle, self.border_score_threshold
+    
+    
+    def set_intervals(self, inter):
+        """
+        Set the interval for both the Neuron spike train, and the Animal pose
+        Argument: The interval
+        Returns nothing, but the intervals are set
+        """
+        # reset and set interval
+        self.st.unset_intervals()
+        self.ap.unset_intervals()
+        self.st.set_intervals(inter)
+        self.ap.set_intervals(inter)

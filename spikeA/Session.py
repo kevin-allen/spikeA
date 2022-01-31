@@ -6,7 +6,6 @@ from datetime import datetime
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Intervals import Intervals
 
-
 class Session:
     """
     Class containing information about a recording session.
@@ -170,7 +169,7 @@ class Kilosort_session(Session):
     
     Attributes:
         n_channels: Number of channels
-        n_shanks: Number of tetrodes
+        n_shanks: Number of shanks
         dat_files: List of dat files
         trial_df: pandas data frame with information about the trials (trial_name,environment,start_sample,end_sample,duration_sec)
         dat_file_names
@@ -310,7 +309,7 @@ class Kilosort_session(Session):
         # load the template waveforms (3 dimensional array)
         ## for each cluster (wv_clusters) there is a for each channel (wv_channels) the voltage for some sample time (wv_timepoints)
         self.templates = np.load(self.file_names["templates"])
-        print("templates.shape",self.templates.shape)
+        #print("templates.shape",self.templates.shape)
         wv_clusters, wv_timepoints, wv_channels = self.templates.shape
         print("Clusters:",wv_clusters, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
         self.wv_channels = wv_channels
@@ -326,6 +325,8 @@ class Kilosort_session(Session):
         """
         # get shanks (assume x coordinate in channel_position) of channels
         self.shanks_all = np.unique(self.channel_positions[:,0])
+        if len(self.shanks_all) != self.n_shanks:
+            raise ValueError("Error in number of shanks! Check par file and kilosort/phy channel config")
 
     def get_active_shanks(self, channels):
         """
@@ -338,11 +339,12 @@ class Kilosort_session(Session):
         ##shank_id = position[0] # = x coordinate of the position
         ##if channel in channels:
         ##    shanks_arr[np.where(shanks_all==shank_id)[0][0]]=1 # mark shank as active for this cluster
-        shanks_arr = np.array([ 1 if self.shanks_all[i] in active_shanks else 0 for i in range(len(self.shanks_all)) ]) # indices of active_shanks in shanks_all
-        electrodes = list(np.unique(np.array(self.desel)[shanks_arr==1])) # filter relevant electrode location
+        # shanks_arr = np.array([ 1 if self.shanks_all[i] in active_shanks else 0 for i in range(len(self.shanks_all)) ]) # indices of active_shanks in shanks_all
+        shanks_arr = [ shank in active_shanks for shank in self.shanks_all ]
+        electrodes = list(np.unique(np.array(self.desel)[shanks_arr])) # filter relevant electrode location / where shanks_arr==1
         return shanks_arr, active_shanks, electrodes
 
-    def get_channels_from_cluster(self, clu, cnt = 5):
+    def get_channels_from_cluster(self, clu, cnt = 5, method="ptp"):
         """
         get $cnt channels with highest peak-to-peak amplitude in cluster $clu
         Returns: array with channel ids with highest amplitude of length $cnt
@@ -353,7 +355,14 @@ class Kilosort_session(Session):
             return([])
         
         template_cluster = self.templates[clu]
-        amps = np.ptp(template_cluster,axis=0)
+        
+        if method=="ptp":
+            amps = np.ptp(template_cluster,axis=0) # method peak-to-peak
+        elif method=="sum":
+            amps = np.sum(np.abs(template_cluster),axis=0) # method sum of voltage
+        else:
+            raise ValueError("invalid method provided to get amplitudes")
+        
         channel_amps = np.array([range(self.wv_channels),amps]).T
         channel_amps = np.flip(sorted(channel_amps, key=lambda x: x[1]))
         channels_with_highest_amp = channel_amps[:cnt,1]
@@ -365,8 +374,40 @@ class Kilosort_session(Session):
         get the template waveform of cluster $clu in channel $channel
         Returns: ( mapped channel name, template of that cluster in that specific channel )
         """        
-        template_cluster = self.templates[clu]        
+        template_cluster = self.templates[clu]
         return ( self.channel_map[channel] , template_cluster[:,channel] )
+
+    
+    def en2details(self,en):
+        """
+        converts the environment string (like "sqr-70_black_cue-W") to shape, diameter, color, cue-card position of arena
+        """
+        
+        if en=="sqr70":
+            return ("square",70.,None,None)
+        if en=="circ80":
+            return ("circle",80.,None,None)
+        if en=="rb":
+            return ("rb",25.,None,None)
+        
+        nones = [None]*100
+        typ,color,cue, *_ = en.split('_',2) + nones
+        if typ=="rb":
+            typ_shape = "sqr"
+            diam = 25 # default restbox length = 25cm
+        else:
+            typ_shape, typ_diam = typ.split('-',1)
+            diam = float(typ_diam)
+
+        shape_dict = {'sqr':'square', 'circ':'circle'}
+        shape = shape_dict.get(typ_shape, "unknown")
+
+        return shape,diam,color,cue
+    
+    
+    def session_trials(self):
+        return [ (tn,su,en,self.en2details(en),ef,iv) for tn,su,en,ef,iv in zip(self.trial_names, self.setup, self.desen, self.environmentFamiliarity, self.trial_intervals.inter) ]
+    
         
         
     def __str__(self): 

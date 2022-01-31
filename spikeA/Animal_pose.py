@@ -541,7 +541,6 @@ class Animal_pose:
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
                 
-                
                 if ttl.shape[0] < pt.shape[0]:
                     print("{} more video frames than ttl pulses".format(pt.shape[0]-ttl.shape[0]))
                     print("first ttl sample: {}".format(ttl[0]))
@@ -552,24 +551,24 @@ class Animal_pose:
                     if (timeToEnd<0.10):
                           print("positrack process did not stop before the end of .dat file")
                 
-                
-                # if there are just 1 or 2 ttl pulses missing from positrack, copy the last 1 or 2 lines
-                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2) or ttl.shape[0] == (pt.shape[0]+3) or ttl.shape[0] == (pt.shape[0]+4)):
+                # if there are just some ttl pulses missing from positrack, copy the last lines in the positrack file
+                if extension =="positrack" and (len(pt) < len(ttl) < len(pt)+100):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
-                    missing = ttl.shape[0]-pt.shape[0]
-                    pt_mod = pt.append(pt[(pt.shape[0]-missing):(pt.shape[0]+1)])
-                    print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
-                    os.rename(positrack_file_name, original_positrack_file)
-                    pt_mod.to_csv(positrack_file_name, sep=' ')
+                    missing = len(ttl)-len(pt)
+                    print("Missing lines:",missing)
+                    pt_mod = pt.append(pt[(len(pt)-missing):])
+                    print("Number of lines in adjusted positrack file:", len(pt_mod))
+                    #os.rename(positrack_file_name, original_positrack_file)
+                    #pt_mod.to_csv(positrack_file_name, sep=' ')
                     pt = pt_mod
-                    print("Alignment problem solved by adding up to 4 ttl pulses to positrack")
+                    print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
                 elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     pt_mod = pt[:ttl.shape[0]]
                     print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
-                    os.rename(positrack_file_name, original_positrack_file)
+                    #os.rename(positrack_file_name, original_positrack_file)
                     pt = pt_mod
-                    pt.to_csv(positrack_file_name, sep=' ')
+                    #pt.to_csv(positrack_file_name, sep=' ')
                     print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
 
                 # we will need more code to solve simple problems 
@@ -578,10 +577,31 @@ class Animal_pose:
                 else:
                     raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
-            
             if up_file.exists() == False:
                 print("Saving",up_file)
-                np.save(up_file, ttl)
+                np.save(up_file, ttl)                    
+                    
+            
+            """
+            # positrack time , normally this is not taken into account since the time is synced via ttl, use this to check if no pulses were discarded
+            # instead of adding artificial ttl pulses / positrack frames to the positrack file at the end, add them at the correct time, instead
+            pt_time=pt["startProcTime"].to_numpy()/1000.
+            print("startProcTime (positrack time)")
+            print(pt_time)
+            print(pt_time.shape)
+            
+            ttl_time = ttl/self.ses.sampling_rate
+            print("ttlpulse/sampling_rate (ttl time)")
+            print(ttl_time)
+            print(ttl_time.shape)
+            
+            delta=ttl_time-pt_time
+            deltadiff=np.diff(delta)
+            print("deltadiff")
+            print(deltadiff)
+            
+            print("max=", np.max(deltadiff),", min=",np.min(deltadiff))                
+            """
             
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
@@ -645,6 +665,10 @@ class Animal_pose:
 
             # change the offset for the next trial
             trial_sample_offset+=df.total_samples
+            
+            
+            print("")
+        
 
         # put all the trials together
         posi = np.concatenate(posi_list)
@@ -656,8 +680,8 @@ class Animal_pose:
         # estimate functions to interpolate
         fx = interp1d(posi[:,0], posi[:,1], bounds_error=False) # x we will start at 0 until the end of the file
         fy = interp1d(posi[:,0], posi[:,2], bounds_error=False) # y 
-        fhdc = interp1d(posi[:,0], posi[:,3], bounds_error=False) # cos
-        fhds = interp1d(posi[:,0], posi[:,4], bounds_error=False) # sin
+        fhdc = interp1d(posi[:,0], posi[:,3], bounds_error=False) # cos(hd)
+        fhds = interp1d(posi[:,0], posi[:,4], bounds_error=False) # sin(hd)
 
         # new time to interpolate
         nt = np.arange(0, posi[-1,0]+interpolation_step,interpolation_step)
@@ -900,6 +924,66 @@ class Animal_pose:
         
         delta = np.arccos(hd_vector@loc_vector).flatten()
         self.pose[delta>sigma,1:7] = np.nan
+        
+        
+    def find_xy_range(self, diameter=None):        
+        """
+        method to find suitable square in pose
+        # find good shape automagically
+        what it does:
+        1. find mean location of pose (each time counts the same, so it is like the weighted occupancy map with weight= time spent in bin)
+        2. create a square with diameter around mean location
+        3. if this square is bigger in any direction as the actual data, correct this edge to the appropriate actual pose
+         (moves the rect to the closest edge in pose)
+        
+        Returns xmin,ymin;xmax,ymax
+        """
+        
+        # find center
+        self.meanloc = np.nanmean(self.pose[:,1:3], axis=0)
+        xmean,ymean = self.meanloc
+        # print("pose mean",xmean,ymean)
+        # print("meanloc-rect, xymin,xymax",self.meanloc - diameter/2. , self.meanloc + diameter/2.)
+        
+        # find the minimum and maximum x and y values in the pose
+        val = self.pose[:,1:3]
+        to_add = self.occupancy_cm_per_bin if (self.occupancy_cm_per_bin and np.isfinite(self.occupancy_cm_per_bin)) else 0.
+        xy_max = np.ceil(np.nanmax(val,axis=0))  - to_add
+        xy_min = np.floor(np.nanmin(val,axis=0)) + to_add
+        self.poserect = xy_min,xy_max
+        # print("pose min/max:",xy_min,xy_max)
+        
+        
+        # if the mean square is bigger than the pose min/max in one direction, adapt to pose min/max
+        xy_max_ = np.min([xy_max, self.meanloc + diameter/2.], axis=0)
+        # xy_min_ = np.max([xy_min, self.meanloc - diameter/2.], axis=0)
+        xy_min_ = np.max([xy_min, xy_max_ - diameter], axis=0) # use corrected meanloc variable as second arg in max to ensure square shape
+        xy_max_ = xy_min_ + diameter # correct to square
+        
+        # print("xy min/max:",xy_min_,xy_max_)
+
+        # make square
+        # xymean_ = np.mean([xy_min_, xy_max_], axis=0)
+        # return xymean_ - diameter/2., xymean_ + diameter/2.
+        
+        return xy_min_, xy_max_
+        
+        
+    def invalid_ratio(self):
+        """
+        function to return ratio of invalid values (to be called after setting intervals)
+        Returns: the ratio of invalid values
+        """
+        invalid = np.isnan(self.pose[:,[1,2,4]]).any(axis=1) # invalid values on 1,2,4 = x,y,hd
+        return sum(invalid) / len(invalid)
+
+    def mid_point_from_edges(self, edges):
+        """
+        get histogram midpoints from histogram edges
+        """
+        #return np.mean(edges, axis=1) # transforms [[1,2],[6,8],[99,100.5]] -> [ 1.5 ,  7.  , 99.75]
+        return (edges[1:]+edges[:-1])/2. # transforms array([1, 2, 3, 4, 5, 6, 7, 8, 9]) to array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5])
+
         
         
     def positrack_type(self,ses=None):
