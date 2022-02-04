@@ -936,7 +936,7 @@ class Animal_pose:
         3. if this square is bigger in any direction as the actual data, correct this edge to the appropriate actual pose
          (moves the rect to the closest edge in pose)
         
-        Returns xmin,ymin;xmax,ymax
+        Returns xmin,ymin;xmax,ymax (can be used as xy_range to calculate occupancy map and firing rate map)
         """
         
         # find center
@@ -966,7 +966,8 @@ class Animal_pose:
         # xymean_ = np.mean([xy_min_, xy_max_], axis=0)
         # return xymean_ - diameter/2., xymean_ + diameter/2.
         
-        return xy_min_, xy_max_
+        # return xy_min_, xy_max_
+        return np.array([xy_min_, xy_max_])
         
         
     def invalid_ratio(self):

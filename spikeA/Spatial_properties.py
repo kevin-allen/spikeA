@@ -678,6 +678,7 @@ class Spatial_properties:
         midpoint = np.array(self.spatial_autocorrelation_map.shape)/2
         
         # find proper dimensions for doughnut
+        self.points_inside_dougnut = []
         r_outer_range = np.linspace(0,maxradius,100)
         r_outer_radii = []
         for r_outer in r_outer_range:
@@ -709,6 +710,9 @@ class Spatial_properties:
         doughnut[outsidedoughnut] = np.nan
         
         self.doughnut = doughnut
+        self.autocorr_midpoint = midpoint
+        self.r_outer_radius_use = r_outer_radius_use
+        self.r_inner_radius_use = r_inner_radius_use
 
     
             
@@ -812,6 +816,67 @@ class Spatial_properties:
         
         
         return self.grid_shuffle, self.grid_score_threshold
+    
+    
+    def grid_info(self):
+        """
+        Method to get additional information about the hexagonal grid of the autocorrelation
+        
+        Returns: Orientation and Spacing of grid (= rotation, radius of hexagon) , error of closest hexagon found, the rotated hexagon
+        False if there was an invalid doughnut (not 6 points found using the field detection)
+        """
+        
+        # print(self.points_inside_dougnut)
+        
+        if not hasattr(self, 'points_inside_dougnut'):
+            raise TypeError('You need to call calculate_doughnut() or grid_score() before calling this function')
+    
+        if len(self.points_inside_dougnut) != 7:
+            return False
+    
+        # get distance of all points to midpoint
+        dists = [ math.dist(self.autocorr_midpoint, point) for point in self.points_inside_dougnut]
+        # remove midpoint
+        pois,dists = np.transpose(np.array([ [poi,dist] for i,(poi,dist) in enumerate(zip(self.points_inside_dougnut,dists)) if i!=np.argmin(dists) ], dtype=object))
+        # print("pois=",pois)
+        # calculate median distance and use it as radius for hexagon matching
+        radius = np.median(dists)
+        # print("radius=",radius)
+        self.hexagon_radius = radius
+        
+        # one hexagon
+        # hexagon = np.array([ self.autocorr_midpoint+radius*np.array([np.cos(k*2*np.pi/6),np.sin(k*2*np.pi/6)]) for k in range(6)  ])
+        # print(hexagon)
+        # ax.scatter(hexagon[:,0],hexagon[:,1] , color="blue")
+        
+        # multiple rotations (1/6 full rotation max due to rotation symmetry, alternatively: (k+fraction of partial rotation)*2pi/6)
+        rotations = np.linspace(0,2*np.pi/6,100)
+        # create hexagons
+        hexagons_rotated = np.array([ [ self.autocorr_midpoint+radius*np.array([np.cos(k*2*np.pi/6 + alpha), np.sin(k*2*np.pi/6 + alpha)]) for k in range(6) ] for alpha in rotations ])
+        # print(hexagons_rotated.shape) # = (100, 6, 2)
+        # ax.scatter(hexagons_rotated[:,:,0],hexagons_rotated[:,:,1] , color="blue")  # - plot all hexagons
+        
+        ## for hexagon, rotation in zip(hexagons_rotated, rotations):
+        ##     #print("rotation",rotation)
+        ##     dist_sum = np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ])
+        ##     #print("dist_sum",dist_sum)
+            
+        # find distance from hexagon points to doughnut points and find best match
+        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ]
+        dist_sum_min_index = np.argmin(dist_sums)
+        dist_sum = dist_sums[dist_sum_min_index]
+        # print("best rotation at ",rotations[dist_sum_min_index], "using index",dist_sum_min_index, "with error",dist_sum)
+        
+        hexagon_rotated = hexagons_rotated[dist_sum_min_index]
+        #ax.scatter(hexagon_rotated[:,0], hexagon_rotated[:,1] , color="blue")
+        # add first point to the end so that you can plot the closed polygon using ax.plot
+        hexagon_rotated_ = np.append(hexagon_rotated,np.array([hexagon_rotated[0]]),axis=0)
+        #print(hexagon_rotated_.shape) # = (7, 2)
+        #ax.plot(hexagon_rotated_[:,0], hexagon_rotated_[:,1] , color="blue")
+        #-#for [from_x,from_y],[to_x,to_y] in zip(hexagon_rotated[:-1],hexagon_rotated[1:]): #ax.plot()
+            
+        return self.hexagon_radius, rotations[dist_sum_min_index], dist_sum, hexagon_rotated_
+        
     
     
     def map_crosscorrelation(self, trial1=None, trial2=None, map1=None, map2=None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
