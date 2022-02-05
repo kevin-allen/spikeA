@@ -165,7 +165,7 @@ class Animal_pose:
         print("Saving original pose to",fn)
         np.save(file = fn, arr = self.pose_ori) 
             
-    def load_pose_from_file(self,file_name=None):
+    def load_pose_from_file(self,file_name=None, verbose=False):
         """
         Load the pose data from file.
         
@@ -186,7 +186,9 @@ class Animal_pose:
         
         if not os.path.exists(fn):
             raise OSError(fn+" is missing")
-        #print("Loading original pose from",fn)
+        
+        if verbose:
+            print("Loading original pose from",fn)
         self.pose_ori = np.load(file = fn) 
         self.pose = self.pose_ori.copy() # the self.pose should not point to the self.pose_ori
     

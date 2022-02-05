@@ -105,17 +105,20 @@ class Cell_group:
         self.st_autocorrelation_bins = myRange
 
     
-    def instantaneous_firing_rate(self, bin_size_sec = 0.02, sigma = 1, outside_interval_solution="remove"):
+    def instantaneous_firing_rate(self, bin_size_sec = 0.02, sigma = 1, outside_interval_solution="remove", free_memory=True):
         """
         Calculates the instantaneous firing rate of the neurons in the Cell_group. 
         This is the firing rate of the neuron over time.
         The spikes are counted in equal sized time windows. (histogram)
         Then the spike count array is smooth with a gaussian kernel. (convolution)
         
+        We will delete the ifr arrays of the individual neuron.spike_train, to prevent filling memory with them, if free_memory is set to True (default)
+        
         Arguments:
         bin_size_sec: Bin size in sec
         sigma: Standard deviation of the gaussian filter smoothing, values are in bins
         outside_interval_solution: What to do with time windows that are outside the set intervals. "remove" or "nan" are accepted.
+        free_memory: If True, we delete the memory of the ifr array of each neuron. 
         
         Returns:
         Saves self.ifr, self.ifr_rate and ifr_bin_size_sec 
@@ -125,8 +128,11 @@ class Cell_group:
         ifrList = []
         for i, n in tqdm(enumerate(self.neuron_list)):
             n.spike_train.instantaneous_firing_rate(bin_size_sec=bin_size_sec,sigma=sigma,outside_interval_solution=outside_interval_solution)
-            ifrList.append(n.spike_train.ifr[0])
+            ifrList.append(n.spike_train.ifr[0])    
             if(i == 0):
                 time = n.spike_train.ifr[2]
+            if free_memory:
+                n.spike_train.ifr=None # remove the reference to the numpy array, which can be deleted by garbage collector
+            
                 
         self.ifr = (np.stack(ifrList,axis=0),time)
