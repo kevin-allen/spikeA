@@ -916,10 +916,10 @@ class Spatial_properties:
     
         # check for dimensions
         if map1.shape != map2.shape:
-            raise TypeError("The firing rate maps have different dimensions. You have to specify the xy range.")
+            raise TypeError("The firing rate maps have different dimensions ("+str(map1.shape)+" != "+str(map2.shape)+"). You have to specify the xy range.")
             
-        # calculate crosscorrelation
-        indices = np.logical_and(~np.isnan(map1), ~np.isnan(map2))
+        # calculate crosscorrelation (for valid indices only, nan might be changed to -1 after autocorrelation was calculated)
+        indices = np.logical_and(np.logical_and(~np.isnan(map1), ~np.isnan(map2)) , np.logical_and(map1 != -1, map2 != -1))
         r,p = pearsonr(map1[indices],map2[indices])
     
         return r
