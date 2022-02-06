@@ -137,7 +137,7 @@ class Tetrode_session(Session):
         if len(desel) == self.n_tetrodes:
             self.desel = desel
         else:
-            raise ValueError("Length of desel is not matching the number of tetrodes")
+            raise ValueError("{}, length of desel is not matching the number of tetrodes".format(self.name))
             
         # check if the sampling_rate file is there
         if not os.path.isfile(self.file_names["sampling_rate"]):
@@ -282,17 +282,17 @@ class Kilosort_session(Session):
 
         # checks: these 4 files must have exactly one line for each trial, so that the length must match n_trials
         if len(self.desen) != self.n_trials:
-            raise ValueError("Length of desen is not matching the number of trials")
+            raise ValueError("{}: Length of desen is not matching the number of trials ({})".format(self.name,self.n_trials))
         if len(self.environmentFamiliarity) != self.n_trials:
-            raise ValueError("Length of environmentFamiliarity is not matching the number of trials")
+            raise ValueError("{}: Length of environmentFamiliarity is not matching the number of trials ({})".format(self.name,self.n_trials))
         if len(self.setup) != self.n_trials:
-            raise ValueError("Length of setup is not matching the number of trials")
+            raise ValueError("{}: Length of setup is not matching the number of trials ({})".format(self.name,self.n_trials))
         if len(self.stimulation) != self.n_trials:
-            raise ValueError("Length of stimulation is not matching the number of trials")
+            raise ValueError("{}: Length of stimulation is not matching the number of trials ({})".format(self.name,self.n_trials))
             
         # check: the electrode configuration file must have one line per electrode, so that the length must match n_shanks
         if len(self.desel) != self.n_shanks:
-            raise ValueError("Length of desel is not matching the number of shanks")
+            raise ValueError("{}: Length of desel is not matching the number of shanks".format(self.name))
         
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
         # self.dat_file_names is depreciated, use self.file_names["dat"] instead
