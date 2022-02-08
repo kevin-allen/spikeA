@@ -212,7 +212,7 @@ class Kilosort_session(Session):
                            "spike_clusters": self.path +"/spike_clusters.npy",
                            "cluster_group": self.path +"/cluster_group.tsv"}
     
-    def load_parameters_from_files(self):
+    def load_parameters_from_files(self, ignore_params=False):
         """
         Function to read session parameters from configuration files.
         
@@ -224,18 +224,19 @@ class Kilosort_session(Session):
             raise IOError("directory {} does not exist".format(self.path))
     
         
-        ## read the params file
-        if not os.path.isfile(self.file_names["params"]):
-            raise IOError("{} file not found".format(self.file_names["params"]))    
-        f = open(self.file_names["params"], "r")
-        c = f.read().replace('\'','').split('\n')
-        f.close()
+        ## read the params file (if not ignored, then only n_channels and sampling_rate will be read from other files, see below; anyway dat_dtype and dat_offset is not used)
+        if not ignore_params:
+            if not os.path.isfile(self.file_names["params"]):
+                raise IOError("{} file not found".format(self.file_names["params"]))    
+            f = open(self.file_names["params"], "r")
+            c = f.read().replace('\'','').split('\n')
+            f.close()
         
-        self.n_channels = int(c[1].split(" = ")[1])
-        self.dat_dtype = c[2].split(" = ")[1]
-        self.dat_offset = int(c[3].split(" = ")[1])
-        self.sampling_rate = float(c[4].split(" = ")[1])
-        
+            self.n_channels = int(c[1].split(" = ")[1])
+            self.dat_dtype = c[2].split(" = ")[1]
+            self.dat_offset = int(c[3].split(" = ")[1])
+            self.sampling_rate = float(c[4].split(" = ")[1])
+
         # read the desen file
         if not os.path.isfile(self.file_names["desen"]):
             raise IOError("{} file not found".format(self.file_names["desen"]))
@@ -266,13 +267,23 @@ class Kilosort_session(Session):
             raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
         self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
         
-        
+
         # get the trial names from the par file
         if not os.path.isfile(self.file_names["par"]):
             raise IOError("{} file not found".format(self.file_names["par"]))    
         f = open(self.file_names["par"], "r")
         c = f.read().split('\n')
         f.close()
+
+        # read n_channels and sampling_rate from other files
+        if ignore_params:
+            # number of channels is also written in par file (do not read from params)
+            self.n_channels = int(c[0].split()[0])
+            # read the sampling_rate file
+            if not os.path.isfile(self.file_names["sampling_rate"]):
+                raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
+            self.sampling_rate = int(open(self.file_names["px_per_cm"]).read().split('\n')[0])
+
 
         to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
         self.n_shanks = to_skip
