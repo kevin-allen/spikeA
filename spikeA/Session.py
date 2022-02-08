@@ -282,7 +282,7 @@ class Kilosort_session(Session):
             # read the sampling_rate file
             if not os.path.isfile(self.file_names["sampling_rate"]):
                 raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
-            self.sampling_rate = int(open(self.file_names["px_per_cm"]).read().split('\n')[0])
+            self.sampling_rate = int(open(self.file_names["sampling_rate"]).read().strip())
 
 
         to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
