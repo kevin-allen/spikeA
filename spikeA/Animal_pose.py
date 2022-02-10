@@ -32,6 +32,7 @@ class Animal_pose:
         pose_inter: 2D numpy array of the pose data that are within the intervals set
         pose_rolled: 2D numpy array of the pose data but shuffled (or rolled) to get shuffling distributions
         speed: 1D numpy array of speed data of the original pose data
+        distance: 1D numpy array of total distance of the original pose data
         intervals: Interval object
         occupancy_cm_per_bin: cm per bin in the occupancy map
         occupancy_map: 2D numpy array containing the occupancy map
@@ -165,7 +166,7 @@ class Animal_pose:
         print("Saving original pose to",fn)
         np.save(file = fn, arr = self.pose_ori) 
             
-    def load_pose_from_file(self,file_name=None):
+    def load_pose_from_file(self,file_name=None, verbose=False):
         """
         Load the pose data from file.
         
@@ -186,7 +187,9 @@ class Animal_pose:
         
         if not os.path.exists(fn):
             raise OSError(fn+" is missing")
-        #print("Loading original pose from",fn)
+        
+        if verbose:
+            print("Loading original pose from",fn)
         self.pose_ori = np.load(file = fn) 
         self.pose = self.pose_ori.copy() # the self.pose should not point to the self.pose_ori
     
@@ -453,7 +456,7 @@ class Animal_pose:
      
         
 
-    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2"):
+    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2", use_previous_up_detection=True):
 
         """
         Method to calculute pose at fixed interval from a positrack file.
@@ -463,6 +466,7 @@ class Animal_pose:
         ttl_pulse_channel: channel on which the ttl pulses were recorded. If not provided, the last channel is assumed
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
+        use_previous_up_detection: if True, it will look for a file containing the time of ttl pulses instead of detecting the ttl pulses from the dat file (slow)
                 
         Return
         No value is returned but self.time and self.pose are set
@@ -504,18 +508,29 @@ class Animal_pose:
             if not positrack_file.exists() :
                 raise OSError("positrack file {} missing".format(positrack_file_name))
 
-            # read the ttl channel for positrack
+            
+            # get ttl pulses from dat file or from previously stored file (much faster)
             df = Dat_file_reader(file_names=[dat_file_name],n_channels = self.ses.n_channels)
-            ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
-            ttl,downs = detectTTL(ttl_data = ttl_channel_data)
+            up_file_name = self.ses.path + "/" + t+".ttl_up.npy"
+            up_file = Path(up_file_name)
+            
+            if use_previous_up_detection and up_file.exists() :
+                print("Getting ttl pulses time from",up_file)
+                ttl = np.load(up_file)    # read up file
+            else: # get the ttl pulses from .dat file
+               
+                ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
+                ttl,downs = detectTTL(ttl_data = ttl_channel_data)
+            
             print("Number of ttl pulses detected: {}".format(ttl.shape[0]))
-
+                
             # read the positrack file
-            if extension=="positrack" :
+            if extension=="positrack":
                 pt = pd.read_csv(positrack_file_name, delimiter=" ", index_col=False)
 
-            elif extension=="positrack2" or extension=="positrack2_post":
+            elif extension=="positrack2" or extension=="positrack2_post" or extension=="positrack_kf" or extension=="positrack2_kf":
                 pt = pd.read_csv(positrack_file_name)
+                
             elif extension=="trk":
                 data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
                 data = data.astype(np.float32)
@@ -528,35 +543,34 @@ class Animal_pose:
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
                 
-                
                 if ttl.shape[0] < pt.shape[0]:
                     print("{} more video frames than ttl pulses".format(pt.shape[0]-ttl.shape[0]))
                     print("first ttl sample: {}".format(ttl[0]))
                     print("last ttl sample: {}".format(ttl[-1]))
                     print("samples in dat file: {}".format(df.total_samples))
                     timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
-                    print("last tttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
+                    print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
                     if (timeToEnd<0.10):
                           print("positrack process did not stop before the end of .dat file")
                 
-                
-                # if there are just 1 or 2 ttl pulses missing from positrack, copy the last 1 or 2 lines
-                if extension =="positrack" and (ttl.shape[0] == (pt.shape[0]+1) or ttl.shape[0] == (pt.shape[0]+2) or ttl.shape[0] == (pt.shape[0]+3) or ttl.shape[0] == (pt.shape[0]+4)):
+                # if there are just some ttl pulses missing from positrack, copy the last lines in the positrack file
+                if extension =="positrack" and (len(pt) < len(ttl) < len(pt)+100):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
-                    missing = ttl.shape[0]-pt.shape[0]
-                    pt_mod = pt.append(pt[(pt.shape[0]-missing):(pt.shape[0]+1)])
-                    print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
-                    os.rename(positrack_file_name, original_positrack_file)
-                    pt_mod.to_csv(positrack_file_name, sep=' ')
+                    missing = len(ttl)-len(pt)
+                    print("Missing lines:",missing)
+                    pt_mod = pt.append(pt[(len(pt)-missing):])
+                    print("Number of lines in adjusted positrack file:", len(pt_mod))
+                    #os.rename(positrack_file_name, original_positrack_file)
+                    #pt_mod.to_csv(positrack_file_name, sep=' ')
                     pt = pt_mod
-                    print("Alignment problem solved by adding up to 4 ttl pulses to positrack")
+                    print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
                 elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     pt_mod = pt[:ttl.shape[0]]
                     print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
-                    os.rename(positrack_file_name, original_positrack_file)
+                    #os.rename(positrack_file_name, original_positrack_file)
                     pt = pt_mod
-                    pt.to_csv(positrack_file_name, sep=' ')
+                    #pt.to_csv(positrack_file_name, sep=' ')
                     print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
 
                 # we will need more code to solve simple problems 
@@ -565,6 +579,32 @@ class Animal_pose:
                 else:
                     raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
+            if up_file.exists() == False:
+                print("Saving",up_file)
+                np.save(up_file, ttl)                    
+                    
+            
+            """
+            # positrack time , normally this is not taken into account since the time is synced via ttl, use this to check if no pulses were discarded
+            # instead of adding artificial ttl pulses / positrack frames to the positrack file at the end, add them at the correct time, instead
+            pt_time=pt["startProcTime"].to_numpy()/1000.
+            print("startProcTime (positrack time)")
+            print(pt_time)
+            print(pt_time.shape)
+            
+            ttl_time = ttl/self.ses.sampling_rate
+            print("ttlpulse/sampling_rate (ttl time)")
+            print(ttl_time)
+            print(ttl_time.shape)
+            
+            delta=ttl_time-pt_time
+            deltadiff=np.diff(delta)
+            print("deltadiff")
+            print(deltadiff)
+            
+            print("max=", np.max(deltadiff),", min=",np.min(deltadiff))                
+            """
+            
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
             # set invalid values to np.nan
@@ -602,9 +642,9 @@ class Animal_pose:
 
             # estimate functions to interpolate
             fx = interp1d(ttl[:], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
-            fy = interp1d(ttl[:], d[:,1], bounds_error=False) # y 
-            fhdc = interp1d(ttl[:], d[:,3], bounds_error=False) # cos
-            fhds = interp1d(ttl[:], d[:,4], bounds_error=False) # sin
+            fy = interp1d(ttl[:], d[:,1], bounds_error=False) # y
+            fhdc = interp1d(ttl[:], d[:,3], bounds_error=False) # cos(hd)
+            fhds = interp1d(ttl[:], d[:,4], bounds_error=False) # sin(hd)
 
             # set the time points at which we want a position
             new_time = np.arange(0, df.total_samples,interpolation_step)
@@ -627,6 +667,10 @@ class Animal_pose:
 
             # change the offset for the next trial
             trial_sample_offset+=df.total_samples
+            
+            
+            print("")
+        
 
         # put all the trials together
         posi = np.concatenate(posi_list)
@@ -638,8 +682,8 @@ class Animal_pose:
         # estimate functions to interpolate
         fx = interp1d(posi[:,0], posi[:,1], bounds_error=False) # x we will start at 0 until the end of the file
         fy = interp1d(posi[:,0], posi[:,2], bounds_error=False) # y 
-        fhdc = interp1d(posi[:,0], posi[:,3], bounds_error=False) # cos
-        fhds = interp1d(posi[:,0], posi[:,4], bounds_error=False) # sin
+        fhdc = interp1d(posi[:,0], posi[:,3], bounds_error=False) # cos(hd)
+        fhds = interp1d(posi[:,0], posi[:,4], bounds_error=False) # sin(hd)
 
         # new time to interpolate
         nt = np.arange(0, posi[-1,0]+interpolation_step,interpolation_step)
@@ -698,7 +742,7 @@ class Animal_pose:
         sigma: for Gaussian kernel
                 
         Return
-        No value is returned but self.speed is set
+        No value is returned but self.speed and self.distance is set
         
         """
         if self.pose is None:
@@ -712,11 +756,14 @@ class Animal_pose:
         sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
         
         # calculate the distance covered between the position data and divide by time per sample
-        distance = np.diff(self.pose, axis=0, append=np.nan)
-        speed = np.sqrt(distance[:,1]**2 + distance[:,2]**2)/sec_per_sample
+        delta = np.diff(self.pose, axis=0, append=np.nan)
+        distance = np.sqrt(delta[:,1]**2 + delta[:,2]**2)
+        # speed = distance/sec_per_sample
         
         # apply gaussian filter for smoothing
-        self.speed = gaussian_filter1d(speed, sigma=sigma)
+        distance = gaussian_filter1d(distance, sigma=sigma)
+        self.speed = distance / sec_per_sample
+        self.distance = np.nancumsum(distance) # total distance
     
     
     def detect_border_pixels_in_occupancy_map(self):
@@ -826,16 +873,23 @@ class Animal_pose:
             # outside circle = np.nan
             self.pose[dist>radius,1:7] = np.nan
             
+            r = radius
         # deal with square
         if shape == "square":
             if length is None:
                 raise ValueError("set the length argument")
             
             # set pixels outside square of length length np.nan
-            self.pose[self.pose[:,1]>center[0]+length/2,1:7]=np.nan
-            self.pose[self.pose[:,2]>center[1]+length/2,1:7]=np.nan
-            self.pose[self.pose[:,1]<(center[0]-length/2),1:7]=np.nan
-            self.pose[self.pose[:,2]<(center[1]-length/2),1:7]=np.nan
+            self.pose[self.pose[:,1] > center[0]+length/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] > center[1]+length/2, 1:7] = np.nan
+            self.pose[self.pose[:,1] < center[0]-length/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] < center[1]-length/2, 1:7] = np.nan
+            
+            r = length/2
+
+        center = np.array(center) # tuple to numpy array
+        xy_range = np.array([center - r, center + r]) # square that covers the valid range
+        return xy_range # useful to have this for restricting the area later
 
 
     def invalid_outside_head_direction_range(self, loc = 0, sigma = np.pi/4):
@@ -872,6 +926,67 @@ class Animal_pose:
         
         delta = np.arccos(hd_vector@loc_vector).flatten()
         self.pose[delta>sigma,1:7] = np.nan
+        
+        
+    def find_xy_range(self, diameter=None):        
+        """
+        method to find suitable square in pose
+        # find good shape automagically
+        what it does:
+        1. find mean location of pose (each time counts the same, so it is like the weighted occupancy map with weight= time spent in bin)
+        2. create a square with diameter around mean location
+        3. if this square is bigger in any direction as the actual data, correct this edge to the appropriate actual pose
+         (moves the rect to the closest edge in pose)
+        
+        Returns xmin,ymin;xmax,ymax (can be used as xy_range to calculate occupancy map and firing rate map)
+        """
+        
+        # find center
+        self.meanloc = np.nanmean(self.pose[:,1:3], axis=0)
+        xmean,ymean = self.meanloc
+        # print("pose mean",xmean,ymean)
+        # print("meanloc-rect, xymin,xymax",self.meanloc - diameter/2. , self.meanloc + diameter/2.)
+        
+        # find the minimum and maximum x and y values in the pose
+        val = self.pose[:,1:3]
+        to_add = self.occupancy_cm_per_bin if (self.occupancy_cm_per_bin and np.isfinite(self.occupancy_cm_per_bin)) else 0.
+        xy_max = np.ceil(np.nanmax(val,axis=0))  - to_add
+        xy_min = np.floor(np.nanmin(val,axis=0)) + to_add
+        self.poserect = xy_min,xy_max
+        # print("pose min/max:",xy_min,xy_max)
+        
+        
+        # if the mean square is bigger than the pose min/max in one direction, adapt to pose min/max
+        xy_max_ = np.min([xy_max, self.meanloc + diameter/2.], axis=0)
+        # xy_min_ = np.max([xy_min, self.meanloc - diameter/2.], axis=0)
+        xy_min_ = np.max([xy_min, xy_max_ - diameter], axis=0) # use corrected meanloc variable as second arg in max to ensure square shape
+        xy_max_ = xy_min_ + diameter # correct to square
+        
+        # print("xy min/max:",xy_min_,xy_max_)
+
+        # make square
+        # xymean_ = np.mean([xy_min_, xy_max_], axis=0)
+        # return xymean_ - diameter/2., xymean_ + diameter/2.
+        
+        # return xy_min_, xy_max_
+        return np.array([xy_min_, xy_max_])
+        
+        
+    def invalid_ratio(self):
+        """
+        function to return ratio of invalid values (to be called after setting intervals)
+        Returns: the ratio of invalid values
+        """
+        invalid = np.isnan(self.pose[:,[1,2,4]]).any(axis=1) # invalid values on 1,2,4 = x,y,hd
+        return sum(invalid) / len(invalid)
+
+    def mid_point_from_edges(self, edges):
+        """
+        get histogram midpoints from histogram edges
+        """
+        #return np.mean(edges, axis=1) # transforms [[1,2],[6,8],[99,100.5]] -> [ 1.5 ,  7.  , 99.75]
+        return (edges[1:]+edges[:-1])/2. # transforms array([1, 2, 3, 4, 5, 6, 7, 8, 9]) to array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5])
+
         
         
     def positrack_type(self,ses=None):

@@ -37,6 +37,10 @@ class Intervals:
         # check that inter is a numpy array
         if not isinstance(inter, np.ndarray):
             raise TypeError("inter argument should be a numpy.ndarray but was {}".format(type(inter)))
+        # if inter consists of only a single interval, add the missing 1 dimension
+        if inter.ndim == 1:
+            inter = np.array([inter])
+        # assert that inter is a list of which each element is an interval
         if inter.ndim != 2:
             raise TypeError("inter argument should have 2 dimensions")
         # check if it has 2 column

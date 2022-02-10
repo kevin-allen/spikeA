@@ -6,7 +6,6 @@ from datetime import datetime
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Intervals import Intervals
 
-
 class Session:
     """
     Class containing information about a recording session.
@@ -138,7 +137,7 @@ class Tetrode_session(Session):
         if len(desel) == self.n_tetrodes:
             self.desel = desel
         else:
-            raise ValueError("Length of desel is not matching the number of tetrodes")
+            raise ValueError("{}, length of desel is not matching the number of tetrodes".format(self.name))
             
         # check if the sampling_rate file is there
         if not os.path.isfile(self.file_names["sampling_rate"]):
@@ -170,7 +169,7 @@ class Kilosort_session(Session):
     
     Attributes:
         n_channels: Number of channels
-        n_shanks: Number of tetrodes
+        n_shanks: Number of shanks
         dat_files: List of dat files
         trial_df: pandas data frame with information about the trials (trial_name,environment,start_sample,end_sample,duration_sec)
         dat_file_names
@@ -193,11 +192,13 @@ class Kilosort_session(Session):
         # get a dictionnary containing the files with the session configuration
         self.file_names = { # files used in the Allen lab
                             "par":self.fileBase +".par",
-                           "desen":self.fileBase +".desen",
+                            "desen":self.fileBase +".desen",
                             "desel":self.fileBase +".desel",
                             "sampling_rate":self.fileBase +".sampling_rate_dat",
                             "stimulation":self.fileBase +".stimulation",
                             "px_per_cm": self.fileBase + ".px_per_cm",
+                            "setup": self.fileBase + ".setup",
+                            "environmentFamiliarity": self.fileBase + ".environmentFamiliarity",
                            # files created by kilosort
                             "params": self.path +"/params.py",
                             "amplitudes": self.path +"/amplitudes.npy",
@@ -211,7 +212,7 @@ class Kilosort_session(Session):
                            "spike_clusters": self.path +"/spike_clusters.npy",
                            "cluster_group": self.path +"/cluster_group.tsv"}
     
-    def load_parameters_from_files(self):
+    def load_parameters_from_files(self, ignore_params=False):
         """
         Function to read session parameters from configuration files.
         
@@ -223,47 +224,86 @@ class Kilosort_session(Session):
             raise IOError("directory {} does not exist".format(self.path))
     
         
-        ## read the params file
-        if not os.path.isfile(self.file_names["params"]):
-            raise IOError("{} file not found".format(self.file_names["params"]))    
-        f = open(self.file_names["params"], "r")
-        c = f.read().replace('\'','').split('\n')
-        f.close()
+        ## read the params file (if not ignored, then only n_channels and sampling_rate will be read from other files, see below; anyway dat_dtype and dat_offset is not used)
+        if not ignore_params:
+            if not os.path.isfile(self.file_names["params"]):
+                raise IOError("{} file not found".format(self.file_names["params"]))    
+            f = open(self.file_names["params"], "r")
+            c = f.read().replace('\'','').split('\n')
+            f.close()
         
-        self.n_channels = int(c[1].split(" = ")[1])
-        self.dat_dtype = c[2].split(" = ")[1]
-        self.dat_offset = int(c[3].split(" = ")[1])
-        self.sampling_rate = float(c[4].split(" = ")[1])
-        
+            self.n_channels = int(c[1].split(" = ")[1])
+            self.dat_dtype = c[2].split(" = ")[1]
+            self.dat_offset = int(c[3].split(" = ")[1])
+            self.sampling_rate = float(c[4].split(" = ")[1])
+
         # read the desen file
         if not os.path.isfile(self.file_names["desen"]):
             raise IOError("{} file not found".format(self.file_names["desen"]))
         self.desen = open(self.file_names["desen"]).read().split('\n')[:-1]
+        
         # read the desel file 
         if not os.path.isfile(self.file_names["desel"]):
             raise IOError("{} file not found".format(self.file_names["desel"]))
         self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
-        #read the stimulation file
+        
+        # read the stimulation file
         if not os.path.isfile(self.file_names["stimulation"]):
             raise IOError("{} file not found".format(self.file_names["stimulation"]))
         self.stimulation = open(self.file_names["stimulation"]).read().split('\n')[:-1]
         
-        # check if the px_per_cm file is there
+        # read the setup file
+        if not os.path.isfile(self.file_names["setup"]):
+            raise IOError("{} file not found".format(self.file_names["setup"]))
+        self.setup = open(self.file_names["setup"]).read().split('\n')[:-1]
+        
+        # read the environmentFamiliarity file
+        if not os.path.isfile(self.file_names["environmentFamiliarity"]):
+            raise IOError("{} file not found".format(self.file_names["environmentFamiliarity"]))
+        self.environmentFamiliarity = open(self.file_names["environmentFamiliarity"]).read().split('\n')[:-1]
+        
+        # read the px_per_cm file
         if not os.path.isfile(self.file_names["px_per_cm"]):
             raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
         self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
         
-        
+
         # get the trial names from the par file
         if not os.path.isfile(self.file_names["par"]):
             raise IOError("{} file not found".format(self.file_names["par"]))    
         f = open(self.file_names["par"], "r")
         c = f.read().split('\n')
         f.close()
-        to_skip = int(c[2].split()[0])
-        n_trials = int(c[3+to_skip])
-        #print("n_trials",n_trials)
-        self.trial_names = c[to_skip+4:to_skip+4+n_trials]
+
+        # read n_channels and sampling_rate from other files
+        if ignore_params:
+            # number of channels is also written in par file (do not read from params)
+            self.n_channels = int(c[0].split()[0])
+            # read the sampling_rate file
+            if not os.path.isfile(self.file_names["sampling_rate"]):
+                raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
+            self.sampling_rate = int(open(self.file_names["sampling_rate"]).read().strip())
+
+
+        to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
+        self.n_shanks = to_skip
+        self.n_trials = int(c[3+to_skip]) # read the number of trials, begins after shank channel list
+        #print("n_trials",self.n_trials)
+        self.trial_names = c[to_skip+4:to_skip+4+self.n_trials]
+
+        # checks: these 4 files must have exactly one line for each trial, so that the length must match n_trials
+        if len(self.desen) != self.n_trials:
+            raise ValueError("{}: Length of desen is not matching the number of trials ({})".format(self.name,self.n_trials))
+        if len(self.environmentFamiliarity) != self.n_trials:
+            raise ValueError("{}: Length of environmentFamiliarity is not matching the number of trials ({})".format(self.name,self.n_trials))
+        if len(self.setup) != self.n_trials:
+            raise ValueError("{}: Length of setup is not matching the number of trials ({})".format(self.name,self.n_trials))
+        if len(self.stimulation) != self.n_trials:
+            raise ValueError("{}: Length of stimulation is not matching the number of trials ({})".format(self.name,self.n_trials))
+            
+        # check: the electrode configuration file must have one line per electrode, so that the length must match n_shanks
+        if len(self.desel) != self.n_shanks:
+            raise ValueError("{}: Length of desel is not matching the number of shanks".format(self.name))
         
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
         # self.dat_file_names is depreciated, use self.file_names["dat"] instead
@@ -280,7 +320,7 @@ class Kilosort_session(Session):
         # load the template waveforms (3 dimensional array)
         ## for each cluster (wv_clusters) there is a for each channel (wv_channels) the voltage for some sample time (wv_timepoints)
         self.templates = np.load(self.file_names["templates"])
-        print("templates.shape",self.templates.shape)
+        #print("templates.shape",self.templates.shape)
         wv_clusters, wv_timepoints, wv_channels = self.templates.shape
         print("Clusters:",wv_clusters, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
         self.wv_channels = wv_channels
@@ -289,8 +329,33 @@ class Kilosort_session(Session):
         self.channel_map = np.load(self.file_names["channel_map"]).flatten()
         # load the channel positions
         self.channel_positions = np.load(self.file_names["channel_positions"])
-        
-    def get_channels_from_cluster(self, clu, cnt = 5):
+
+    def init_shanks(self):
+        """
+        loads the shanks from the channel positions
+        """
+        # get shanks (assume x coordinate in channel_position) of channels
+        self.shanks_all = np.unique(self.channel_positions[:,0])
+        if len(self.shanks_all) != self.n_shanks:
+            raise ValueError("Error in number of shanks! Check par file and kilosort/phy channel config")
+
+    def get_active_shanks(self, channels):
+        """
+        get information about shanks with these channels
+        returns: shanks by name, by index, electrode locations (should be unique, len==1)
+        """
+        active_shanks = np.unique(self.channel_positions[channels][:,0])
+        #shanks_arr = np.zeros(len(self.shanks_all))
+        #shanks_arr[[list(self.shanks_all).index(shank) for shank in active_shanks]]=1
+        ##shank_id = position[0] # = x coordinate of the position
+        ##if channel in channels:
+        ##    shanks_arr[np.where(shanks_all==shank_id)[0][0]]=1 # mark shank as active for this cluster
+        # shanks_arr = np.array([ 1 if self.shanks_all[i] in active_shanks else 0 for i in range(len(self.shanks_all)) ]) # indices of active_shanks in shanks_all
+        shanks_arr = [ shank in active_shanks for shank in self.shanks_all ]
+        electrodes = list(np.unique(np.array(self.desel)[shanks_arr])) # filter relevant electrode location / where shanks_arr==1
+        return shanks_arr, active_shanks, electrodes
+
+    def get_channels_from_cluster(self, clu, cnt = 5, method="ptp"):
         """
         get $cnt channels with highest peak-to-peak amplitude in cluster $clu
         Returns: array with channel ids with highest amplitude of length $cnt
@@ -301,7 +366,14 @@ class Kilosort_session(Session):
             return([])
         
         template_cluster = self.templates[clu]
-        amps = np.ptp(template_cluster,axis=0)
+        
+        if method=="ptp":
+            amps = np.ptp(template_cluster,axis=0) # method peak-to-peak
+        elif method=="sum":
+            amps = np.sum(np.abs(template_cluster),axis=0) # method sum of voltage
+        else:
+            raise ValueError("invalid method provided to get amplitudes")
+        
         channel_amps = np.array([range(self.wv_channels),amps]).T
         channel_amps = np.flip(sorted(channel_amps, key=lambda x: x[1]))
         channels_with_highest_amp = channel_amps[:cnt,1]
@@ -313,8 +385,40 @@ class Kilosort_session(Session):
         get the template waveform of cluster $clu in channel $channel
         Returns: ( mapped channel name, template of that cluster in that specific channel )
         """        
-        template_cluster = self.templates[clu]        
+        template_cluster = self.templates[clu]
         return ( self.channel_map[channel] , template_cluster[:,channel] )
+
+    
+    def en2details(self,en):
+        """
+        converts the environment string (like "sqr-70_black_cue-W") to shape, diameter, color, cue-card position of arena
+        """
+        
+        if en=="sqr70":
+            return ("square",70.,None,None)
+        if en=="circ80":
+            return ("circle",80.,None,None)
+        if en=="rb":
+            return ("rb",25.,None,None)
+        
+        nones = [None]*100
+        typ,color,cue, *_ = en.split('_',2) + nones
+        if typ=="rb":
+            typ_shape = "sqr"
+            diam = 25 # default restbox length = 25cm
+        else:
+            typ_shape, typ_diam = typ.split('-',1)
+            diam = float(typ_diam)
+
+        shape_dict = {'sqr':'square', 'circ':'circle'}
+        shape = shape_dict.get(typ_shape, "unknown")
+
+        return shape,diam,color,cue
+    
+    
+    def session_trials(self):
+        return [ (tn,su,en,self.en2details(en),ef,iv) for tn,su,en,ef,iv in zip(self.trial_names, self.setup, self.desen, self.environmentFamiliarity, self.trial_intervals.inter) ]
+    
         
         
     def __str__(self): 

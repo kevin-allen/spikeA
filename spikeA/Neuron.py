@@ -43,6 +43,7 @@ class Neuron:
     def set_spatial_properties(self, animal_pose):
         """
         Method of the neuron class to set the Spatial_properties object of the neuron
+        The Neuron.spatial_properties.spike_train will be set to its Neuron.spike_train for each neuron
         
         Arguments
         animal_pose: Animal_pose object
