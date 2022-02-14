@@ -312,6 +312,14 @@ class Kilosort_session(Session):
         inter = df.get_file_intervals_in_seconds()
         self.trial_intervals = Intervals(inter)
         
+        # load times collected externally
+        times_fn = self.path + "/times.npy"
+        if os.path.isfile(times_fn):
+            self.log_times = np.load(times_fn)
+        else:
+            self.log_times = np.array([])
+
+        
         
     def load_waveforms(self):
         """

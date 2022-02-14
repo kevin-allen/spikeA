@@ -40,6 +40,7 @@ class Animal_pose:
         occupancy_smoothing: boolean indicating of the occupancy map was smoothed
         smoothing_sigma_cm: standard deviation in cm of the gaussian smoothing kernel used to smooth the occupancy map.
         ttl_ups: list of 1D numpy array containing the sample number in the dat files at which a up TTL was detected. This is assigned in pose_from_positrack_files()
+        pt_times: list containing the positrack times (positrack2 only)
         
         hd_occupancy_deg_per_bin: cm per bin in the occupancy map
         hd_occupancy_histogram: 1D numpy array containing the HD occupancy histogram
@@ -490,6 +491,8 @@ class Animal_pose:
         posi_list = []
         # list to store the up values (including the offset)
         self.ttl_ups = []
+        # list to store positrack times
+        self.pt_times = []
         
         # interpolate to have data for the entire .dat file (padded with np.nan at the beginning and end when there was no tracking)
         interpolation_step = self.ses.sampling_rate/interpolation_frequency_hz # interpolate at x Hz
@@ -608,8 +611,16 @@ class Animal_pose:
             # create a numpy array with the position data
             d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
             # set invalid values to np.nan
-            if extension =="positrack":
+            if extension=="positrack":
                 d[d==-1.0]=np.nan
+                
+            # get the positrack acquisition time (not needed for ktan/ttl- dat syncing, but for other data that is in rostime ( = nanoseconds since epoch ))
+            if extension=="positrack2":
+                #print("extension is positrack2")
+                positrack_time = np.array(pt["acq_time_source_0"]) # might be one of: acq_time_source_0, acq_time_source_1, acq_time_source_2, processing_start_time
+                #print("positrack_time",positrack_time.shape)
+                print("get positrack time from",positrack_time[0],"to",positrack_time[-1]," (duration = ",positrack_time[-1]-positrack_time[0],")")
+                self.pt_times.extend(positrack_time)
 
             # if data are in degrees, turn into radians
             hdMin, hdMax = np.nanmin(d[:,2]),np.nanmax(d[:,2])
@@ -675,6 +686,23 @@ class Animal_pose:
         # put all the trials together
         posi = np.concatenate(posi_list)
         print("shape of position data for all trials:",posi.shape)
+        
+        # sync positrack time
+        ttl_all = np.concatenate(self.ttl_ups) # append->extend (merge lists)
+        ptime2time = interp1d(self.pt_times, ttl_all, bounds_error=False) # transform positrack time to time used here (ktan dat time, 0=start of dat recording)
+        # load some external timing in the positrack reference frame (seconds/nanoseconds since epoch)
+        logfile=self.ses.path + "/light.log"
+        if os.path.exists(logfile):
+            print("use logfile times from",logfile)
+            times=np.loadtxt(logfile)
+            print("got list of times, len =",len(times))
+            # and convert it to our time frame (feed it to the time conversion by pt->ttl)
+            times_ = ptime2time(times) / self.ses.sampling_rate
+            self.ses.log_times = times_ # save logged times to pose
+            print("converted times (from",times_[0]," to",times_[-1],") , shape:", times_.shape)
+            times_fn = self.ses.path + "/times.npy"
+            np.save(times_fn, times_)
+            print("saved to",times_fn)
 
         # if we have more than 1 trial, we need to re-interpolate so that we constant time difference between position data
         #if ses.n_trials > 1:
@@ -1016,3 +1044,10 @@ class Animal_pose:
             return "positrack2"
         
         return "None"
+    
+    def times2intervals(times):
+        """
+        transform list of times to all intervals between these points
+        Return: corresponding 2d np array
+        """
+        return np.transpose([times[:-1], times[1:]])

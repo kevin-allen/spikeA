@@ -862,7 +862,7 @@ class Spatial_properties:
         ##     #print("dist_sum",dist_sum)
             
         # find distance from hexagon points to doughnut points and find best match
-        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ]
+        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ] # metric dist(X,Y) = sqrt(dist(x1,x2)**2 + dist(y1,y2)**2)
         dist_sum_min_index = np.argmin(dist_sums)
         dist_sum = dist_sums[dist_sum_min_index]
         # print("best rotation at ",rotations[dist_sum_min_index], "using index",dist_sum_min_index, "with error",dist_sum)
