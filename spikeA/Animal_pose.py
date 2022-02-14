@@ -689,20 +689,21 @@ class Animal_pose:
         
         # sync positrack time
         ttl_all = np.concatenate(self.ttl_ups) # append->extend (merge lists)
-        ptime2time = interp1d(self.pt_times, ttl_all, bounds_error=False) # transform positrack time to time used here (ktan dat time, 0=start of dat recording)
-        # load some external timing in the positrack reference frame (seconds/nanoseconds since epoch)
-        logfile=self.ses.path + "/times.log"
-        if os.path.exists(logfile):
-            print("use logfile times from",logfile)
-            times=np.loadtxt(logfile)
-            print("got list of times, len =",len(times))
-            # and convert it to our time frame (feed it to the time conversion by pt->ttl)
-            times_ = ptime2time(times) / self.ses.sampling_rate
-            self.ses.log_times = times_ # save logged times to pose
-            print("converted times (from",times_[0]," to",times_[-1],") , shape:", times_.shape)
-            times_fn = self.ses.path + "/times.npy"
-            np.save(times_fn, times_)
-            print("saved to",times_fn)
+        if (len(self.pt_times) == len(ttl_all)): # if pt_times was filled
+            ptime2time = interp1d(self.pt_times, ttl_all, bounds_error=False) # transform positrack time to time used here (ktan dat time, 0=start of dat recording)
+            # load some external timing in the positrack reference frame (seconds/nanoseconds since epoch)
+            logfile=self.ses.path + "/times.log"
+            if os.path.exists(logfile):
+                print("use logfile times from",logfile)
+                times=np.loadtxt(logfile)
+                print("got list of times, len =",len(times))
+                # and convert it to our time frame (feed it to the time conversion by pt->ttl)
+                times_ = ptime2time(times) / self.ses.sampling_rate
+                self.ses.log_times = times_ # save logged times to pose
+                print("converted times (from",times_[0]," to",times_[-1],") , shape:", times_.shape)
+                times_fn = self.ses.path + "/times.npy"
+                np.save(times_fn, times_)
+                print("saved to",times_fn)
 
         # if we have more than 1 trial, we need to re-interpolate so that we constant time difference between position data
         #if ses.n_trials > 1:
