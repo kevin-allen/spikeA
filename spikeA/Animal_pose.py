@@ -691,7 +691,7 @@ class Animal_pose:
         ttl_all = np.concatenate(self.ttl_ups) # append->extend (merge lists)
         ptime2time = interp1d(self.pt_times, ttl_all, bounds_error=False) # transform positrack time to time used here (ktan dat time, 0=start of dat recording)
         # load some external timing in the positrack reference frame (seconds/nanoseconds since epoch)
-        logfile=self.ses.path + "/light.log"
+        logfile=self.ses.path + "/times.log"
         if os.path.exists(logfile):
             print("use logfile times from",logfile)
             times=np.loadtxt(logfile)
