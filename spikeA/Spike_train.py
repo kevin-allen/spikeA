@@ -410,22 +410,40 @@ class Spike_train:
             plt.plot(np.arange(-timewindow,timewindow,1),self.ifr_autocorrelation)
                 
                 
-    def instantaneous_firing_rate_power_spectrum(self, nfft = None, scaling = "density"):
+    def instantaneous_firing_rate_power_spectrum(self, nperseg = 2**9, scaling = "spectrum"):
         """
         Calculates the power spectrum of the instantaneous firing rate
         
         Arguments:
-        The instantaneous_firing_rate() arrays saved in self.ifr
-        nfft:
-        scaling:
+        nperseg: The data is divided in overlapping segments. This is the segment length.
+        scaling: can be 'spectrum' or 'density'
         
         Returns:
         Save the results in self.ifr_power_spectrum
         """
 
-        f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
+        f, ps = signal.welch(self.ifr[0],fs=self.ifr_rate, nperseg=nperseg, scaling=scaling)
         self.ifr_power_spectrum = f, ps
     
+    
+    def instantaneous_firing_rate_power_spectrum_plot(self):
+        """
+        Plot the power spectrum of the instantaneous firing rate (self.ifr_power_spectrum)
+        
+        Arguments:
+        2 numpy arrays from self.ifr_power_spectrum
+        
+        Returns:
+        A plot of the ifr power spectrum.
+        """
+        if self.ifr_power_spectrum is None:
+            print("Need to run instantaneous_firing_rate_power_spectrum first")
+            
+        plt.plot(self.ifr_power_spectrum[0], self.ifr_power_spectrum[1])
+        plt.xlabel("Hz")
+        plt.ylabel("PSD (s**2)") #assuming that scaling='spectrum'; otherwise use s**2/Hz
+        
+        
     def instantaneous_firing_rate_crosscorrelation(self,spike2=None,normed= False, max_lag_sec= 0.2):
         """
         Calculates the instantaneous firing rate crosscorrelation.
@@ -478,22 +496,7 @@ class Spike_train:
         self.ifr_power_spectrum = f, psd
   
         
-    def instantaneous_firing_rate_power_spectrum_plot(self):
-        """
-        Plot the power spectrum of the instantaneous firing rate (self.ifr_power_spectrum)
-        
-        Arguments:
-        2 numpy arrays from self.ifr_power_spectrum
-        
-        Returns:
-        A plot of the ifr power spectrum.
-        """
-        if self.ifr_power_spectrum is None:
-            print("Need to run instantaneous_firing_rate_power_spectrum first")
-            
-        plt.plot(self.ifr_power_spectrum[0], self.ifr_power_spectrum[1])
-        plt.xlabel("Hz")
-        plt.ylabel("PSD (s**2/Hz)")
+    
         
     def spike_time_autocorrelation(self,bin_size_sec=0.0005, min_sec=-0.1, max_sec=0.1):
         """

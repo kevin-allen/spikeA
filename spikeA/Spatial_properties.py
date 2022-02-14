@@ -1147,7 +1147,13 @@ class Spatial_properties:
             self.ap.pose=pose_at_start
 
         # calculate the threshold
-        self.border_score_threshold =  np.percentile(self.border_shuffle,percentile)
+        if not np.isnan(self.border_shuffle).all():
+            shuffled = self.border_shuffle[~np.isnan(self.border_shuffle)]
+        else:
+            shuffled = np.nan
+
+            
+        self.border_score_threshold =  np.percentile(shuffled,percentile)
         
         
         return self.border_shuffle, self.border_score_threshold
