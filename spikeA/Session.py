@@ -321,16 +321,20 @@ class Kilosort_session(Session):
 
         
         
+    ##
+    # Template Waveforms
+    # - there exists for each template waveforms for each channel (see shape of self.templates = templates,timepoints,channels)
+        
     def load_waveforms(self):
         """
         load the template waveforms from kilosorted files in that session
         """
         # load the template waveforms (3 dimensional array)
-        ## for each cluster (wv_clusters) there is a for each channel (wv_channels) the voltage for some sample time (wv_timepoints)
+        ## for each template (wv_templates) there is a for each channel (wv_channels) the voltage for some sample time (wv_timepoints)
         self.templates = np.load(self.file_names["templates"])
         #print("templates.shape",self.templates.shape)
-        wv_clusters, wv_timepoints, wv_channels = self.templates.shape
-        print("Clusters:",wv_clusters, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
+        wv_templates, wv_timepoints, wv_channels = self.templates.shape
+        print("Templates:",wv_templates, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
         self.wv_channels = wv_channels
         
         # load the channel mapping
@@ -338,6 +342,67 @@ class Kilosort_session(Session):
         # load the channel positions
         self.channel_positions = np.load(self.file_names["channel_positions"])
 
+        
+    def get_waveform(self, tmp, channel):
+        """
+        get the template waveform of template $tmp in channel $channel
+        Returns: ( mapped channel name, waveform of that template in that specific channel )
+        """        
+        template_waveforms = self.templates[tmp]
+        return ( self.channel_map[channel] , template_waveforms[:,channel] )
+    
+    def get_waveform_from_cluster(self, clu, channel):
+        """
+        get the waveform of cluster $clu in channel $channel
+        Returns: ( mapped channel name, waveform of that cluster in that specific channel (calculated as weighted average from spike split/merge procedure) )
+        """        
+        #~print("get_waveform_from_cluster",clu,", ch:",channel)
+        templates, weights = self.decompose_cluster(clu)
+        #~print("templates, weights =",dict(zip(templates, weights)))
+        waveform = np.sum([ weight * self.get_waveform(template, channel)[1] for template, weight in zip(templates, weights) ], axis=0)
+        #~print("waveform",waveform.shape)
+        return ( self.channel_map[channel] , waveform )
+
+    
+    ##
+    # conversion: Template -> Cluster
+    # - find the difference in templates & clusters after Phy post-processing
+    
+    def load_templates_clusters(self):
+        # spike templates
+        self.st = np.load(self.file_names["spike_templates"])[:,0] # np.load(data_prefix + "spike_templates.npy")[:,0]
+        # spike clusters
+        self.sc = np.load(self.file_names["spike_clusters"]) # np.load(data_prefix + "spike_clusters.npy")
+        # check
+        if len(self.st) != len(self.sc):
+            raise ValueError("the length of spike_templates and spike_clusters should be the same but are {} / {}".format(len(self.st),len(self.sc)))
+        # set list with all cluster ids
+        self.clusterids = np.unique(self.sc)
+        print("Loaded templates-clusters-map, spikes:", len(self.st),", clusters:",len(self.clusterids))
+
+    # decompose cluster into templates
+    def decompose_cluster(self, c):
+        s_ind = np.where(self.sc==c) # get spikes associated to that cluster $c
+        s_templates = self.st[s_ind] # get templates associated to these spikes
+        # now you have: cluster -> spikes -> templates, and thus a mapping from the cluster $c to the templates on which the corresponding spikes were detected
+        unique, counts = np.unique(s_templates, return_counts=True) # get the distribution of the templates from the cluster $c
+        weights = counts / np.sum(counts) # normalize
+        return unique, weights
+
+    """
+    # you could run this to decompose each cluster in its templates
+    for c in np.unique(sc):  ## self.clusterids
+        print("cluster:",c)
+        unique, weights = decompose_cluster(c)
+        print(dict(zip(unique, weights)))
+        print("")
+    """
+    
+    
+    
+    ##
+    # Channel assignments
+        
     def init_shanks(self):
         """
         loads the shanks from the channel positions
@@ -346,56 +411,93 @@ class Kilosort_session(Session):
         self.shanks_all = np.unique(self.channel_positions[:,0])
         if len(self.shanks_all) != self.n_shanks:
             raise ValueError("Error in number of shanks! Check par file and kilosort/phy channel config")
+        print("Init shanks:", len(self.shanks_all))
+            
+            
+    def get_channels_from_waveforms(self, waveforms, cnt = 5, method="ptp"):
+        """
+        get $cnt channels with highest peak-to-peak amplitude or sum of voltages (method) in the waveforms
+        $waveforms is 2D array of shape timepoints,channels
+        Returns: array with channel ids with highest amplitude of length $cnt
+        """
+        
+        if method=="ptp":
+            amps = np.ptp(waveforms,axis=0) # method peak-to-peak (get peak-to-peak amplitude for each channel)
+        elif method=="sum":
+            amps = np.sum(np.abs(waveforms),axis=0) # method sum of voltage
+        else:
+            raise ValueError("invalid method provided to get amplitudes")
+        
+        
+        #~print("get_channels_from_waveforms",waveforms.shape)
+        
+        channel_amps = np.array([range(self.wv_channels), amps]).T # table: channel id, amplitude
+        #~print("channel_amps",channel_amps.shape)
+        channel_amps = np.flip(sorted(channel_amps, key=lambda x: x[1]), axis=0) # sort by amplitude, descending (flip axis 0)
+        channels_with_highest_amp = channel_amps[:cnt,0] # select first $cnt channels
+        channels = channels_with_highest_amp.astype(int) # integer list
+        return(channels) # the enumerated (non-translated, i.e. not mapped) channel ids
 
+
+
+    def get_channels_from_template(self, tmp, cnt = 5, method="ptp"):
+        """
+        get $cnt channels with highest peak-to-peak amplitude in template $tmp
+        Returns: array with channel ids with highest amplitude of length $cnt
+        """
+        
+        if not (0 <= tmp < len(self.templates)):
+            raise ValueError("invalid template: {} / templates: {}".format(tmp, len(self.templates)))
+        
+        ## template -> waveforms -> channels
+        
+        # first, get the waveforms of that template
+        template_waveforms = self.templates[tmp]
+        # second, get the channels of that waveform
+        return self.get_channels_from_waveforms(template_waveforms, cnt, method)
+    
+    def get_waveforms_from_cluster(self, clu):
+        """
+        get waveforms on all channels from cluster $clu
+        """
+        if not clu in self.clusterids:
+            raise ValueError("invalid cluster: {} from {} clusters".format(clu,len(self.clusterids)))
+            
+        # transpose the result to maintain the shape: shape of waveforms = timepoints * channels
+        waveforms = np.transpose([ self.get_waveform_from_cluster(clu, channel)[1] for channel in range(self.wv_channels) ])
+        return waveforms
+    
+    
+    def get_channels_from_cluster(self, clu, cnt = 5, method="ptp"):
+        """
+        get $cnt channels with highest peak-to-peak amplitude in cluster $clu
+        Returns: array with channel ids with highest amplitude of length $cnt
+        (This is a key function in the entire analysis. It uses many other functions to first collect the cluster's waveform by the templates' waveforms)
+        """
+        ## cluster -> waveforms -> channels
+        
+        # first, get the waveforms of that cluster        
+        #~print("get_channels_from_cluster",clu)
+        cluster_waveforms = self.get_waveforms_from_cluster(clu)
+        #~print("cluster_waveforms",cluster_waveforms.shape)
+        #~print(cluster_waveforms)
+        # second, get the channels of that waveform
+        return self.get_channels_from_waveforms(cluster_waveforms, cnt, method)
+
+    
     def get_active_shanks(self, channels):
         """
         get information about shanks with these channels
         returns: shanks by name, by index, electrode locations (should be unique, len==1)
         """
-        active_shanks = np.unique(self.channel_positions[channels][:,0])
-        #shanks_arr = np.zeros(len(self.shanks_all))
-        #shanks_arr[[list(self.shanks_all).index(shank) for shank in active_shanks]]=1
-        ##shank_id = position[0] # = x coordinate of the position
-        ##if channel in channels:
-        ##    shanks_arr[np.where(shanks_all==shank_id)[0][0]]=1 # mark shank as active for this cluster
-        # shanks_arr = np.array([ 1 if self.shanks_all[i] in active_shanks else 0 for i in range(len(self.shanks_all)) ]) # indices of active_shanks in shanks_all
-        shanks_arr = [ shank in active_shanks for shank in self.shanks_all ]
+        active_shanks = np.unique(self.channel_positions[channels][:,0]) # list of active shanks (for each channel, get its shank, list every occuring shank once)
+        shanks_arr = [ shank in active_shanks for shank in self.shanks_all ] # boolean list with the information if shank is active
         electrodes = list(np.unique(np.array(self.desel)[shanks_arr])) # filter relevant electrode location / where shanks_arr==1
         return shanks_arr, active_shanks, electrodes
-
-    def get_channels_from_cluster(self, clu, cnt = 5, method="ptp"):
-        """
-        get $cnt channels with highest peak-to-peak amplitude in cluster $clu
-        Returns: array with channel ids with highest amplitude of length $cnt
-        """
-        # get peak-to-peak amplitude for each channel
-        
-        if not (clu < len(self.templates)):
-            return([])
-        
-        template_cluster = self.templates[clu]
-        
-        if method=="ptp":
-            amps = np.ptp(template_cluster,axis=0) # method peak-to-peak
-        elif method=="sum":
-            amps = np.sum(np.abs(template_cluster),axis=0) # method sum of voltage
-        else:
-            raise ValueError("invalid method provided to get amplitudes")
-        
-        channel_amps = np.array([range(self.wv_channels),amps]).T
-        channel_amps = np.flip(sorted(channel_amps, key=lambda x: x[1]))
-        channels_with_highest_amp = channel_amps[:cnt,1]
-        channels = channels_with_highest_amp.astype(int)
-        return(channels) # the enumerated (non-translated, i.e. not mapped) channel ids
     
-    def get_waveform(self, clu, channel):
-        """
-        get the template waveform of cluster $clu in channel $channel
-        Returns: ( mapped channel name, template of that cluster in that specific channel )
-        """        
-        template_cluster = self.templates[clu]
-        return ( self.channel_map[channel] , template_cluster[:,channel] )
 
+    ##
+    # Environments by and from Trials
     
     def en2details(self,en):
         """
