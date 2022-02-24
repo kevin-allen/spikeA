@@ -348,8 +348,19 @@ class Kilosort_session(Session):
         get the template waveform of template $tmp in channel $channel
         Returns: ( mapped channel name, waveform of that template in that specific channel )
         """        
-        template_waveforms = self.templates[tmp]
+        template_waveforms = self.get_waveforms(tmp)
         return ( self.channel_map[channel] , template_waveforms[:,channel] )
+        
+    def get_waveforms(self, tmp):
+        """
+        get the template waveforms of template $tmp in all channels
+        Returns: ( waveforms of that template )
+        """
+        if not (0 <= tmp < len(self.templates)):
+            raise ValueError("invalid template: {} / templates: {}".format(tmp, len(self.templates)))
+        
+        template_waveforms = self.templates[tmp]
+        return template_waveforms
     
     def get_waveform_from_cluster(self, clu, channel):
         """
@@ -382,6 +393,13 @@ class Kilosort_session(Session):
 
     # decompose cluster into templates
     def decompose_cluster(self, c):
+        """
+        phy split/merge leads to cluster = sum of templates. Function to decompose a cluster in its templates
+        Returns: templates with its weights (proportion of number of spikes)
+        """
+        if not c in self.clusterids:
+            raise ValueError("invalid cluster: {} from {} clusters".format(clu,len(self.clusterids)))
+        
         s_ind = np.where(self.sc==c) # get spikes associated to that cluster $c
         s_templates = self.st[s_ind] # get templates associated to these spikes
         # now you have: cluster -> spikes -> templates, and thus a mapping from the cluster $c to the templates on which the corresponding spikes were detected
@@ -445,14 +463,10 @@ class Kilosort_session(Session):
         get $cnt channels with highest peak-to-peak amplitude in template $tmp
         Returns: array with channel ids with highest amplitude of length $cnt
         """
-        
-        if not (0 <= tmp < len(self.templates)):
-            raise ValueError("invalid template: {} / templates: {}".format(tmp, len(self.templates)))
-        
         ## template -> waveforms -> channels
         
         # first, get the waveforms of that template
-        template_waveforms = self.templates[tmp]
+        template_waveforms = self.get_waveforms(tmp) # = self.templates[tmp]
         # second, get the channels of that waveform
         return self.get_channels_from_waveforms(template_waveforms, cnt, method)
     
@@ -460,9 +474,6 @@ class Kilosort_session(Session):
         """
         get waveforms on all channels from cluster $clu
         """
-        if not clu in self.clusterids:
-            raise ValueError("invalid cluster: {} from {} clusters".format(clu,len(self.clusterids)))
-            
         # transpose the result to maintain the shape: shape of waveforms = timepoints * channels
         waveforms = np.transpose([ self.get_waveform_from_cluster(clu, channel)[1] for channel in range(self.wv_channels) ])
         return waveforms
