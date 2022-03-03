@@ -269,17 +269,17 @@ class Dat_file_reader:
                     #print("copy from ",i1," to the end of the file (",self.samples_per_file[i],") in file ",f1)
                     #print("into 0 to ", self.samples_per_file[i]-i1)
                     #print(self.samples_per_file[i]-i1)
-                    my_block[channels, 0:(self.samples_per_file[i]-i1)] = my_mapped_file[channels,i1:self.samples_per_file[i]]
+                    my_block[np.arange(len(channels)), 0:(self.samples_per_file[i]-i1)] = my_mapped_file[channels,i1:self.samples_per_file[i]]
                     copied = copied + self.samples_per_file[i]-i1
 
                 elif i == f2: # last file
                     #print("copy from the begining of the file ",f2, " to ", i2)
                     #print("copied:",copied, " of ", samples_to_read)
-                    my_block[channels, copied:] = my_mapped_file[channels,0:i2]
+                    my_block[np.arange(len(channels)), copied:] = my_mapped_file[channels,0:i2]
 
                 else: # files in the middle
                     #print("read the entire file ",i)
-                    my_block[channels, copied:(copied+self.samples_per_file[i])] = my_mapped_file[channels,:]
+                    my_block[np.arange(len(channels)), copied:(copied+self.samples_per_file[i])] = my_mapped_file[channels,:]
                     copied = copied + self.samples_per_file[i] 
         return my_block
     
