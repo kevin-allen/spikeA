@@ -557,23 +557,23 @@ class Animal_pose:
                           print("positrack process did not stop before the end of .dat file")
                 
                 # if there are just some ttl pulses missing from positrack, copy the last lines in the positrack file
-                if extension =="positrack" and (len(pt) < len(ttl) < len(pt)+100):
+                if extension =="positrack" and (len(pt) < len(ttl) < len(pt)+20):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     missing = len(ttl)-len(pt)
                     print("Missing lines:",missing)
                     pt_mod = pt.append(pt[(len(pt)-missing):])
                     print("Number of lines in adjusted positrack file:", len(pt_mod))
-                    #os.rename(positrack_file_name, original_positrack_file)
-                    #pt_mod.to_csv(positrack_file_name, sep=' ')
+                    os.rename(positrack_file_name, original_positrack_file)
+                    pt_mod.to_csv(positrack_file_name, sep=' ')
                     pt = pt_mod
                     print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
                 elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     pt_mod = pt[:ttl.shape[0]]
                     print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
-                    #os.rename(positrack_file_name, original_positrack_file)
+                    os.rename(positrack_file_name, original_positrack_file)
                     pt = pt_mod
-                    #pt.to_csv(positrack_file_name, sep=' ')
+                    pt.to_csv(positrack_file_name, sep=' ')
                     print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
 
                 # we will need more code to solve simple problems 
