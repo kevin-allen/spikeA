@@ -1170,3 +1170,12 @@ class Spatial_properties:
         self.ap.unset_intervals()
         self.st.set_intervals(inter)
         self.ap.set_intervals(inter)
+        
+        ## clear intervals
+        # n.spike_train.unset_intervals()
+        # ap.unset_intervals()
+        ## set to entire session
+        # n.spike_train.set_intervals(ses.trial_intervals.inter)
+        # ap.set_intervals(ses.trial_intervals.inter)
+    
+        

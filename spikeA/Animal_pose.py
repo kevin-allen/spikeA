@@ -713,6 +713,7 @@ class Animal_pose:
         fy = interp1d(posi[:,0], posi[:,2], bounds_error=False) # y 
         fhdc = interp1d(posi[:,0], posi[:,3], bounds_error=False) # cos(hd)
         fhds = interp1d(posi[:,0], posi[:,4], bounds_error=False) # sin(hd)
+        # (might be useful to make these functions available globally, to get the pose at any time, especially for spike times)
 
         # new time to interpolate
         nt = np.arange(0, posi[-1,0]+interpolation_step,interpolation_step)
@@ -967,7 +968,7 @@ class Animal_pose:
         3. if this square is bigger in any direction as the actual data, correct this edge to the appropriate actual pose
          (moves the rect to the closest edge in pose)
         
-        Returns xmin,ymin;xmax,ymax (can be used as xy_range to calculate occupancy map and firing rate map)
+        Returns xmin,ymin;xmax,ymax (can be used as xy_range to calculate occupancy map and firing rate map - use to crop image)
         """
         
         # find center
@@ -1046,7 +1047,7 @@ class Animal_pose:
         
         return "None"
     
-    def times2intervals(times):
+    def times2intervals(self,times):
         """
         transform list of times to all intervals between these points
         Return: corresponding 2d np array
