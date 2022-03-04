@@ -4,8 +4,10 @@ from spikeA.Spike_train import Spike_train
 from scipy.interpolate import interp1d
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Session import Session
-
-
+from spikeA.Session import Kilosort_session
+#from spikeA.Cell_group import Cell_group
+from spikeA.Intervals import Intervals
+import os
 
 class Spike_waveform:
     """
@@ -103,3 +105,45 @@ class Spike_waveform:
         max_index = np.argmax(np.ptp(self.mean_waveforms,axis=1))
         self.max_amplitude_channel = self.channels[max_index]
         self.largest_wf= self.mean_waveforms[max_index,:]
+        
+        
+        
+    def save_waveforms(self, path, block_size=200, overwrite=False, n_spikes=5000):
+        """
+        This function creates the mean waveform on each recording channel for each cell and saves it.
+
+            returns: array with waveforms
+        """    
+        # load session
+        name = str(path).split("/")[-1]
+        ses = self.Kilosort_session(name=name,path=path)
+        ses.load_parameters_from_files()
+        stl = self.Spike_train_loader()
+        stl.load_spike_train_kilosort(ses)
+        cg = self.Cell_group(stl)
+
+        stim_trial = [i for i, j in enumerate(ses.stimulation) if j !='none']
+        if stim_trial:
+            recording_channels=ses.n_channels-2
+        else:
+            recording_channels=ses.n_channels-1
+        file=f"{path}/{name}.waveforms.npy"
+
+        if not os.path.exists(file) or overwrite==True:
+            print(f'creating waveforms for {name}')
+            df = self.Dat_file_reader(file_names=[f"{path}/{name}.dat"], n_channels=ses.n_channels)
+
+            #template for array:
+            array=np.zeros(recording_channels*block_size*len(cg.neuron_list))
+            array=np.reshape(array, (recording_channels,block_size, len(cg.neuron_list)))
+
+            for i,n in enumerate(cg.neuron_list):
+                sw = self.Spike_waveform(session=ses, dat_file_reader=df, spike_train=n.spike_train)
+                sw.mean_waveform(block_size=block_size, channels=np.asarray(range(recording_channels)), n_spikes=n_spikes) #calculate the mean waveforms for all channels over a time interval of block_size
+                array[:,:,i]=sw.mean_waveforms
+
+            np.save(file = file , arr = array)
+            return array
+        else:
+            print(f"waveforms for {name} have already been created")
+            return np.load(f"{path}/{name}.waveforms.npy")

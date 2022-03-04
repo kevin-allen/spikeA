@@ -64,6 +64,7 @@ class Cell_group:
         """
         
         ses.load_waveforms()
+        ses.load_templates_clusters()
         ses.init_shanks()
         
         for n in self.neuron_list:
@@ -101,11 +102,19 @@ class Cell_group:
             if self.neuron_list[0].spatial_properties.ap is not None:
                 n.set_spatial_properties(self.neuron_list[0].spatial_properties.ap)
             
+<<<<<<< HEAD
             self.neuron_list.append(n)
         
         
         
     
+=======
+            unique, weights = ses.decompose_cluster(clu_id)
+            cluster_decomposed = dict(zip(unique, weights)) # decomposed into templates
+            n.cluster_decomposed = cluster_decomposed
+
+            
+>>>>>>> 1e8e035135cf28025a4674b79958eb1905061ea5
     def mean_firing_rate(self):
         """
         get the mean firing rate for all neurons (total number of spikes of all neurons)

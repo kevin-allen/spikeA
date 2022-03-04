@@ -902,7 +902,7 @@ class Spatial_properties:
         ##     #print("dist_sum",dist_sum)
             
         # find distance from hexagon points to doughnut points and find best match
-        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ]
+        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ] # metric dist(X,Y) = sqrt(dist(x1,x2)**2 + dist(y1,y2)**2)
         dist_sum_min_index = np.argmin(dist_sums)
         dist_sum = dist_sums[dist_sum_min_index]
         # print("best rotation at ",rotations[dist_sum_min_index], "using index",dist_sum_min_index, "with error",dist_sum)
@@ -1187,7 +1187,13 @@ class Spatial_properties:
             self.ap.pose=pose_at_start
 
         # calculate the threshold
-        self.border_score_threshold =  np.percentile(self.border_shuffle,percentile)
+        if not np.isnan(self.border_shuffle).all():
+            shuffled = self.border_shuffle[~np.isnan(self.border_shuffle)]
+        else:
+            shuffled = np.nan
+
+            
+        self.border_score_threshold =  np.percentile(shuffled,percentile)
         
         
         return self.border_shuffle, self.border_score_threshold
@@ -1204,3 +1210,12 @@ class Spatial_properties:
         self.ap.unset_intervals()
         self.st.set_intervals(inter)
         self.ap.set_intervals(inter)
+        
+        ## clear intervals
+        # n.spike_train.unset_intervals()
+        # ap.unset_intervals()
+        ## set to entire session
+        # n.spike_train.set_intervals(ses.trial_intervals.inter)
+        # ap.set_intervals(ses.trial_intervals.inter)
+    
+        
