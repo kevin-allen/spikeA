@@ -360,8 +360,8 @@ class Animal_pose:
         #print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
 
         # create two arrays that will be our bin edges in the histogram function
-        self.occupancy_bins = [np.arange(xy_min[0],xy_max[0],cm_per_bin),
-                               np.arange(xy_min[1],xy_max[1],cm_per_bin)]
+        self.occupancy_bins = [np.arange(xy_min[0],xy_max[0]+cm_per_bin,cm_per_bin), # we add cm_per_bin so that it extend to the max and does not cut before
+                               np.arange(xy_min[1],xy_max[1]+cm_per_bin,cm_per_bin)]
         
         
         # calculate the occupancy map
@@ -388,6 +388,78 @@ class Animal_pose:
         # save the occupancy map for later use
         self.occupancy_map = occ_sm
      
+    def occupancy_histogram_1d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True,
+                        x_range=None):
+        """
+        Function to calculate an occupancy histogram for x position data. 
+        The occupancy histogram is a 1D array covering the entire environment explored by the animal.
+        Each bin of the array contains the time in seconds that the animal spent in the bin.
+        The occupancy histogram is used to calculate firing rate histogram (1d)
+               
+        
+        Arguments
+        cm_per_bin: cm per bins in the occupancy map
+        smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the occupancy map
+        smoothing: boolean indicating whether or not smoothing should be applied to the occupancy map
+        zero_to_nan: boolean indicating if occupancy bins with a time of zero should be set to np.nan
+        x_range: 1D np.array of size 2 [xmin,xmax] with the minimal and maximal x values that should be in the occupancy histogram, default is None and the values are calculated from the data.         
+        
+        Return
+        self.occupancy_histo is set. It is a 1D numpy array containing the time spent in seconds in a set of bins covering the environment
+        """
+        
+        if self.pose is None:
+            raise TypeError("Set the self.pose array before attempting to calculate the occupancy_histogram_1d")
+        
+        # we save this for later use when calculating firing rate maps
+        self.occupancy_cm_per_bin=cm_per_bin
+        self.occupancy_smoothing = smoothing
+        self.smoothing_sigma_cm = smoothing_sigma_cm
+        
+        # remove invalid position data
+        invalid = np.isnan(self.pose[:,1])
+        #print("{} invalid rows out of {}, % invalid: {:.2f}".format(invalid.sum(),invalid.shape[0],invalid.sum()/invalid.shape[0]*100 ))
+        val = self.pose[~invalid,1]
+        
+        ## determine the size of the occupancy map with the minimum and maximum x and y values
+        #print("max x and y values: {}".format(val.max(axis=0)))
+        if x_range is None:
+            x_max = np.ceil(val.max())+cm_per_bin
+            x_min = np.floor(val.min())-cm_per_bin
+        else :
+            x_max= x_range[1]
+            x_min= x_range[0]
+        
+        # create two arrays that will be our bin edges in the histogram function
+        self.occupancy_bins = np.arange(x_min,x_max+cm_per_bin,cm_per_bin)
+        
+                               
+        
+        # calculate the occupancy map
+        occ,x_edges = np.histogram(val,bins= self.occupancy_bins)
+        
+        # calculate the time per sample
+        sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
+        #print("time per sample: {}".format(sec_per_sample))
+        
+        # get the time in seconds
+        occ = occ*sec_per_sample
+    
+        # smoothin of occupancy map
+        if smoothing:
+            occ_sm = ndimage.gaussian_filter1d(occ,sigma=smoothing_sigma_cm/cm_per_bin,mode="nearest")
+                     
+        else:
+            occ_sm = occ # if no smoothing just get a reference to occ, because we want to use occ_sm for the rest of the function
+          
+        # set bins at 0 to np.nan
+        if zero_to_nan:
+            occ_sm[occ==0] = np.nan
+    
+        # save the occupancy map for later use
+        self.occupancy_histo = occ_sm
+    
+    
     
         
     def occupancy(self, arena):
@@ -421,7 +493,7 @@ class Animal_pose:
     
     def head_direction_occupancy_histogram_per_occupancy_bin(self):
         """
-        Function to calculate the hd occupancy histogram for each bin in the occupancy map.
+        Function to calculate the hd occupancy histogram for each bin in the x-y occupancy map.
         
         No arguments       
         

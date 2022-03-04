@@ -364,7 +364,47 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
        
-  
+    def firing_rate_histogram(self,cm_per_bin=2, smoothing_sigma_cm=2,smoothing=True,x_range=None):
+        """
+        Method of the Spatial_properties class to calculate a firing rate histogram (1D) of a single neuron.
+        This is similar to firing_rate_map_2d, but only use the x position values of the self.animal_pose object.
+        
+        Arguments
+        cm_per_bin: cm per bins in the firing rate map
+        smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the firing rate map
+        smoothing: boolean indicating whether or not smoothing should be applied to the firing rate map
+        x_range: 1D np.array of size 2 [xmin,xmax] with the minimal and maximal x to be included in the occupancy map. This can be used to set the firing rate map to a specific size. The default value is None, which means that the size of the occupancy histogram (and firing rate histogram) will be determined from the range of values in the Animal_pose (x) object.
+        
+        Return
+        The Spatial_properties.firing_rate_histo is set. It is a 1D numpy array containing the firing rate in Hz in a set of bins covering the environment.
+        """
+        
+        # we could do check for valid value ranges
+        self.map_cm_per_bin = cm_per_bin
+        self.map_smoothing_sigma_cm = smoothing_sigma_cm
+        self.map_smoothing = smoothing
+        
+        # create a occupancy histogram
+        self.ap.occupancy_histogram_1d(cm_per_bin =self.map_cm_per_bin, 
+                                 smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
+                                 smoothing = smoothing, zero_to_nan = True,x_range=x_range)
+        
+        # this will work with the x and y data, but we will only use the x
+        self.spike_position() 
+        
+        spike_count,x_edges = np.histogram(self.spike_posi[:,0],bins= self.ap.occupancy_bins)
+        
+        # save this for later 
+        self.spike_count = spike_count
+        
+        ## smooth the spike count array
+        if smoothing:
+            spike_count = ndimage.gaussian_filter1d(spike_count,sigma=smoothing_sigma_cm/cm_per_bin,mode="nearest")
+    
+        ## get the firing rate in Hz (spike count/ time in sec)
+        self.firing_rate_histo = spike_count/self.ap.occupancy_histo
+        self.firing_rate_histo_mid = self.mid_point_from_edges(x_edges)
+
         
     def information_score(self):
         """

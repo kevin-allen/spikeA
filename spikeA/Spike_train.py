@@ -357,6 +357,11 @@ class Spike_train:
         """    
         
         bins =  np.arange(np.min(self.intervals.inter), np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
+        
+        #plt.hist(np.append(np.diff(bins),bin_size_sec+0.1),bins=50)
+        #plt.title("bins in spike_train")
+        #plt.show()
+        
         count, edges = np.histogram(self.st, bins = bins)
         
         # from spike count to rate 
