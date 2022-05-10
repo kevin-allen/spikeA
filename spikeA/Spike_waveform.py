@@ -5,7 +5,8 @@ from scipy.interpolate import interp1d
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Session import Session
 from spikeA.Session import Kilosort_session
-#from spikeA.Cell_group import Cell_group
+# from spikeA.Cell_group import Cell_group
+from spikeA.Spike_train_loader import Spike_train_loader
 from spikeA.Intervals import Intervals
 import os
 
@@ -42,7 +43,7 @@ class Spike_waveform:
     
     
     
-    def mean_waveform(self,block_size, channels, n_spikes=None):
+    def mean_waveform(self, channels, block_size=200, n_spikes=None):
         """
         Method to get the mean waveform of one neuron on all channels
         
@@ -73,13 +74,13 @@ class Spike_waveform:
         self.channels=channels
         
         # Create the blocks array to hold the spike waveform of the spikes in memory 
-        blocks = np.ndarray((len(self.channels), block_size, n_spikes))
+        blocks = np.empty((len(self.channels), block_size, n_spikes))
         
         # Transform spike times from from seconds to samples in .dat files
         spike_time_sample = np.round(self.st.st[:n_spikes] * self.st.sampling_rate)
         
         # Remove any spike window that would start before 0 or end after the file ends
-        spike_time_sample=spike_time_sample[np.logical_and(spike_time_sample-block_size/2 > 0,spike_time_sample+block_size/2 < self.dfr.total_samples)]
+        spike_time_sample = spike_time_sample[np.logical_and(spike_time_sample-block_size/2 > 0,spike_time_sample+block_size/2 < self.dfr.total_samples)]
         
         # get a block of data for each spike and save them in our 3D array
         bl=0        
@@ -116,14 +117,14 @@ class Spike_waveform:
         """    
         # load session
         name = str(path).split("/")[-1]
-        ses = self.Kilosort_session(name=name,path=path)
+        ses = Kilosort_session(name=name,path=path)
         ses.load_parameters_from_files()
-        stl = self.Spike_train_loader()
+        stl = Spike_train_loader()
         stl.load_spike_train_kilosort(ses)
-        cg = self.Cell_group(stl)
+        cg = Cell_group(stl)
 
-        stim_trial = [i for i, j in enumerate(ses.stimulation) if j !='none']
-        if stim_trial:
+        stim_trials = [i for i, j in enumerate(ses.stimulation) if j !='none']
+        if len(stim_trials):
             recording_channels=ses.n_channels-2
         else:
             recording_channels=ses.n_channels-1
@@ -131,15 +132,15 @@ class Spike_waveform:
 
         if not os.path.exists(file) or overwrite==True:
             print(f'creating waveforms for {name}')
-            df = self.Dat_file_reader(file_names=[f"{path}/{name}.dat"], n_channels=ses.n_channels)
+            df = Dat_file_reader(file_names=[f"{path}/{name}.dat"], n_channels=ses.n_channels)
 
             #template for array:
-            array=np.zeros(recording_channels*block_size*len(cg.neuron_list))
-            array=np.reshape(array, (recording_channels,block_size, len(cg.neuron_list)))
+            array = np.zeros(recording_channels, block_size, len(cg.neuron_list))
 
             for i,n in enumerate(cg.neuron_list):
-                sw = self.Spike_waveform(session=ses, dat_file_reader=df, spike_train=n.spike_train)
-                sw.mean_waveform(block_size=block_size, channels=np.asarray(range(recording_channels)), n_spikes=n_spikes) #calculate the mean waveforms for all channels over a time interval of block_size
+                print("i/n",i,n.name)
+                sw = Spike_waveform(session=ses, dat_file_reader=df, spike_train=n.spike_train)
+                sw.mean_waveform(block_size=block_size, channels=np.arange(recording_channels), n_spikes=n_spikes) #calculate the mean waveforms for all channels over a time interval of block_size
                 array[:,:,i]=sw.mean_waveforms
 
             np.save(file = file , arr = array)

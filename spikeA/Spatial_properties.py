@@ -645,6 +645,10 @@ class Spatial_properties:
         if not hasattr(self, 'firing_rate_map'):
             raise TypeError("Call spatial_properties.firing_rate_map_2d() before calling spatial_properties.spatial_autocorrelation_map_2d()")
         
+        ## check for smoothing
+        if not self.map_smoothing:
+            print("You should smooth the firing rate map when calculating autocorrelation in order to detect the fields")
+        
         ## convert nan values to -1 for C function
         self.firing_rate_map[np.isnan(self.firing_rate_map)]=-1.0
         
@@ -775,6 +779,10 @@ class Spatial_properties:
         self.doughnut_rotated = cv2.warpAffine(self.doughnut, M, (w, h), borderValue = np.nan)    
     
         indices = np.logical_and(~np.isnan(self.doughnut), ~np.isnan(self.doughnut_rotated))
+        
+        if np.sum(indices) <= 2:
+            return np.nan
+        
         r,p = pearsonr(self.doughnut[indices],self.doughnut_rotated[indices])
     
         return r

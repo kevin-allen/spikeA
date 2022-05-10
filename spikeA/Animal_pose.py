@@ -1012,22 +1012,26 @@ class Animal_pose:
         
         
         # angle between loc and HD
-        loc_vector = np.array([np.cos(loc)],np.sin(loc))
-        hd = self.pose[:,4]
-        hdx = np.cos(hd)
-        hdy = np.sin(hd)
+        #~ loc_vector = np.array([np.cos(loc)],np.sin(loc))
+        #~ hd = elf.pose[:,4] # np.deg2rad?
+        #~ hd_vector = np.array([np.cos(hd),np.sin(hd)])        
+        #~ delta = np.arccos(hd_vector@loc_vector)
+        #~ self.pose[delta>sigma,1:7] = np.nan        
         
-        
-        loc_vector=np.array([[np.cos(loc)],[np.sin(loc)]])
-    
+        diffxy = np.diff(self.pose[:,1:3], axis=0).transpose() # np.arctan2(dx,dy)
+        hd = np.deg2rad(self.pose[:,4])
+        hd = hd-np.pi
+        hd_vector = np.array([np.cos(hd),np.sin(hd)])
 
-        hd = self.pose[:,4]
-        hdx = np.cos(hd)
-        hdy = np.sin(hd)
-        hd_vector = np.concatenate([np.expand_dims(hdx,axis=1),np.expand_dims(hdy,axis=1)],axis=1)
+        delta_angles_hd_move = np.arccos(np.array([np.dot(h,d) for h,d in zip(hd_vector[:,:-1].T,diffxy.T)]))
+        # plt.hist(delta_angles_hd_move)
+        delta = np.abs(delta_angles_hd_move-np.pi/2)
+        # plt.hist(delta)
         
-        delta = np.arccos(hd_vector@loc_vector).flatten()
-        self.pose[delta>sigma,1:7] = np.nan
+        # sigma = np.pi/4
+        # np.sum(delta > sigma)
+        
+        self.pose[np.append(delta>sigma,False),1:7] = np.nan
         
         
     def find_xy_range(self, diameter=None):        
@@ -1089,7 +1093,22 @@ class Animal_pose:
         #return np.mean(edges, axis=1) # transforms [[1,2],[6,8],[99,100.5]] -> [ 1.5 ,  7.  , 99.75]
         return (edges[1:]+edges[:-1])/2. # transforms array([1, 2, 3, 4, 5, 6, 7, 8, 9]) to array([1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5])
 
-        
+    def coord_cm2bin(self, val_x, val_y):
+        # self.occupancy_map.shape
+        bins_x, bins_y = self.occupancy_bins
+        midpoints_x, midpoints_y = self.mid_point_from_edges(bins_x), self.mid_point_from_edges(bins_y)
+        # range_x, range_y = np.transpose([bins_x[:-1], bins_x[1:]]), np.transpose([bins_y[:-1], bins_y[1:]])
+        # bin_x, bin_y = np.argmin([ np.abs(val_x - midpoint_x) for midpoint_x in midpoints_x ]), np.argmin([ np.abs(val_y - midpoint_y) for midpoint_y in midpoints_y ])
+        ind_x = np.digitize(val_x, bins_x) - 1
+        ind_y = np.digitize(val_y, bins_y) - 1
+        ret_x = midpoints_x[ind_x] if ind_x in range(len(midpoints_x)) else np.nan
+        ret_y = midpoints_y[ind_y] if ind_y in range(len(midpoints_y)) else np.nan
+        # return ret_x, ret_y
+        return ind_x if ind_x in range(len(midpoints_x)) else np.nan, ind_y if ind_y in range(len(midpoints_y)) else np.nan
+    
+    def coord_cm2bin_xyvals(self, xy_vals):
+        binsx,binsy = np.transpose([self.coord_cm2bin(xy_val[0],xy_val[1]) for xy_val in xy_vals])
+        return binsx,binsy
         
     def positrack_type(self,ses=None):
         """

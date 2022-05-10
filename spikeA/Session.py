@@ -381,14 +381,14 @@ class Kilosort_session(Session):
     
     def load_templates_clusters(self):
         # spike templates
-        self.st = np.load(self.file_names["spike_templates"])[:,0] # np.load(data_prefix + "spike_templates.npy")[:,0]
+        self.st = np.load(self.file_names["spike_templates"]).flatten() # np.load(data_prefix + "spike_templates.npy")[:,0]
         # spike clusters
-        self.sc = np.load(self.file_names["spike_clusters"]) # np.load(data_prefix + "spike_clusters.npy")
+        self.sc = np.load(self.file_names["spike_clusters"]).flatten() # np.load(data_prefix + "spike_clusters.npy")
         # check
         if len(self.st) != len(self.sc):
             raise ValueError("the length of spike_templates and spike_clusters should be the same but are {} / {}".format(len(self.st),len(self.sc)))
         # set list with all cluster ids
-        self.clusterids = np.unique(self.sc)
+        self.clusterids = np.unique(self.sc).flatten()
         print("Loaded templates-clusters-map, spikes:", len(self.st),", clusters:",len(self.clusterids))
 
     # decompose cluster into templates
@@ -428,7 +428,7 @@ class Kilosort_session(Session):
         # get shanks (assume x coordinate in channel_position) of channels
         self.shanks_all = np.unique(self.channel_positions[:,0])
         if len(self.shanks_all) != self.n_shanks:
-            raise ValueError("Error in number of shanks! Check par file and kilosort/phy channel config")
+            raise ValueError("Error in number of shanks! Check par/desel file (found {}) and kilosort/phy channel config (found {}).".format(self.n_shanks, len(self.shanks_all)))
         print("Init shanks:", len(self.shanks_all))
             
             
