@@ -214,6 +214,7 @@ class Spatial_properties:
         #get mean vector length
         R = np.sqrt(np.sum(x)**2+np.sum(y)**2)
         self.hd_mean_vector_length = R/sum_histo
+        self.hd_variance = (1. - self.hd_mean_vector_length) * 180.
 
         return (self.hd_mean_direction_rad,self.hd_mean_direction_deg, self.hd_mean_vector_length, self.hd_peak_angle_rad, self.hd_peak_rate)
     
