@@ -74,6 +74,11 @@ class Cell_group:
             n.channels = channels
             n.brain_area = electrodes
             # n.electrode_id
+
+            unique, weights = ses.decompose_cluster(clu_id)
+            cluster_decomposed = dict(zip(unique, weights)) # decomposed into templates
+            n.cluster_decomposed = cluster_decomposed
+
     
     def add_poisson_neurons(self, rate_hz = [20] ,sampling_rate=20000):
         """
