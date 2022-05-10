@@ -390,7 +390,7 @@ class Animal_pose:
         self.occupancy_map = occ_sm
      
     def occupancy_histogram_1d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True,
-                        x_range=None):
+                        x_range=None,linspace=False,n_bins=None):
         """
         Function to calculate an occupancy histogram for x position data. 
         The occupancy histogram is a 1D array covering the entire environment explored by the animal.
@@ -404,6 +404,8 @@ class Animal_pose:
         smoothing: boolean indicating whether or not smoothing should be applied to the occupancy map
         zero_to_nan: boolean indicating if occupancy bins with a time of zero should be set to np.nan
         x_range: 1D np.array of size 2 [xmin,xmax] with the minimal and maximal x values that should be in the occupancy histogram, default is None and the values are calculated from the data.         
+        linspace: whether to use np.linespace instead of np.arange to get the bins. I had to introduce this as I was getting inconsistent number of bins in the maps when the x_range values were decimals. If linspace is True, cm_per_bin is not used and n_bins is used instead.
+        n_bins: if using np.linspace, this will be the number of bins in the histogram. If linspace is False, n_bins is not used, cm_per_bin is used instead
         
         Return
         self.occupancy_histo is set. It is a 1D numpy array containing the time spent in seconds in a set of bins covering the environment
@@ -432,9 +434,10 @@ class Animal_pose:
             x_min= x_range[0]
         
         # create two arrays that will be our bin edges in the histogram function
-        self.occupancy_bins = np.arange(x_min,x_max+cm_per_bin,cm_per_bin)
-        
-                               
+        if linspace:
+            self.occupancy_bins = np.linspace(x_min,x_max,n_bins+1)
+        else :
+            self.occupancy_bins = np.arange(x_min,x_max+cm_per_bin,cm_per_bin)               
         
         # calculate the occupancy map
         occ,x_edges = np.histogram(val,bins= self.occupancy_bins)
