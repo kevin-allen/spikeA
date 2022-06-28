@@ -722,6 +722,14 @@ class Animal_pose:
                 print("The percentage of invalid values is very high. The quality of your data is compromised.")
                 print("Solve this problem before continuing your experiments.")
                 print("****************************************************************************************")  
+                
+            # either apply an individual px_per_cm or use one for all trials
+            if isinstance(self.ses.px_per_cm, np.ndarray):
+                px_per_cm = self.ses.px_per_cm[i]
+            else:
+                px_per_cm = self.ses.px_per_cm
+                
+            d[:,[0,1]] /= px_per_cm # transform to cm (for this trial)
 
             # estimate functions to interpolate
             fx = interp1d(ttl[:], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
@@ -820,8 +828,8 @@ class Animal_pose:
         
         self.pose[:] = np.nan
         self.pose[:,0] = nt/self.ses.sampling_rate # from sample number to time in seconds
-        self.pose[:,1] = new_x/self.ses.px_per_cm # transform to cm
-        self.pose[:,2] = new_y/self.ses.px_per_cm # transform to cm
+        self.pose[:,1] = new_x # /self.ses.px_per_cm # transform to cm (this is done above for each trial)
+        self.pose[:,2] = new_y # /self.ses.px_per_cm # transform to cm (this is done above for each trial)
         self.pose[:,4] = new_hd
 
         
