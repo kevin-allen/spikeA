@@ -32,6 +32,7 @@ class Theta:
     theta = Theta(session=ses)
     
     # detect theta epochs and cycles
+    # this will take 15-30 minutes because it has to read the .dat files
     theta.detect_theta_cycles_one_session()
     
     # load previously detected epochs and cycles
@@ -39,6 +40,9 @@ class Theta:
     
     # to get access to epochs and cycles
     theta.epochs, theta.cycles
+    
+    
+    See also spikeA/docs_notebooks/LFP_theta_cycles.ipynb
     
     Attributes:
         session: a spikeA.Session object

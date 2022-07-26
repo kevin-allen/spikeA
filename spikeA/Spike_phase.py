@@ -38,14 +38,8 @@ class Spike_phase:
     sph.spike_phase()
     h = sph.spike_phase_histogram()
     pp, mvl = sph.spike_phase_stats()
-    midBin = h[1][:-1]+ (h[1][1]-h[1][0])/2
-    plt.plot(midBin,h[0])
-    plt.ylim(0,np.max(h[0])+0.5)
-    plt.xlabel("Theta phase (radian)")
-    plt.ylabel("Firing rate (Hz)")
-    plt.text(0.0,0.5,"mvl: {:.3f}".format(mvl))
-    plt.text(0.0,1,"mean: {:.3f}".format(pp))
-    plt.show()  
+    
+    See docs_notebooks/spike_phase.ipynb for more information
     
     Attributes:
         spike_train: a spikeA.Spike_train. The time in the Spike_train.st array should be in seconds.
