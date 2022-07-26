@@ -92,7 +92,7 @@ See the file for more information
 
 In `spikeA/spikeA/setup.py`, tell cpython how to compile our new module.
 
-Then run 
+From the directory `spikeA/spikeA`, run 
 
 ```
 python setup.py build_ext -i

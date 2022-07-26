@@ -236,7 +236,31 @@ class Kilosort_session(Session):
             self.dat_dtype = c[2].split(" = ")[1]
             self.dat_offset = int(c[3].split(" = ")[1])
             self.sampling_rate = float(c[4].split(" = ")[1])
+            
+        # get the trial names from the par file
+        if not os.path.isfile(self.file_names["par"]):
+            raise IOError("{} file not found".format(self.file_names["par"]))    
+        f = open(self.file_names["par"], "r")
+        c = f.read().split('\n')
+        f.close()
 
+        # read n_channels and sampling_rate from other files
+        if ignore_params:
+            # number of channels is also written in par file (do not read from params)
+            self.n_channels = int(c[0].split()[0])
+            # read the sampling_rate file
+            if not os.path.isfile(self.file_names["sampling_rate"]):
+                raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
+            self.sampling_rate = int(open(self.file_names["sampling_rate"]).read().strip())
+
+
+        to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
+        self.n_shanks = to_skip
+        self.n_trials = int(c[3+to_skip]) # read the number of trials, begins after shank channel list
+        #print("n_trials",self.n_trials)
+        self.trial_names = c[to_skip+4:to_skip+4+self.n_trials]
+            
+            
         # read the desen file
         if not os.path.isfile(self.file_names["desen"]):
             raise IOError("{} file not found".format(self.file_names["desen"]))
@@ -265,31 +289,18 @@ class Kilosort_session(Session):
         # read the px_per_cm file
         if not os.path.isfile(self.file_names["px_per_cm"]):
             raise ValueError("{} file not found".format(self.file_names["px_per_cm"]))
-        self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0])
+        # self.px_per_cm = float(open(self.file_names["px_per_cm"]).read().split('\n')[0]) # for one value only
+        px_per_cm = open(self.file_names["px_per_cm"]).read().strip().split('\n') # is an array with either length 1 or length = number of trials
         
-
-        # get the trial names from the par file
-        if not os.path.isfile(self.file_names["par"]):
-            raise IOError("{} file not found".format(self.file_names["par"]))    
-        f = open(self.file_names["par"], "r")
-        c = f.read().split('\n')
-        f.close()
-
-        # read n_channels and sampling_rate from other files
-        if ignore_params:
-            # number of channels is also written in par file (do not read from params)
-            self.n_channels = int(c[0].split()[0])
-            # read the sampling_rate file
-            if not os.path.isfile(self.file_names["sampling_rate"]):
-                raise ValueError("{} file not found".format(self.file_names["sampling_rate"]))
-            self.sampling_rate = int(open(self.file_names["sampling_rate"]).read().strip())
-
-
-        to_skip = int(c[2].split()[0]) # = number of shanks, skip shank configuration
-        self.n_shanks = to_skip
-        self.n_trials = int(c[3+to_skip]) # read the number of trials, begins after shank channel list
-        #print("n_trials",self.n_trials)
-        self.trial_names = c[to_skip+4:to_skip+4+self.n_trials]
+        if len(px_per_cm)==1:
+            self.px_per_cm = float(px_per_cm[0])
+        elif len(px_per_cm)==self.n_trials:
+            self.px_per_cm = np.array([ float(p) for p in px_per_cm ])
+        else:
+            raise ValueError("px_per_cm is invalid ({}), length must be either 1 or equal to number of trials ({})".format(len(px_per_cm),self.n_trials))
+            
+        print("self.px_per_cm",type(self.px_per_cm),self.px_per_cm)
+        
 
         # checks: these 4 files must have exactly one line for each trial, so that the length must match n_trials
         if len(self.desen) != self.n_trials:
@@ -381,14 +392,14 @@ class Kilosort_session(Session):
     
     def load_templates_clusters(self):
         # spike templates
-        self.st = np.load(self.file_names["spike_templates"])[:,0] # np.load(data_prefix + "spike_templates.npy")[:,0]
+        self.st = np.load(self.file_names["spike_templates"]).flatten() # np.load(data_prefix + "spike_templates.npy")[:,0]
         # spike clusters
-        self.sc = np.load(self.file_names["spike_clusters"]) # np.load(data_prefix + "spike_clusters.npy")
+        self.sc = np.load(self.file_names["spike_clusters"]).flatten() # np.load(data_prefix + "spike_clusters.npy")
         # check
         if len(self.st) != len(self.sc):
             raise ValueError("the length of spike_templates and spike_clusters should be the same but are {} / {}".format(len(self.st),len(self.sc)))
         # set list with all cluster ids
-        self.clusterids = np.unique(self.sc)
+        self.clusterids = np.unique(self.sc).flatten()
         print("Loaded templates-clusters-map, spikes:", len(self.st),", clusters:",len(self.clusterids))
 
     # decompose cluster into templates
@@ -428,7 +439,7 @@ class Kilosort_session(Session):
         # get shanks (assume x coordinate in channel_position) of channels
         self.shanks_all = np.unique(self.channel_positions[:,0])
         if len(self.shanks_all) != self.n_shanks:
-            raise ValueError("Error in number of shanks! Check par file and kilosort/phy channel config")
+            raise ValueError("Error in number of shanks! Check par/desel file (found {}) and kilosort/phy channel config (found {}).".format(self.n_shanks, len(self.shanks_all)))
         print("Init shanks:", len(self.shanks_all))
             
             

@@ -206,12 +206,13 @@ class Spike_train_loader:
 #         spike_times = np.loadtxt(res_file_name,dtype=np.int32)
         
         
-    def load_spike_train_kilosort(self, ks):
+    def load_spike_train_kilosort(self, ks, only_good = True):
         """
         Load the spike train for a recording session processed with kilosort
         
         Arguments
         ks: a Kilosort_session object
+        only_good: flag to define if only clusters marked as good should be loaded (default: True)
         
         The values are stored in self.clu_id, self.spike_times, 
         """
@@ -231,23 +232,22 @@ class Spike_train_loader:
             raise ValueError("the shape of spike_clusters and spike_times should be the same but are {} {}".format(spike_clusters.shape[0],spike_times.shape[0]))
         
         # read the cluster_group file
-        if not os.path.isfile(ks.file_names["cluster_group"]):
-            raise IOError("{} file not found".format(ks.file_names["cluster_group"]))
-        
-        cluster_group = pd.read_csv(ks.file_names["cluster_group"], sep="\t")
+        if only_good:
+            
+            if not os.path.isfile(ks.file_names["cluster_group"]):
+                raise IOError("{} file not found".format(ks.file_names["cluster_group"]))
 
-        
-        
-        
-        # get the clu id of "good" clusters
-        g = cluster_group.group == "good"
-        good_clusters = cluster_group.cluster_id[g].to_numpy()
-        #print("Number of good clusters: {}".format(len(good_clusters)))
-        
-        ## only keep the spikes from good clusters
-        g = np.isin(spike_clusters,good_clusters).flatten()
-        spike_times = spike_times[g]
-        spike_clusters = spike_clusters[g]
+            cluster_group = pd.read_csv(ks.file_names["cluster_group"], sep="\t")
+
+            # get the clu id of "good" clusters
+            g = cluster_group.group == "good"
+            good_clusters = cluster_group.cluster_id[g].to_numpy()
+            #print("Number of good clusters: {}".format(len(good_clusters)))
+
+            ## only keep the spikes from good clusters
+            g = np.isin(spike_clusters,good_clusters)
+            spike_times = spike_times[g]
+            spike_clusters = spike_clusters[g]
         
         ## format the spike times so we get a list of arrays
         self.clu_ids = np.sort(np.unique(spike_clusters))
