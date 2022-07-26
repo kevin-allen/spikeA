@@ -47,3 +47,29 @@ void spike_time_crosscorrelation(double * st1, double * st2, double* out, int si
     }
 }
 
+void spike_phase(double* st, double* cycle_start, double* cycle_end, double* out, int stSize, int cycleSize){
+    /*
+    calculate the phase of spikes
+    
+    Returned values are -1.0 for invalid
+    Phase goes from 0 to 2*pi
+    */
+    // set to an invalid value by default
+    for (int i = 0; i < stSize; i++){
+        out[i] = -1.0;
+    }
+    
+    // find phase of spikes within a cycle
+    for (int i = 0; i < stSize; i++){
+        for(int j =0; j < cycleSize; j++){
+            if(st[i]>cycle_start[j]&& st[i]<cycle_end[j])
+            {
+                // = proportion of the cycle * 2*pi 
+                out[i] = (st[i]-cycle_start[j])/ (cycle_end[j]-cycle_start[j]) * 3.141592653589793238 * 2;
+                j=cycleSize; // move to next spike
+                    
+            }
+        }
+    }
+}
+    

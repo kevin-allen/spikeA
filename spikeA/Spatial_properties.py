@@ -390,7 +390,7 @@ class Spatial_properties:
         # create a occupancy histogram
         self.ap.occupancy_histogram_1d(cm_per_bin =self.map_cm_per_bin, 
                                  smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                 smoothing = smoothing, zero_to_nan = True,x_range=x_range, linspace = linspace,nBins=n_bins)
+                                 smoothing = smoothing, zero_to_nan = True,x_range=x_range, linspace = linspace,n_bins=n_bins)
         
         # this will work with the x and y data, but we will only use the x
         self.spike_position() 
