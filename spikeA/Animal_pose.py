@@ -853,6 +853,14 @@ class Animal_pose:
     
     def pose_at_time(self, t_sec):
         
+        """
+        Method to get the pose at arbitrary time
+        Must be called after interpolate_pose
+        
+        Arguments: t_sec (time in seconds) might be numpy array of several n time points
+        Returns: (3,n) or (3) numpy array with x,y,hd as rows
+        """
+        
         if not hasattr(self, 'fx'):
             raise TypeError("You need to call ap.interpolate_pose before calling ap.pose_at_time(t)")
         
@@ -880,6 +888,19 @@ class Animal_pose:
         """
     
     def interpolate_pose(self):
+        
+        """
+        Method to make the pose available at arbitrary time points by interpolation.
+        Should be called after load_pose_from_file() or pose_from_positrack_files()
+        Call then using pose_at_time
+        
+        Arguments: None
+        Returns: nothing, but sets self.fx, self.fy, self.fhd
+        """
+        
+        # For the class Spatial_properties (mostly using "n.spatial_properties" when n is a Neuron instance), these methods set these attributes
+        # spike_head_direction() - spike_hd (1D array)
+        # spike_position() - spike_posi (2D array)
         
         if self.pose is None:
             raise TypeError("Set the self.pose array before attempting to interpolate pose")
