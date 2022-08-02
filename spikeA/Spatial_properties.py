@@ -318,6 +318,45 @@ class Spatial_properties:
         DR=np.nansum(np.abs(np.log((1+obs_tuning_curve)/(1+pred_tuning_curve))))/int(360/deg_per_bin)
         
         return DR
+    
+    
+    
+    def firing_rate_head_direction_histogram_binned(self, sub_intervals):
+    
+
+        hd_firing_all = []
+        hd_mvl_all = []
+        hd_mean_direction_rad_all = []
+        hd_peak_angle_rad_all = []
+        hd_peak_rate_all = []
+        
+        mean_firing_rate_all = []
+
+        for sub_interval in sub_intervals:
+
+            # reset and set intervals
+            self.set_intervals(sub_interval)
+
+            # calculate HD tuning curve
+            self.firing_rate_head_direction_histogram(smoothing=False)
+            angles = self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
+            hd_firing = self.firing_rate_head_direction_histo
+            hd_mean_direction_rad, hd_mean_direction_deg, hd_mean_vector_length, hd_peak_angle_rad, hd_peak_rate = self.head_direction_score()
+
+            hd_firing_all.append(hd_firing)
+            hd_mvl_all.append(hd_mean_vector_length)
+            hd_mean_direction_rad_all.append(hd_mean_direction_rad)
+            hd_peak_angle_rad_all.append(hd_peak_angle_rad)
+            hd_peak_rate_all.append(hd_peak_rate)
+            
+            mean_firing_rate_all.append(self.st.mean_firing_rate())
+            
+        return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)
+    
+
+
+
+    
         
     
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
@@ -1252,17 +1291,18 @@ class Spatial_properties:
         return self.border_shuffle, self.border_score_threshold
     
     
-    def set_intervals(self, inter):
+    def set_intervals(self, inter=None):
         """
         Set the interval for both the Neuron spike train, and the Animal pose
-        Argument: The interval
+        Argument: The interval (if not provided, only reset)
         Returns nothing, but the intervals are set
         """
         # reset and set interval
         self.st.unset_intervals()
         self.ap.unset_intervals()
-        self.st.set_intervals(inter)
-        self.ap.set_intervals(inter)
+        if inter is not None:
+            self.st.set_intervals(inter)
+            self.ap.set_intervals(inter)
         
         ## clear intervals
         # n.spike_train.unset_intervals()
