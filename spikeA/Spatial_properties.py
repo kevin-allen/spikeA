@@ -323,6 +323,15 @@ class Spatial_properties:
     
     def firing_rate_head_direction_histogram_binned(self, sub_intervals):
     
+        """
+        Method to calculate firing rate of HD cells like using firing_rate_head_direction_histogram()
+	with binned intervals defined in sub_intervals (might use times2intervals() function)
+
+	Arguments:
+	sub_intervals: (2,n) array that contains the intervals
+
+	Returns: hd firing, mean vector length, mean direction on each interval
+        """
 
         hd_firing_all = []
         hd_mvl_all = []
