@@ -796,7 +796,7 @@ class Animal_pose:
         fy = interp1d(posi[:,0], posi[:,2], bounds_error=False) # y 
         fhdc = interp1d(posi[:,0], posi[:,3], bounds_error=False) # cos(hd)
         fhds = interp1d(posi[:,0], posi[:,4], bounds_error=False) # sin(hd)
-        # (might be useful to make these functions available globally, to get the pose at any time, especially for spike times)
+        # (might be useful to make these functions available globally, to get the pose at any time, especially for spike times)- pose at spike time (like in tuning curves)
 
         # new time to interpolate
         nt = np.arange(0, posi[-1,0]+interpolation_step,interpolation_step)
@@ -809,6 +809,12 @@ class Animal_pose:
 
         # get back the angle from the cosin and sin
         new_hd = np.arctan2(new_hds,new_hdc) # np.arctan2(y_value,x_value)
+        
+        # define function to get pose at any time (useful for other methods in this class)
+        #~ self.fx = fx
+        #~ self.fy = fy
+        #~ self.fhdc = fhdc
+        #~ self.fhds = fhds
         
         
         # contain time, x,y,z, yaw, pitch, roll
@@ -844,6 +850,67 @@ class Animal_pose:
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
             
+    
+    def pose_at_time(self, t_sec):
+        
+        """
+        Method to get the pose at arbitrary time
+        Must be called after interpolate_pose
+        
+        Arguments: t_sec (time in seconds) might be numpy array of several n time points
+        Returns: (3,n) or (3) numpy array with x,y,hd as rows
+        """
+        
+        if not hasattr(self, 'fx'):
+            raise TypeError("You need to call ap.interpolate_pose before calling ap.pose_at_time(t)")
+        
+        # t_sec : time in seconds
+        # t : time in samples = t_sec * sampling_rate
+        # t = t_sec * self.ses.sampling_rate
+        t=t_sec
+        
+        x = self.fx(t)
+        y = self.fy(t)
+        hd = self.fhd(t)
+        
+        return np.array([x,y,hd]).squeeze()
+    
+        """
+        # code example to verify
+        ap.interpolate_pose()
+        t=np.linspace(100,2000,5000)
+        x,y,hd = ap.pose_at_time(t)
+        #plt.plot(t,x)
+        #plt.plot(t,y)
+        plt.plot(t,hd)
+        plt.plot(ap.pose[:,0],ap.pose[:,4])
+        plt.xlim(200,250)
+        """
+    
+    def interpolate_pose(self):
+        
+        """
+        Method to make the pose available at arbitrary time points by interpolation.
+        Should be called after load_pose_from_file() or pose_from_positrack_files()
+        Call then using pose_at_time
+        
+        Arguments: None
+        Returns: nothing, but sets self.fx, self.fy, self.fhd
+        """
+        
+        # For the class Spatial_properties (mostly using "n.spatial_properties" when n is a Neuron instance), these methods set these attributes
+        # spike_head_direction() - spike_hd (1D array)
+        # spike_position() - spike_posi (2D array)
+        
+        if self.pose is None:
+            raise TypeError("Set the self.pose array before attempting to interpolate pose")
+
+        self.fx = interp1d(self.pose[:,0], self.pose[:,1], bounds_error=False) # x
+        self.fy = interp1d(self.pose[:,0], self.pose[:,2], bounds_error=False) # y 
+        fhdc    = interp1d(self.pose[:,0], np.cos(self.pose[:,4]), bounds_error=False) # cos(hd)
+        fhds    = interp1d(self.pose[:,0], np.sin(self.pose[:,4]), bounds_error=False) # sin(hd)
+        self.fhd = lambda t: np.arctan2(fhds(t),fhdc(t))
+        
             
     def speed_from_pose(self, sigma=1):
         """
