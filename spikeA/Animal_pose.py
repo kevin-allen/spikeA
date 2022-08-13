@@ -390,7 +390,7 @@ class Animal_pose:
         self.occupancy_map = occ_sm
      
     def occupancy_histogram_1d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True,
-                        x_range=None):
+                        x_range=None,linspace=False,n_bins=None):
         """
         Function to calculate an occupancy histogram for x position data. 
         The occupancy histogram is a 1D array covering the entire environment explored by the animal.
@@ -404,6 +404,8 @@ class Animal_pose:
         smoothing: boolean indicating whether or not smoothing should be applied to the occupancy map
         zero_to_nan: boolean indicating if occupancy bins with a time of zero should be set to np.nan
         x_range: 1D np.array of size 2 [xmin,xmax] with the minimal and maximal x values that should be in the occupancy histogram, default is None and the values are calculated from the data.         
+        linspace: whether to use np.linespace instead of np.arange to get the bins. I had to introduce this as I was getting inconsistent number of bins in the maps when the x_range values were decimals. If linspace is True, cm_per_bin is not used and n_bins is used instead.
+        n_bins: if using np.linspace, this will be the number of bins in the histogram. If linspace is False, n_bins is not used, cm_per_bin is used instead
         
         Return
         self.occupancy_histo is set. It is a 1D numpy array containing the time spent in seconds in a set of bins covering the environment
@@ -432,9 +434,10 @@ class Animal_pose:
             x_min= x_range[0]
         
         # create two arrays that will be our bin edges in the histogram function
-        self.occupancy_bins = np.arange(x_min,x_max+cm_per_bin,cm_per_bin)
-        
-                               
+        if linspace:
+            self.occupancy_bins = np.linspace(x_min,x_max,n_bins+1)
+        else :
+            self.occupancy_bins = np.arange(x_min,x_max+cm_per_bin,cm_per_bin)               
         
         # calculate the occupancy map
         occ,x_edges = np.histogram(val,bins= self.occupancy_bins)
@@ -728,6 +731,14 @@ class Animal_pose:
                 print("The percentage of invalid values is very high. The quality of your data is compromised.")
                 print("Solve this problem before continuing your experiments.")
                 print("****************************************************************************************")  
+                
+            # either apply an individual px_per_cm or use one for all trials
+            if isinstance(self.ses.px_per_cm, np.ndarray):
+                px_per_cm = self.ses.px_per_cm[i]
+            else:
+                px_per_cm = self.ses.px_per_cm
+                
+            d[:,[0,1]] /= px_per_cm # transform to cm (for this trial)
 
             # estimate functions to interpolate
             fx = interp1d(ttl[:], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
@@ -791,7 +802,7 @@ class Animal_pose:
         fy = interp1d(posi[:,0], posi[:,2], bounds_error=False) # y 
         fhdc = interp1d(posi[:,0], posi[:,3], bounds_error=False) # cos(hd)
         fhds = interp1d(posi[:,0], posi[:,4], bounds_error=False) # sin(hd)
-        # (might be useful to make these functions available globally, to get the pose at any time, especially for spike times)
+        # (might be useful to make these functions available globally, to get the pose at any time, especially for spike times)- pose at spike time (like in tuning curves)
 
         # new time to interpolate
         nt = np.arange(0, posi[-1,0]+interpolation_step,interpolation_step)
@@ -804,6 +815,12 @@ class Animal_pose:
 
         # get back the angle from the cosin and sin
         new_hd = np.arctan2(new_hds,new_hdc) # np.arctan2(y_value,x_value)
+        
+        # define function to get pose at any time (useful for other methods in this class)
+        #~ self.fx = fx
+        #~ self.fy = fy
+        #~ self.fhdc = fhdc
+        #~ self.fhds = fhds
         
         
         # contain time, x,y,z, yaw, pitch, roll
@@ -826,8 +843,8 @@ class Animal_pose:
         
         self.pose[:] = np.nan
         self.pose[:,0] = nt/self.ses.sampling_rate # from sample number to time in seconds
-        self.pose[:,1] = new_x/self.ses.px_per_cm # transform to cm
-        self.pose[:,2] = new_y/self.ses.px_per_cm # transform to cm
+        self.pose[:,1] = new_x # /self.ses.px_per_cm # transform to cm (this is done above for each trial)
+        self.pose[:,2] = new_y # /self.ses.px_per_cm # transform to cm (this is done above for each trial)
         self.pose[:,4] = new_hd
 
         
@@ -839,6 +856,67 @@ class Animal_pose:
              # get intervals for the first time
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
             
+    
+    def pose_at_time(self, t_sec):
+        
+        """
+        Method to get the pose at arbitrary time
+        Must be called after interpolate_pose
+        
+        Arguments: t_sec (time in seconds) might be numpy array of several n time points
+        Returns: (3,n) or (3) numpy array with x,y,hd as rows
+        """
+        
+        if not hasattr(self, 'fx'):
+            raise TypeError("You need to call ap.interpolate_pose before calling ap.pose_at_time(t)")
+        
+        # t_sec : time in seconds
+        # t : time in samples = t_sec * sampling_rate
+        # t = t_sec * self.ses.sampling_rate
+        t=t_sec
+        
+        x = self.fx(t)
+        y = self.fy(t)
+        hd = self.fhd(t)
+        
+        return np.array([x,y,hd]).squeeze()
+    
+        """
+        # code example to verify
+        ap.interpolate_pose()
+        t=np.linspace(100,2000,5000)
+        x,y,hd = ap.pose_at_time(t)
+        #plt.plot(t,x)
+        #plt.plot(t,y)
+        plt.plot(t,hd)
+        plt.plot(ap.pose[:,0],ap.pose[:,4])
+        plt.xlim(200,250)
+        """
+    
+    def interpolate_pose(self):
+        
+        """
+        Method to make the pose available at arbitrary time points by interpolation.
+        Should be called after load_pose_from_file() or pose_from_positrack_files()
+        Call then using pose_at_time
+        
+        Arguments: None
+        Returns: nothing, but sets self.fx, self.fy, self.fhd
+        """
+        
+        # For the class Spatial_properties (mostly using "n.spatial_properties" when n is a Neuron instance), these methods set these attributes
+        # spike_head_direction() - spike_hd (1D array)
+        # spike_position() - spike_posi (2D array)
+        
+        if self.pose is None:
+            raise TypeError("Set the self.pose array before attempting to interpolate pose")
+
+        self.fx = interp1d(self.pose[:,0], self.pose[:,1], bounds_error=False) # x
+        self.fy = interp1d(self.pose[:,0], self.pose[:,2], bounds_error=False) # y 
+        fhdc    = interp1d(self.pose[:,0], np.cos(self.pose[:,4]), bounds_error=False) # cos(hd)
+        fhds    = interp1d(self.pose[:,0], np.sin(self.pose[:,4]), bounds_error=False) # sin(hd)
+        self.fhd = lambda t: np.arctan2(fhds(t),fhdc(t))
+        
             
     def speed_from_pose(self, sigma=1):
         """

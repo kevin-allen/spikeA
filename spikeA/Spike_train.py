@@ -454,13 +454,13 @@ class Spike_train:
         Calculates the instantaneous firing rate crosscorrelation.
         
         Arguments:
-        spike2:
-        normed: 
-        max_lag_sec:
+        spike2: second Spike train object to correlate with
+        normed: normalize to max correlation
+        max_lag_sec: max delta time in seconds between two cells
         The instantaneous_firing_rate() arrays saved in self.ifr
         
         Returns:
-        The results are saved in self.ifr_corsscorrelation (normed) or self.ifr_crosscorrelation (not normed).
+        The results are saved in self.ifr_corsscorrelation (normed or not normed).
         """
         if spike2 is None:
             spike2 = Spike_train(name= "spike2", sampling_rate= 20000,st=np.arange(0,10000))
@@ -469,13 +469,13 @@ class Spike_train:
         spike2.inter_spike_intervals()
         spike2.instantaneous_firing_rate()
         
-        if normed== False:  
-            res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
-            maxlag= max_lag_sec/self.ifr_bin_size_sec
-            res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
-            self.ifr_crosscorrelation=res
-        elif normed==True:
-            self.ifr_crosscorrelation= res/np.max(res)
+        res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
+        maxlag= max_lag_sec/self.ifr_bin_size_sec
+        res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
+        if not normed:
+            self.ifr_crosscorrelation = res
+        else:
+            self.ifr_crosscorrelation = res/np.max(res)
             
     def instantaneous_firing_rate_crosscorrelation_plot(self,timewindow=None):
         """

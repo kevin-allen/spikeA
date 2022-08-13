@@ -318,6 +318,54 @@ class Spatial_properties:
         DR=np.nansum(np.abs(np.log((1+obs_tuning_curve)/(1+pred_tuning_curve))))/int(360/deg_per_bin)
         
         return DR
+    
+    
+    
+    def firing_rate_head_direction_histogram_binned(self, sub_intervals):
+    
+        """
+        Method to calculate firing rate of HD cells like using firing_rate_head_direction_histogram()
+	with binned intervals defined in sub_intervals (might use times2intervals() function)
+
+	Arguments:
+	sub_intervals: (2,n) array that contains the intervals
+
+	Returns: hd firing, mean vector length, mean direction on each interval
+        """
+
+        hd_firing_all = []
+        hd_mvl_all = []
+        hd_mean_direction_rad_all = []
+        hd_peak_angle_rad_all = []
+        hd_peak_rate_all = []
+        
+        mean_firing_rate_all = []
+
+        for sub_interval in sub_intervals:
+
+            # reset and set intervals
+            self.set_intervals(sub_interval)
+
+            # calculate HD tuning curve
+            self.firing_rate_head_direction_histogram(smoothing=False)
+            angles = self.mid_point_from_edges(self.firing_rate_head_direction_histo_edges)
+            hd_firing = self.firing_rate_head_direction_histo
+            hd_mean_direction_rad, hd_mean_direction_deg, hd_mean_vector_length, hd_peak_angle_rad, hd_peak_rate = self.head_direction_score()
+
+            hd_firing_all.append(hd_firing)
+            hd_mvl_all.append(hd_mean_vector_length)
+            hd_mean_direction_rad_all.append(hd_mean_direction_rad)
+            hd_peak_angle_rad_all.append(hd_peak_angle_rad)
+            hd_peak_rate_all.append(hd_peak_rate)
+            
+            mean_firing_rate_all.append(self.st.mean_firing_rate())
+            
+        return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)
+    
+
+
+
+    
         
     
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
@@ -365,7 +413,7 @@ class Spatial_properties:
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
        
-    def firing_rate_histogram(self,cm_per_bin=2, smoothing_sigma_cm=2,smoothing=True,x_range=None):
+    def firing_rate_histogram(self,cm_per_bin=2, smoothing_sigma_cm=2,smoothing=True,x_range=None,linspace=False,n_bins = None):
         """
         Method of the Spatial_properties class to calculate a firing rate histogram (1D) of a single neuron.
         This is similar to firing_rate_map_2d, but only use the x position values of the self.animal_pose object.
@@ -375,6 +423,8 @@ class Spatial_properties:
         smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the firing rate map
         smoothing: boolean indicating whether or not smoothing should be applied to the firing rate map
         x_range: 1D np.array of size 2 [xmin,xmax] with the minimal and maximal x to be included in the occupancy map. This can be used to set the firing rate map to a specific size. The default value is None, which means that the size of the occupancy histogram (and firing rate histogram) will be determined from the range of values in the Animal_pose (x) object.
+        linspace: alternative way to create the binning, using np.linespace instaead of np.arange. Was introduced because I was getting inconsistencies in the number of bins when using np.arange. If linspace is true, cm_per_bin will not be used. Instead n_bins will be used.
+        n_bins: if using linspace, this will be the number of bins in your histogram. If linspace is False, n_bins is not used.
         
         Return
         The Spatial_properties.firing_rate_histo is set. It is a 1D numpy array containing the firing rate in Hz in a set of bins covering the environment.
@@ -388,7 +438,7 @@ class Spatial_properties:
         # create a occupancy histogram
         self.ap.occupancy_histogram_1d(cm_per_bin =self.map_cm_per_bin, 
                                  smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                 smoothing = smoothing, zero_to_nan = True,x_range=x_range)
+                                 smoothing = smoothing, zero_to_nan = True,x_range=x_range, linspace = linspace,n_bins=n_bins)
         
         # this will work with the x and y data, but we will only use the x
         self.spike_position() 
@@ -406,7 +456,50 @@ class Spatial_properties:
         self.firing_rate_histo = spike_count/self.ap.occupancy_histo
         self.firing_rate_histo_mid = self.mid_point_from_edges(x_edges)
 
+    
+    def information_score_histogram(self):
+        """
+        Method of the Spatial_properties class to calculate the information score of a single neuron.
         
+        The formula is from Skaggs and colleagues (1996, Hippocampus).
+        
+        You should have calculated firing_rate_histo without smoothing before calling this function
+        
+        Return
+        Information score
+        """      
+        
+        if not hasattr(self, 'firing_rate_histo'):
+            raise ValueError('Call self.firing_rate_histogram() before calling self.information_score_histogram()')
+        if self.map_smoothing == True:
+            print("You should not smooth the firing rate map when calculating information score")
+        
+        if np.any(self.ap.occupancy_histo.shape != self.firing_rate_histo.shape):
+            raise ValueError('The shape of the occupancy histogram should be the same as the firing rate histogram.')
+        
+        if np.nanmax(self.firing_rate_histo)==0.0: # if there is no spike in the map, we can't really tell what the information is.
+            return np.nan
+        
+                
+        # probability to be in bin i
+        p = self.ap.occupancy_histo/np.nansum(self.ap.occupancy_histo)
+        
+        # firing rate in bin i
+        v = self.firing_rate_histo.copy() # we need to make a copy because we will modify it a few lines below
+        
+        # mean rate is the sum of spike count / sum of occupancy, NOT the mean of the firing rate map bins
+        mr = np.nansum(self.spike_count)/np.nansum(self.ap.occupancy_histo)
+        
+        # when rate is 0, we get p * 0 * -inf, which should be 0
+        # to avoid -inf * 0, we set the v==0 to np.nan
+        v[v==0]=np.nan
+        
+        # following Skaggs' formula
+        IS = np.nansum(p * v/mr * np.log2(v/mr))
+        
+        return IS
+    
+    
     def information_score(self):
         """
         Method of the Spatial_properties class to calculate the information score of a single neuron.
@@ -426,7 +519,6 @@ class Spatial_properties:
         
         if np.any(self.ap.occupancy_map.shape != self.firing_rate_map.shape):
             raise ValueError('The shape of the occupancy map should be the same as the firing rate map.')
-        
         
         if np.nanmax(self.firing_rate_map)==0.0: # if there is no spike in the map, we can't really tell what the information is.
             return np.nan
@@ -1210,6 +1302,7 @@ class Spatial_properties:
         return self.border_shuffle, self.border_score_threshold
     
     
+
     def speed_score(self, bin_size_sec=0.02, sigma_ifr=12.5, sigma_speed=5):
         """
         Calculate the speed score of a neuron. 
@@ -1303,18 +1396,20 @@ class Spatial_properties:
         
         return self.speed_shuffle, self.speed_score_threshold
     
-    
-    def set_intervals(self, inter):
+
+    def set_intervals(self, inter=None):
+
         """
         Set the interval for both the Neuron spike train, and the Animal pose
-        Argument: The interval
+        Argument: The interval (if not provided, only reset)
         Returns nothing, but the intervals are set
         """
         # reset and set interval
         self.st.unset_intervals()
         self.ap.unset_intervals()
-        self.st.set_intervals(inter)
-        self.ap.set_intervals(inter)
+        if inter is not None:
+            self.st.set_intervals(inter)
+            self.ap.set_intervals(inter)
         
         ## clear intervals
         # n.spike_train.unset_intervals()
