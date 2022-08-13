@@ -517,6 +517,8 @@ class Kilosort_session(Session):
         
         if en=="sqr70":
             return ("square",70.,None,None)
+        if en=="sqr100":
+            return ("square",100.,None,None)
         if en=="circ80":
             return ("circle",80.,None,None)
         if en=="rb":
