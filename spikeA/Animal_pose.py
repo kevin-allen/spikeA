@@ -632,23 +632,29 @@ class Animal_pose:
                           print("positrack process did not stop before the end of .dat file")
                 
                 # if there are just some ttl pulses missing from positrack, copy the last lines in the positrack file
-                if extension =="positrack" and (len(pt) < len(ttl) < len(pt)+20):
+                if (extension =="positrack" or extension=="positrack2" or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf") and (len(pt) < len(ttl) < len(pt)+20):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     missing = len(ttl)-len(pt)
                     print("Missing lines:",missing)
                     pt_mod = pt.append(pt[(len(pt)-missing):])
                     print("Number of lines in adjusted positrack file:", len(pt_mod))
                     os.rename(positrack_file_name, original_positrack_file)
-                    pt_mod.to_csv(positrack_file_name, sep=' ')
+                    if (extension=='positrack'):
+                        pt.to_csv(positrack_file_name, sep=' ')
+                    else:
+                        pt.to_csv(positrack_file_name, sep=',')
                     pt = pt_mod
                     print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
-                elif extension=="positrack" and (ttl.shape[0]<pt.shape[0]):
+                elif (extension=="positrack" or extension=="positrack2"or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf") and (ttl.shape[0]<pt.shape[0]):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     pt_mod = pt[:ttl.shape[0]]
                     print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
                     os.rename(positrack_file_name, original_positrack_file)
                     pt = pt_mod
-                    pt.to_csv(positrack_file_name, sep=' ')
+                    if (extension=='positrack'):
+                        pt.to_csv(positrack_file_name, sep=' ')
+                    else:
+                        pt.to_csv(positrack_file_name, sep=',')
                     print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
 
                 # we will need more code to solve simple problems 
@@ -1024,14 +1030,14 @@ class Animal_pose:
         
         # if center is not specified, determine from center of mass of the occupancy map
         if center is None:
-            self.occupancy_map_2d()
+            self.occupancy_map_2d(cm_per_bin=1)
             occ_map = self.occupancy_map.copy()
             # nan values need to be 0
             occ_map[np.isnan(occ_map)]=0.0
             # the occupancy map is rotated by -90° to the pose date. We need to rotate back.
             occ_map=ndimage.rotate(occ_map, 90)
             # get the center of mass of the occupancy map
-            center_occ=ndimage.measurements.center_of_mass(occ_map)
+            center_occ=ndimage.center_of_mass(occ_map)
             #print(center_occ)
             # we need to transform back from the occupancy map to the pose data. 
             # The y axis starts in the top left orner for the occ_map, but in the bottom left corner for the pose data.
@@ -1039,7 +1045,7 @@ class Animal_pose:
             x_range_occ = occ_map.shape[1]
             y_range_pose = np.nanmax(self.pose[:,2]-np.nanmin(self.pose[:,2]))
             y_range_occ = occ_map.shape[0]
-            center = (np.nanmin(self.pose[:,1])+center_occ[1]*x_range_pose/x_range_occ,np.nanmax(self.pose[:,2])-center_occ[0]*y_range_pose/y_range_occ)
+            center = (np.nanmin(self.pose[:,1])+center_occ[0]*x_range_pose/x_range_occ,np.nanmax(self.pose[:,2])-center_occ[1]*y_range_pose/y_range_occ)
             #print(center)
 
                 
@@ -1190,9 +1196,9 @@ class Animal_pose:
         
     def positrack_type(self,ses=None):
         """
-        Function trying to answer if the data were collected with positrack or positrack2
+        Function trying to answer if the data were collected with positrack or positrack2 or trk
         
-        Return Type of tracking as a string. Can be "positrack", "positrack2" or "None" 
+        Return Type of tracking as a string. Can be "positrack", "positrack2", "trk" or "None" 
         """
         if ses is None and self.ses is None:
             raise TypeError("Please provide a session object with the ses argument")
@@ -1214,6 +1220,11 @@ class Animal_pose:
         if positrack_file.exists() :
             return "positrack2"
         
+        positrack_file_name = self.ses.path + "/" + t+".trk"
+        positrack_file = Path(positrack_file_name)
+        if positrack_file.exists() :
+            return "trk"
+        
         return "None"
     
     def times2intervals(self,times):
@@ -1222,3 +1233,13 @@ class Animal_pose:
         Return: corresponding 2d np array
         """
         return np.transpose([times[:-1], times[1:]])
+
+    
+    def rotate(self, point, origin, radians):
+        """rotate data points"""
+        x,y = point; offset_x, offset_y = origin
+        adjusted_x = (x - offset_x); adjusted_y = (y - offset_y)
+        cos_rad = np.cos(radians); sin_rad = np.sin(radians)
+        qx = offset_x + cos_rad * adjusted_x + sin_rad * adjusted_y
+        qy = offset_y + -sin_rad * adjusted_x + cos_rad * adjusted_y
+        return qx, qy

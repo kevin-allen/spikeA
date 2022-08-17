@@ -617,7 +617,7 @@ class Spatial_properties:
         return 1-(((np.nansum(p*v))**2)/np.nansum(p*(v**2)))
         
         
-    def find_field_pixels(self, p, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate):
+    def find_field_pixels(self, p, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate,max_min_peak_rate):
         """
         Method of the Spatial_properties class to determine if adjacent pixels to a start pixel belong to the firing field in the firing rate map.
         
@@ -637,13 +637,13 @@ class Spatial_properties:
         adjacent_pixels=[(y+1,x),(y+1,x+1),(y,x+1),(y-1,x+1),(y-1,x),(y-1,x-1),(y,x-1),(y+1,x-1)]
         for p in adjacent_pixels:
             # to be considered a field pixel, a pixel should be wihin the range of the firing rate map and have a firing rate > min_fraction_of_peak_rate peak rate
-            if p not in field_pixels and p[0]<rate_map.shape[0] and p[1]<rate_map.shape[1] and rate_map[p]>peak_rate*min_fraction_of_peak_rate:
+            if p not in field_pixels and p[0]<rate_map.shape[0] and p[1]<rate_map.shape[1] and rate_map[p]>np.nanmin([peak_rate*min_fraction_of_peak_rate,max_min_peak_rate]):
                 field_pixels.append(p)
                 # use field pixel as new starting point to detect all pixels belonging to the same firing field
-                self.find_field_pixels(p, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate)
+                self.find_field_pixels(p, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate, max_min_peak_rate)
         
 
-    def detect_one_field(self, rate_map, fields, peak_rate, min_pixel_number_per_field, min_peak_rate, min_fraction_of_peak_rate):
+    def detect_one_field(self, rate_map, fields, peak_rate, min_pixel_number_per_field, max_fraction_pixel_per_field, min_peak_rate, min_fraction_of_peak_rate, max_min_peak_rate):
         """
         Method of the Spatial_properties class to detect firing fields in the firing rate map.
         
@@ -671,31 +671,33 @@ class Spatial_properties:
             field_pixels=[start_pixel]
 
             # determine if the adjacent pixels belong to the putative field
-            self.find_field_pixels(start_pixel, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate)
+            self.find_field_pixels(start_pixel, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate, max_min_peak_rate)
             # set the start pixel to nan so that it will not be selected again as start pixel
             rate_map[start_pixel]=np.nan
-            # a firing field must have a minimal number of pixels
-            if len(field_pixels)>min_pixel_number_per_field:
+            # a firing field must have a minimal number of pixels and should not exceed a certain fraction of the firing rate map
+            if len(field_pixels)>min_pixel_number_per_field and len(field_pixels)<(max_fraction_pixel_per_field*rate_map.shape[0]*rate_map.shape[1]):
                 fields.append(field_pixels)
                 # set all field pixels to nan so that they will not be assigned to other fields
-                for p in field_pixels:
-                    rate_map[p]=np.nan
+            for p in field_pixels:
+                rate_map[p]=np.nan
             # check if there could be more fields (no more fields when all pixels are nan or have too low firing rate)
-            if not all(all(np.isnan(rate_map[:,r])) for r in range(rate_map.shape[1])) or all(all(rate_map[:,r]<peak_rate*min_fraction_of_peak_rate) for r in range(rate_map.shape[1])):
-                self.detect_one_field(rate_map, fields, peak_rate, min_pixel_number_per_field, min_peak_rate, min_fraction_of_peak_rate)
+            if not all(all(np.isnan(rate_map[:,r])) for r in range(rate_map.shape[1])) or all(all(rate_map[:,r]<np.nanmin([peak_rate*min_fraction_of_peak_rate,max_min_peak_rate])) for r in range(rate_map.shape[1])):
+                self.detect_one_field(rate_map, fields, peak_rate, min_pixel_number_per_field, max_fraction_pixel_per_field, min_peak_rate, min_fraction_of_peak_rate,max_min_peak_rate)
         return(fields)
     
     
-    def firing_rate_map_field_detection(self, min_pixel_number_per_field=25, min_peak_rate=4, min_fraction_of_peak_rate=0.2, cm_per_bin=2):
+    def firing_rate_map_field_detection(self, min_pixel_number_per_field=25, max_fraction_pixel_per_field=0.33, min_peak_rate=4, min_fraction_of_peak_rate=0.45, max_min_peak_rate=10):
         """
         Method of the Spatial_properties class to calculate the position and size of fields in the firing rate map.
         
         If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
         Arguments:
         min_pixel_number_per_field: minimal number of pixels so that the putative firing field will be appended to the fields list
+        max_fraction_pixel_per_field: maximal field pixels (as fraction of total pixel number)
         min_peak_rate: minimal firing rate in a field
         min_fraction_of_peak_rate: threshold firing rate of a pixel to be considered a field pixel (as fraction of peak rate)
-        cm_per_bin: cm_per_bin as for calculation of firing rate map
+        max_min_peak_rate: maximal threshold firing rate
+
         Return
         The Spatial_properties.firing_rate_map_field_size and Spatial_properties.firing_rate_map_fields are set.
         """
@@ -711,12 +713,12 @@ class Spatial_properties:
         fields = []
         # get the peak rate of the whole map
         peak_rate = np.nanmax(rate_map)
-        # call the recursive function detect_one_field which will find all the fields
-        fields = self.detect_one_field(rate_map, fields, peak_rate, min_pixel_number_per_field, min_peak_rate, min_fraction_of_peak_rate)
+        # call the recursive function detect_one_field which will find all the fiel
+        fields = self.detect_one_field(rate_map, fields, peak_rate, min_pixel_number_per_field, max_fraction_pixel_per_field, min_peak_rate, min_fraction_of_peak_rate, max_min_peak_rate)
         self.firing_rate_map_fields = fields
         # calculate the field size in cm2
         if fields:
-            self.firing_rate_map_field_size = [len(fields[i])*cm_per_bin**2 for i in range(len(fields))]
+            self.firing_rate_map_field_size = [len(fields[i])*self.map_cm_per_bin**2 for i in range(len(fields))]
         else:
             self.firing_rate_map_field_size = []
 
@@ -1094,8 +1096,8 @@ class Spatial_properties:
         else:
             return(walls)
     
-    
-    def border_score(self, xy_range, arena, cm_per_bin=2, smoothing=True, smoothing_sigma_cm=2, min_pixel_number_per_field=15, min_peak_rate=4, min_fraction_of_peak_rate=0.4):
+
+    def border_score(self, xy_range, arena, cm_per_bin=2, smoothing=True, smoothing_sigma_cm=2, min_pixel_number_per_field=15, max_fraction_pixel_per_field=0.33, min_peak_rate=4, min_fraction_of_peak_rate=0.45, max_min_peak_rate=10):
         """
         Calculate the border score of a neuron. 
         Score is calculated like in the first border cell paper: https://www.science.org/doi/suppl/10.1126/science.1166466/suppl_file/solstad.som.pdf
@@ -1118,7 +1120,7 @@ class Spatial_properties:
         self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing_sigma_cm=smoothing_sigma_cm, smoothing=smoothing, xy_range=xy_range)
         
         # get the firing fields of the cell
-        self.firing_rate_map_field_detection(min_pixel_number_per_field=min_pixel_number_per_field, min_peak_rate=min_peak_rate, min_fraction_of_peak_rate=min_fraction_of_peak_rate, cm_per_bin=cm_per_bin)
+        self.firing_rate_map_field_detection(min_pixel_number_per_field=min_pixel_number_per_field, max_fraction_pixel_per_field=max_fraction_pixel_per_field, min_peak_rate=min_peak_rate, min_fraction_of_peak_rate=min_fraction_of_peak_rate, max_min_peak_rate=max_min_peak_rate)
         field_pixel = self.firing_rate_map_fields.copy()
         field_pixel_array=[(x,y) for i,n in enumerate(field_pixel) for x,y in field_pixel[i]]
 
@@ -1300,7 +1302,103 @@ class Spatial_properties:
         return self.border_shuffle, self.border_score_threshold
     
     
+
+    def speed_score(self, bin_size_sec=0.02, sigma_ifr=12.5, sigma_speed=5):
+        """
+        Calculate the speed score of a neuron. 
+        Score is calculated like in the first speed cell paper: Kropff et al. 2015 https://rdcu.be/cRaD3
+
+        Arguments:
+        For speed calculation: sigma_speed -> sigma for ap.speed_from_pose
+        For ifr calculation: sigma_ifr, bin_size_sec -> sigma, bin_per_sec for ifr
+
+        Return
+        speed score
+    
+        """
+        
+
+        self.ap.speed_from_pose(sigma=sigma_speed)
+
+        self.st.instantaneous_firing_rate(bin_size_sec = bin_size_sec, sigma = sigma_ifr, outside_interval_solution="nan") #kernel=250ms, binning=20ms
+        ifr=self.st.ifr[0]
+        if len(self.st.ifr[0])>len(self.ap.speed):
+            ifr=self.st.ifr[0][0:len(self.ap.speed)]
+
+        #remove nan
+        speed=self.ap.speed[~np.isnan(self.ap.speed)&~np.isnan(ifr)]
+        ifr=ifr[~np.isnan(self.ap.speed)&~np.isnan(ifr)]
+
+
+        speed_score = pearsonr(speed,ifr)[0]
+        
+        return speed_score
+
+        
+    def shuffle_speed_score(self, iterations=500, bin_size_sec=0.02, sigma_ifr=12.5, sigma_speed=5, percentile=95):
+        """
+        Get a distribution of speed score that would be expected by chance for this neuron
+
+        Argument:
+        iterations: How many shufflings to perform
+        see arguments of speed score
+        percentile: percentile of the distribution of shuffled speed scores that is used to get the significance threshold
+
+        Return
+        tuple: 
+        0: 1D numpy array with the speed scores obtained by chance for this neuron
+        1: significance threshold for speed score
+        
+        Example
+        
+        # get a neuron and set intervals
+        n = cg.neuron_list[7]
+        n.set_spatial_properties(ap)
+        n.spike_train.set_intervals(aSes.intervalDict[cond])
+        n.spatial_properties.ap.set_intervals(aSes.intervalDict[cond])
+
+        # get the observed value for border score
+ 
+        SpS = n.spatial_properties.speed_score()
+
+        # get the shuffled values for speed score
+        shuSpS,threshold = n.spatial_properties.shuffle_speed_score(iterations=100, percentile=95, bin_size_sec=0.02, sigma_ifr=12.5, sigma_speed=5)
+
+        # plot the results for this neuron
+        res = plt.hist(shuSpS,label="shuffled")
+        ymax=np.max(res[0])
+        plt.plot([threshold,threshold],[0,ymax],c="black",label="Threshold")
+        plt.plot([SpS,SpS],[0,ymax],c="red",label="Observed")
+        plt.xlabel("Speed score")
+        plt.ylabel("Count")
+        plt.legend()
+        plt.show()
+        """
+        
+        # keep a copy of the pose that we started with
+        pose_at_start = self.ap.pose.copy()
+        
+        self.speed_shuffle=np.empty(iterations)
+        for i in range(iterations):
+            self.ap.roll_pose_over_time() # shuffle the position data 
+            # no need to recalculate the firing rate map as it will be calculated in course of border score calculation
+            self.speed_shuffle[i] = self.speed_score(bin_size_sec=bin_size_sec, sigma_ifr=sigma_ifr, sigma_speed=sigma_speed) # calculate the border score from the new map
+            self.ap.pose=pose_at_start
+
+        # calculate the threshold
+        if not np.isnan(self.speed_shuffle).all():
+            shuffled = self.speed_shuffle[~np.isnan(self.speed_shuffle)]
+        else:
+            shuffled = np.nan
+
+            
+        self.speed_score_threshold =  np.percentile(shuffled,percentile)
+        
+        return self.speed_shuffle, self.speed_score_threshold
+    
+
     def set_intervals(self, inter=None):
+
         """
         Set the interval for both the Neuron spike train, and the Animal pose
         Argument: The interval (if not provided, only reset)

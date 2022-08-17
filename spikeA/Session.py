@@ -299,7 +299,7 @@ class Kilosort_session(Session):
         else:
             raise ValueError("px_per_cm is invalid ({}), length must be either 1 or equal to number of trials ({})".format(len(px_per_cm),self.n_trials))
             
-        print("self.px_per_cm",type(self.px_per_cm),self.px_per_cm)
+        #~ print("self.px_per_cm",type(self.px_per_cm),self.px_per_cm)
         
 
         # checks: these 4 files must have exactly one line for each trial, so that the length must match n_trials
