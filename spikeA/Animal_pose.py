@@ -6,6 +6,7 @@ from scipy import ndimage
 from scipy.ndimage import gaussian_filter1d
 import os.path
 import os
+from scipy.signal import medfilt
 import spikeA.spatial_properties
 
 from spikeA.Dat_file_reader import Dat_file_reader
@@ -916,6 +917,25 @@ class Animal_pose:
         fhdc    = interp1d(self.pose[:,0], np.cos(self.pose[:,4]), bounds_error=False) # cos(hd)
         fhds    = interp1d(self.pose[:,0], np.sin(self.pose[:,4]), bounds_error=False) # sin(hd)
         self.fhd = lambda t: np.arctan2(fhds(t),fhdc(t))
+        
+        
+        
+    def filter_pose(self, windowlen_sec = .25):
+        time = self.pose[:,0]
+        dtime = np.diff(time)[0]
+        xvals,yvals = self.pose[:,1],self.pose[:,2]
+        windowlen_ind = (int(windowlen_sec/dtime) // 2) * 2  + 1 # odd number
+        xvals_ = medfilt(xvals, windowlen_ind)
+        yvals_ = medfilt(yvals, windowlen_ind)
+        self.pose[:,1] = xvals_
+        self.pose[:,2] = yvals_
+        
+    def hd_use_speedvector(self):
+        distance = np.diff(self.pose[:,1:3], axis=0, append=np.nan)
+        movement_direction = np.arctan2(distance[:,1],distance[:,0])
+        self.pose[:,4] = movement_direction
+
+
         
             
     def speed_from_pose(self, sigma=1):
