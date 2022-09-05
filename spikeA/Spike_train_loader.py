@@ -6,7 +6,7 @@ import pandas as pd
 from scipy import stats
 import os.path
 from spikeA.Session import Kilosort_session
-from spikeA.Session import Tetrode_session
+from spikeA.Session import Klustakwik_session
 
 class Spike_train_loader:
     """
@@ -14,8 +14,7 @@ class Spike_train_loader:
     
     This class exists because spike trains might be stored differently depending on the specific recording systems and clustering programs used in different experiment.
     This class will take care of loading the spike trains and transform them in a standard representation that can be used in spikeA.
-    We will write a method for the different system we encounter. New users with different system can just add a new method in this class.
-    
+       
     Once loaded, the spike trains should be stored as 2 python lists: spike_times, clu_id
     
     Attributes:
@@ -24,12 +23,7 @@ class Spike_train_loader:
     clu_ids: A list of items (usually integers) representing the cluster identification for each neuron
     sampling_rate: The sampling rate to transform some spike time inputs (from Klustakwik) from sample number to seconds
     
-    Methods:
-    generate_klustakwik_clu_res()
-    save_klustakwik_clu_res_files()
-    load_spike_train_klustakwik()
-    load_spike_train_from_files_klustakwik()
-    format_klustakwik_data()
+    
     """
     def __init__(self,sampling_rate=20000):
         """
@@ -38,55 +32,122 @@ class Spike_train_loader:
         Arguments:
         sampling_rate: number of samples per seconds
         """
-        
-        self.sampling_rate = sampling_rate           
+        self.sampling_rate = sampling_rate       
     
-    def load_spike_train_klustakwik_and_save_np_array(self, td):
+    
+    def load_session_spike_trains(self,session, verbose=False):
         """
-        Load the spike train for a recording session processed with klustakwik
+        Load spikes from recording session. 
         
         Arguments
-        td: a Tetrode_session object
+        session: a spikeA.Klustakwik_session or a spikeA.Kilosort_session object
+        """
         
+        if isinstance(session,Klustakwik_session):
+            if verbose:
+                print("load klustakwik spikes")
+            self.load_spike_train_klustakwik(session, from_numpy_files = True)
+        elif isinstance(session,Kilosort_session):
+            if verbose:
+                print("load kilosort spikes")
+            self.load_spike_train_kilosort(session, only_good = True)
+        else: 
+            raise TypeError("session should be a spikeA.KlustaKwik_session or a spikeA.Kilosort_session but is a {}".format(type(session)))
+            
+    
+    
+    def load_spike_train_klustakwik(self, klustakwik_ses, from_numpy_files = True):
+        """
+        Load the spike train for a recording session processed with klustakwik. 
+        
+        
+        Arguments
+        klustakwik_ses: a Klustakwik_session object
+        
+        Return
         The values are stored in self.clu_id, self.spike_times, 
         """
-        if not isinstance(td,Tetrode_session):
-            raise TypeError("td should be a Tetrode_session but is {}".format(type(td)))
+        if not isinstance(klustakwik_ses,Klustakwik_session):
+            raise TypeError("klustakwik_ses should be a KlustaKwik_session but is {}".format(type(klustakwik_ses)))
         
-        if not os.path.isfile(td.file_names['res']):
-            raise IOError("{} file not found".format(td.file_names['res']))
-        spike_times = np.squeeze(np.loadtxt(td.file_names['res'], dtype=np.uint64)/self.sampling_rate).flatten()
         
-        if not os.path.isfile(td.file_names['clu']):
-            raise IOError("{} file not found".format(td.file_names['clu']))
-        tmp = np.loadtxt(td.file_names['clu'], dtype = np.int32).flatten()
+        if from_numpy_files == True:
+            if  os.path.isfile(klustakwik_ses.path+"/"+"spike_times.npy") and os.path.isfile(klustakwik_ses.path+"/"+"spike_times.npy"):
+                self.load_spike_train_klustakwik_np_array(klustakwik_ses,verbose=False)
+            else :
+                print("npy files missing, loading from res and clu files")
+                self.load_spike_train_klustakwik_res_clu_files(klustakwik_ses,verbose=False)
+        else:
+            self.load_spike_train_klustakwik_res_clu_files(klustakwik_ses,verbose=False)
+            
+        
+    def load_spike_train_klustakwik_res_clu_files(self, klustakwik_ses, verbose=False):
+        """
+        Load the spike trains from res and clu files
+        Also save the spike_times and spike_clusters as numpy array for faster loading.
+        
+        Reading from clu and res file is very slow. 
+        That is why I save that data as numpy arrays.
+        
+        """
+        if verbose:
+            print("Reading",klustakwik_ses.file_names['res'])
+        
+        if not os.path.isfile(klustakwik_ses.file_names['res']):
+            raise IOError("{} file not found".format(klustakwik_ses.file_names['res']))
+        spike_times = np.squeeze(np.loadtxt(klustakwik_ses.file_names['res'], dtype=np.uint64)/self.sampling_rate).flatten()
+
+        
+        if verbose:
+            print("Reading",klustakwik_ses.file_names['clu'])
+        
+        if not os.path.isfile(klustakwik_ses.file_names['clu']):
+            raise IOError("{} file not found".format(klustakwik_ses.file_names['clu']))
+        tmp = np.loadtxt(klustakwik_ses.file_names['clu'], dtype = np.int32).flatten()
         spike_clusters = tmp[1:]
+
+        # check that the res and clu data have the same length
         if spike_clusters.shape[0] != spike_times.shape[0]:
             raise ValueError("the shape of spike_clusters and spike_times should be the same but are {} {}".format(spike_clusters.shape[0],spike_times.shape[0]))
-        
-        np.save(td.path+"/"+"spike_times", spike_times)
-        np.save(td.path+"/"+"spike_clusters", spike_clusters)
+
+        # save spikes as numpy array for faster loading during future analysis
+        if verbose:
+            print("Saving", klustakwik_ses.path+"/"+"spike_times")
+        np.save(klustakwik_ses.path+"/"+"spike_times", spike_times)
+        if verbose:
+            print("Saving", klustakwik_ses.path+"/"+"spike_clusters")
+        np.save(klustakwik_ses.path+"/"+"spike_clusters", spike_clusters)
         
         # ## format the spike times so we get a list of arrays
-        # self.clu_ids = np.sort(np.unique(spike_clusters))
-        # self.spike_times = [ spike_times[spike_clusters==c] for c in self.clu_ids ]
+        self.clu_ids = np.sort(np.unique(spike_clusters))
+        self.spike_times = [ spike_times[spike_clusters==c] for c in self.clu_ids ]
+
         
-    def load_spike_train_np_array(self, td):
+    def load_spike_train_klustakwik_np_array(self, klustakwik_ses,verbose=False):
         """
-        Load the spike train for a recording session processed with klustakwik
+        Load the spike train from a spike_times and spike_clusters numpy array.
         
         Arguments
-        td: a Tetrode_session object
+        klustakwik_ses: a KlustaKwik_session object
         
         The values are stored in self.clu_id, self.spike_times, 
         """
-        if not isinstance(td,Tetrode_session):
-            raise TypeError("td should be a Tetrode_session but is {}".format(type(td)))
+        if not isinstance(klustakwik_ses,Klustakwik_session):
+            raise TypeError("klustakwik_ses should be a KlustaKwik_session but is {}".format(type(klustakwik_ses)))
+        
+        if verbose:
+            print("Reading", klustakwik_ses.path+"/"+"spike_times.npy")
+        if not os.path.isfile(klustakwik_ses.path+"/"+"spike_times.npy"):
+            raise IOError("{} file not found".format(klustakwik_ses.path+"/"+"spike_times.npy"))
+        spike_times = np.load(klustakwik_ses.path+"/"+"spike_times.npy")
         
         
-        spike_times = np.load(td.path+"/"+"spike_times.npy")
-    
-        spike_clusters = np.load(td.path+"/"+"spike_clusters.npy")
+        if verbose:
+            print("Reading", klustakwik_ses.path+"/"+"spike_clusters.npy")
+        if not os.path.isfile(klustakwik_ses.path+"/"+"spike_clusters.npy"):
+            raise IOError("{} file not found".format(klustakwik_ses.path+"/"+"spike_clusters.npy"))
+        spike_clusters = np.load(klustakwik_ses.path+"/"+"spike_clusters.npy")
+        
         
         if spike_clusters.shape[0] != spike_times.shape[0]:
             raise ValueError("the shape of spike_clusters and spike_times should be the same but are {} {}".format(spike_clusters.shape[0],spike_times.shape[0]))
@@ -94,54 +155,7 @@ class Spike_train_loader:
         self.clu_ids = np.sort(np.unique(spike_clusters))
         self.spike_times = [ spike_times[spike_clusters==c] for c in self.clu_ids ]
     
-    
-    def load_spike_train_klustakwik(self,clu_file_name, res_file_name):
-        """
-        Load spike trains from KlustaKwik output and store it in the correct format for spikeA
-        
-        Function that the user should use.
-        
-        Klustakwik format:
-        The time values are stored as sample number in a .res file.
-        The cluster id of each spike in the .res file is found in the .clu file
-        The first number in the .clu file is the number of clusters in the data set.
-        The other numbers in the .clu file is the clu_id of each spike.
-        So the .clu file has one more data point than the .res file.
-        
-        Arguments
-        clu_file_name: the name of the clu file
-        res_file_name: the name of the res file
-        
-        Results
-        The spike trains loaded is stored in self.clu_ids and self.spike_times 
-        """
-        clu,res = self.load_spike_train_from_files_klustakwik(clu_file_name,res_file_name)
-        self.format_klustakwik_data(clu,res)
-        
-    
-#     def load_spike_train_from_files_klustakwik(self,clu_file_name,res_file_name):
-#         """
-#         Load the clu and res file that were saved by klustakwik
-        
-#         Arguments
-#         clu_file_name: name of the clu file
-#         res_file_name: name of the res file
-        
-#         Return
-#         The content of the clu and res files are returned by the function as a tuple (clu,res)
-#         """
-#         print("read ",clu_file_name)
-#         clu = np.loadtxt(clu_file_name,dtype=np.int32)
-#         print("read ",res_file_name)
-#         res = np.loadtxt(res_file_name,dtype=np.uint64)
-#         res = res.reshape((len(res),1))
-#         spike_clusters = clu
-#         spike_times = res
-#            
-#         self.clu_ids = np.sort(np.unique(spike_clusters))
-#         self.spike_times = [ spike_times[spike_clusters==c] for c in self.clu_ids ]
-#         # return (clu,res)
-  
+      
     def generate_klustakwik_clu_res(self, rep=10,clu_list = [0,1,2]):
         """
         Function to generate fake klustakwik data for testing
@@ -180,31 +194,6 @@ class Spike_train_loader:
         print("save {}".format(res_file_name))
         np.savetxt(fname = res_file_name,X=res.astype(int), fmt="%i")
     
-    
-    def format_klustakwik_data(self, clu,res):
-        """
-        Take the content of the klustakwik clu and res files and transform it into a clu_ids list and spike_times list
-
-        Arguments
-        clu: content of the clu file
-        res: content of the res file
-        
-        The values are stored in self.clu_id and self.spike_times
-        """
-        # time in seconds
-        res = res/self.sampling_rate
-        n_clusters = clu[0]
-        clu = clu[1:]
-        print("Number of cluster:",n_clusters)
-        print(clu.size,res.size)
-        self.clu_ids = np.sort(np.unique(clu))
-        self.spike_times = [ res[clu==c] for c in self.clu_ids ]
-        
-#     def format_klustakwik_to_kilosort(self, clu, res):
-        
-#         spike_clusters = np.loadtxt(clu_file_name,dtype=np.int32)
-#         spike_times = np.loadtxt(res_file_name,dtype=np.int32)
-        
         
     def load_spike_train_kilosort(self, ks, only_good = True):
         """

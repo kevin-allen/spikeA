@@ -12,7 +12,7 @@ class Session:
     
     This class is very generic and should work with all types of recording sessions.
     
-    We will derive more specific class from it that will deal with the more specific stuff.
+    We will derive more specific classes from it that will deal with the more specific stuff (klustakwik and kilosort sessions).
     
     Attributes:
         name: Name of the session. Usually used as the beginning of the file names. Format should be subject-date-time
@@ -25,16 +25,69 @@ class Session:
         
     """
     def __init__(self,name, path):
+        self.set_name_and_directories(name, path)
+        self.find_session_data_type()
+        
+    def set_name_and_directories(self,name,path):
+        """
+        Method to set the name and path of the Session object
+        """
         self.name = name
         self.path = os.path.normpath(path)
         self.subject = self.name.split("-")[0]
         self.session_dat_time = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
         self.fileBase = self.path+"/"+name
         return
-
-class Tetrode_session(Session):
+    
+    def find_session_data_type(self):
+        """
+        Method to determine the data type of recording session
+        Current possible data types are klustakwik or kilosort
+        """
+        
+        if os.path.isfile(self.fileBase + ".clu"):
+            self.data_type = "klustakwik"
+        elif os.path.isfile(self.path +"/params.py"):
+            self.data_type = "kilosort"
+        else:
+            raise ValueError("{}, unknown session data_type".format(self.name))
+    
+    def return_child_class(self):
+        """
+        Method that will return a Klustakwik_session or a Kilosort_session object depending on self.data_type
+        
+        This can be used to get the appropriate child object without having to figure it out during data analysis
+        
+        Example 1, single session
+                
+        from spikeA.Session import Session
+        # create a Session object
+        ses = Session(name="mn8578-30112021-0107",path="/adata/projects/autopi_mec/mn8578/mn8578-30112021-0107")
+        # get a Kilosort_session object in this case
+        ses = ses.return_child_class()
+        
+        Example 2, several sessions, here myProject.sessionList was an autopipy.Project object
+        from spikeA.Session import Session
+        # first create a list of spikeA.Sessions objects
+        sSessions = [ Session(ses.name,ses.path) for ses in myProject.sessionList ] # spikeA.Session object
+        # then get the right child object (Kilosort_session or Klustakwik_session) for each spikeA.Session object
+        sSessions = [ ses.return_child_class() for sSes in sSessions ] # spikeA session object
+        """
+        
+        if self.data_type == "klustakwik":
+            return Klustakwik_session(self.name,self.path)
+        elif self.data_type == "kilosort":
+            return Kilosort_session(self.name,self.path)
+        
+    def __str__(self): 
+        return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
+   
+        
+        
+        
+class Klustakwik_session(Session):
     """
-    Class containing information about a recording session in which tetrodes were used
+    Class containing information about a recording session in which tetrodes were used with Klustakwik
     
     Attributes:
         n_channels: Number of channels
@@ -68,24 +121,6 @@ class Tetrode_session(Session):
                           "res": self.fileBase + ".res",
                           "px_per_cm": self.fileBase + ".px_per_cm"}
         
-        
-        myPath = self.path+'/'
-        cluFiles = [myPath + f for f in os.listdir(myPath) if f.endswith('.clu.', 0, 25) & ~f.endswith('.bk')]
-        cluFiles.sort()
-        cluFiles
-        self.tetrode_index = {}
-        cell_index = 2
-
-        for index, filename in enumerate(cluFiles):
-            Tet = 'Tet_' + filename.split('/')[-1].split('.')[-1]
-            nCell = int(open(filename).readline().split('\n')[0])-1
-            if nCell != 0:
-                cell_id = range(cell_index, cell_index + nCell)
-            elif nCell == 0:
-                cell_id = range(0,0)
-            self.tetrode_index[Tet] = cell_id
-            cell_index = cell_index + nCell
-        pass
     
     def load_parameters_from_files(self):
         """
@@ -153,6 +188,30 @@ class Tetrode_session(Session):
         df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
         inter = df.get_file_intervals_in_seconds()
         self.trial_intervals = Intervals(inter)
+        
+        
+        # code that was in the constructor that was moved here
+        # it was not documented...
+        myPath = self.path+'/'
+        cluFiles = [myPath + f for f in os.listdir(myPath) if f.endswith('.clu.', 0, 25) & ~f.endswith('.bk')]
+        cluFiles.sort()
+        cluFiles
+        self.tetrode_index = {}
+        cell_index = 2
+
+        for index, filename in enumerate(cluFiles):
+            Tet = 'Tet_' + filename.split('/')[-1].split('.')[-1]
+            nCell = int(open(filename).readline().split('\n')[0])-1
+            if nCell != 0:
+                cell_id = range(cell_index, cell_index + nCell)
+            elif nCell == 0:
+                cell_id = range(0,0)
+            self.tetrode_index[Tet] = cell_id
+            cell_index = cell_index + nCell
+        
+        
+        
+        
         
     def __str__(self): 
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
@@ -330,7 +389,10 @@ class Kilosort_session(Session):
         else:
             self.log_times = np.array([])
 
-        
+   
+    ############
+    ############ The code below does not really belong to the session class. It would make more sense to have this in the spike_wafeform class as it deals with spike waveforms.
+    ############
         
     ##
     # Template Waveforms
