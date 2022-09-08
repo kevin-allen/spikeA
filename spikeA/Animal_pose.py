@@ -13,6 +13,8 @@ from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.ttl import detectTTL
 from spikeA.Intervals import Intervals
 from spikeA.Session import Session
+import matplotlib.pyplot as plt
+
 class Animal_pose:
     """
     Class containing information about the pose (position and orientation) of an animal in time
@@ -87,6 +89,71 @@ class Animal_pose:
         self.smoothing_sigma_cm = None
         self.speed = None
         self.pose_file_extension = ".pose.npy"
+    
+    def test_head_direction_heading_correlation(self,max_median_delta=3.1416/3, plot=False, throw_exception = True):
+        """
+        Method to test whether the head-direction data are aligned with movement heading. This should be the case for normal dataset in which the animal travels in the direction of its head-direction.
+
+        If not, a figure is generated so that the user can visualize the problem and an exception is thrown to prevent the user from working with corrupted position data.
+
+        t: time of position samples
+        x: x position
+        y: y position
+        hd: head direction data
+        """
+        t= self.pose[:,0]
+        x= self.pose[:,1]
+        y= self.pose[:,2]
+        hd= self.pose[:,4]
+
+
+        hdMin, hdMax = np.nanmin(hd),np.nanmax(hd)
+        hdRange = hdMax - hdMin
+        if hdRange > 2*np.pi+0.01: 
+            print("hd range {}, transforming to radians".format(hdRange))
+            hd = hd /180 * np.pi # this is 0 to 2*pi
+            hd[hd>np.pi] = hd[hd>np.pi]-(2*np.pi) # from -pi to pi
+
+
+        xd = np.diff(x,append=np.nan)
+        yd = np.diff(y,append=np.nan)
+        td = np.diff(t,append=np.nan)
+        heading = np.arctan2(yd,xd)
+        speed= np.sqrt(xd**2+yd**2)/td
+
+        speed[speed>150] = np.nan
+        indices = speed >  10 # we want to focus on when the animal is moving, when head-direction and heading should be aligned
+
+        shd = np.sin(hd)
+        chd = np.cos(hd)
+
+        # angle between heading and head-direction
+        mvVectors = np.stack([xd,yd]) # not unitary vectors
+        hdVectors = np.stack([chd,shd]) # already unitary vectors
+
+        mvLength = np.expand_dims(np.linalg.norm(mvVectors,axis=0),axis=0)
+        mvVectors = mvVectors/ mvLength # after this are unitary vectors
+        delta = np.arccos((np.sum((mvVectors*hdVectors),axis=0))) # angle between vectors (HD and mvH)
+
+        medDelta = np.nanmedian(delta)
+
+        if medDelta > max_median_delta or plot:
+            fig,axes = plt.subplots(nrows=1, ncols=4,figsize=(8,2), constrained_layout=True) # we use pyplot.subplots to get a figure and axes.    
+            axes[0].scatter(x,y)
+            axes[0].set_xlabel("x")
+            axes[0].set_ylabel("y")
+            axes[1].hist(speed,bins=30)
+            axes[1].set_xlabel("Speed (cm/sec)")
+            axes[2].scatter(heading[indices],hd[indices],s=1,alpha=0.1)
+            axes[2].set_xlabel("Movement heading")
+            axes[2].set_ylabel("Head direction")
+            axes[3].hist(delta,bins=30)
+            axes[3].set_xlabel("Delta MVHD-HD")
+            axes[3].set_title("Median delta {:.3f}".format(medDelta))
+            plt.show()
+        if medDelta > max_median_delta and throw_exception:
+            raise ValueError("The movement heading and head-direction of the animal are not aligned.\n The median difference {:.3f}is larger than {:.3f}".format(medDelta,max_median_delta))
+
     
     def roll_pose_over_time(self,min_roll_sec=20):
         """
@@ -165,7 +232,7 @@ class Animal_pose:
         else:
             fn = self.ses.fileBase+self.pose_file_extension
             
-        print("Saving original pose to",fn)
+        print("Saving original pose (shape: {}) to".format(self.pose_ori.shape),fn)
         np.save(file = fn, arr = self.pose_ori) 
             
     def load_pose_from_file(self,file_name=None, verbose=False):
@@ -734,6 +801,7 @@ class Animal_pose:
                 print("****************************************************************************************")  
                 
             # either apply an individual px_per_cm or use one for all trials
+            print("transforming pixels to cm with self.ses.px_per_cm:",self.ses.px_per_cm)
             if isinstance(self.ses.px_per_cm, np.ndarray):
                 px_per_cm = self.ses.px_per_cm[i]
             else:
