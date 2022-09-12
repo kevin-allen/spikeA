@@ -510,6 +510,8 @@ class Spatial_properties:
         
         Return
         Information score
+        
+        Usage 
         """      
         
         if not hasattr(self, 'firing_rate_map'):
@@ -744,21 +746,24 @@ class Spatial_properties:
         if not self.map_smoothing:
             print("You should smooth the firing rate map when calculating autocorrelation in order to detect the fields")
         
+        
+        frm = self.firing_rate_map.copy() # to avoid changing this map, as the user would not be aware of this change
+        
         ## convert nan values to -1 for C function
-        self.firing_rate_map[np.isnan(self.firing_rate_map)]=-1.0
+        frm[np.isnan(frm)]=-1.0
         
         ## create an empty array of the appropriate dimensions to store the autocorrelation data
-        auto_array = np.zeros((2*self.firing_rate_map.shape[0]+1,2*self.firing_rate_map.shape[1]+1))
+        auto_array = np.zeros((2*frm.shape[0]+1,2*frm.shape[1]+1))
 
         ## create the spatial autocorrelation calling a C function
-        spikeA.spatial_properties.map_autocorrelation_func(self.firing_rate_map,auto_array)
+        spikeA.spatial_properties.map_autocorrelation_func(frm,auto_array)
         self.spatial_autocorrelation_map = auto_array
 
         
         
     def spatial_autocorrelation_field_detection(self, threshold = 0.1, neighborhood_size = 5):
         """
-        Method to detect fields based on autocorrelation map
+        Method to detect fields based in the spatial autocorrelation map
         
         Returns
         The list of peaks x,y        
@@ -805,6 +810,15 @@ class Spatial_properties:
     
     
     def calculate_doughnut(self, threshold = 0.1, neighborhood_size = 5):
+        """
+        This function will call spatial_autocorrelation_field_detection()
+        Find the max radius and location of the fields in the spatial autocorrelation
+        Determine the doughnut dimensions from the fields
+        
+        Returns nothing
+        It sets self.doughnut, self.autocorr_midpoint, self.r_outer_radius_use, self.r_inner_radius_use
+        
+        """
         
         self.spatial_autocorrelation_field_detection(threshold = threshold, neighborhood_size = neighborhood_size)
             
@@ -875,7 +889,10 @@ class Spatial_properties:
     
         indices = np.logical_and(~np.isnan(self.doughnut), ~np.isnan(self.doughnut_rotated))
         
-        if np.sum(indices) <= 2:
+        if np.sum(indices) <= 2: # not enough to calculate a correlation
+            return np.nan
+        
+        if np.std(self.doughnut[indices])==0: # if there is no variability in the data, correlation not possible
             return np.nan
         
         r,p = pearsonr(self.doughnut[indices],self.doughnut_rotated[indices])
@@ -887,9 +904,21 @@ class Spatial_properties:
         
         """
         Method of the Spatial_properties class to calculate the grid score.
+        
+        Before running this function, you need to create a firing rate map 2d
+        using  Spatial_properties.firing_rate_map_2d()    
+        
         Return
         grid score 
         """
+        
+        if not hasattr(self, 'firing_rate_map'):
+            raise ValueError('Call self.firing_rate_map_2d() before calling self.grid_score()')
+        
+        # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
+        if np.nanmax(self.firing_rate_map) == 0:
+            return np.nan
+        
         self.calculate_doughnut(threshold = threshold, neighborhood_size = neighborhood_size)
 
         rotations60 = [60, 120]

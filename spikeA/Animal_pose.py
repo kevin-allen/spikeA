@@ -90,16 +90,51 @@ class Animal_pose:
         self.speed = None
         self.pose_file_extension = ".pose.npy"
     
-    def test_head_direction_heading_correlation(self,max_median_delta=3.1416/3, plot=False, throw_exception = True):
+    def plot_head_direction_heading_correlation(self,ax, min_speed=20):
+        """
+        Method to plot the head-direction data agains the movement heading
+        
+        Arguments:
+        ax: matplotlib axes on which to plot
+        min_speed: float, minimal running speed in cm/sec for the data to be included in the plot
+        
+        Returns nothing, but draw on the matplotlib axes
+        """
+        t= self.pose[:,0]
+        x= self.pose[:,1]
+        y= self.pose[:,2]
+        hd= self.pose[:,4]
+        
+        xd = np.diff(x,append=np.nan)
+        yd = np.diff(y,append=np.nan)
+        td = np.diff(t,append=np.nan)
+        heading = np.arctan2(yd,xd)
+        speed= np.sqrt(xd**2+yd**2)/td
+        
+        # remove data points with abnormally high running speed
+        speed[speed>100] = np.nan
+        indices = speed >  min_speed # we want to focus on when the animal is moving, when head-direction and heading should be aligned
+        
+        ax.scatter(heading[indices],hd[indices],s=1,alpha=0.2)
+        ax.set_xlabel("Movement heading")
+        ax.set_ylabel("Head direction")
+    
+    
+    def test_head_direction_heading_correlation(self,min_speed = 10, max_median_delta=3.1416/3, plot=False, throw_exception = True):
         """
         Method to test whether the head-direction data are aligned with movement heading. This should be the case for normal dataset in which the animal travels in the direction of its head-direction.
 
         If not, a figure is generated so that the user can visualize the problem and an exception is thrown to prevent the user from working with corrupted position data.
 
-        t: time of position samples
-        x: x position
-        y: y position
-        hd: head direction data
+        Arguments:
+        
+        min_speed: float, minimal speed (cm/sec) that will be included in the analysis, HD is coupled with movement heading mainly when the animal is runing.
+        max_median_delta: float, maximal median delta heading-HD, above which the function consider that there is a problem with the data
+        plot: boolean, whether to plot the results or now
+        throw_exception: boolean, whether to throw and exception if delta heading-HD is larger than max_median_delta
+        
+        Returns nothing
+        If the heading is not aligned with head-direction, the function will plot the results and throw an exception if throw_exception == True
         """
         t= self.pose[:,0]
         x= self.pose[:,1]
@@ -107,12 +142,14 @@ class Animal_pose:
         hd= self.pose[:,4]
 
 
-        hdMin, hdMax = np.nanmin(hd),np.nanmax(hd)
-        hdRange = hdMax - hdMin
-        if hdRange > 2*np.pi+0.01: 
-            print("hd range {}, transforming to radians".format(hdRange))
-            hd = hd /180 * np.pi # this is 0 to 2*pi
-            hd[hd>np.pi] = hd[hd>np.pi]-(2*np.pi) # from -pi to pi
+        # check if range is larger than 2*pi, if so assumes degrees
+        # data coming from self.pose should not be in degrees
+        #hdMin, hdMax = np.nanmin(hd),np.nanmax(hd)
+        #hdRange = hdMax - hdMin
+        #if hdRange > 2*np.pi+0.01: 
+        #    print("hd range {}, transforming to radians".format(hdRange))
+        #    hd = hd /180 * np.pi # this is 0 to 2*pi
+        #    hd[hd>np.pi] = hd[hd>np.pi]-(2*np.pi) # from -pi to pi
 
 
         xd = np.diff(x,append=np.nan)
@@ -120,9 +157,10 @@ class Animal_pose:
         td = np.diff(t,append=np.nan)
         heading = np.arctan2(yd,xd)
         speed= np.sqrt(xd**2+yd**2)/td
-
-        speed[speed>150] = np.nan
-        indices = speed >  10 # we want to focus on when the animal is moving, when head-direction and heading should be aligned
+        
+        # remove data points with abnormally high running speed
+        speed[speed>100] = np.nan
+        indices = speed >  min_speed # we want to focus on when the animal is moving, when head-direction and heading should be aligned
 
         shd = np.sin(hd)
         chd = np.cos(hd)
