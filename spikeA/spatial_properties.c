@@ -148,22 +148,6 @@ map.
 }
 
 
-void detect_border_pixels_in_occupancy_map(double* occ_map, int* border_map, int num_bins_x, int num_bins_y)
-{
-    // This function return a border map in which the border pixels have a value of 1 and the rest 0
-    
-    int num_bins_border=0;
-    int total_bins=num_bins_x*num_bins_y;
-    int* border_x =  (int*) malloc(total_bins*sizeof(int)); // list of x index for border bins
-    int* border_y = (int*) malloc(total_bins*sizeof(int)); // list of y index for border bins
-    identify_border_pixels_in_occupancy_map(occ_map, num_bins_x, num_bins_y, border_map, 
-                                                border_x, border_y, &num_bins_border);
-    
-    
-    
-    free(border_x);
-    free(border_y);
-}
 
 void remove_internal_bins_from_border(int num_bins_x, int num_bins_y, int* border_map, int* border_x, int* border_y, int* num_bins_border)
 {
@@ -595,3 +579,109 @@ int assign_wall_to_border_pixels(int num_bins_x, int num_bins_y, int* border_x, 
 }
 
 
+void detect_border_pixels_in_occupancy_map(double* occ_map, int* border_map, int num_bins_x, int num_bins_y)
+{
+    // This function return a border map in which the border pixels have a value of 1 and the rest 0
+    
+    int num_bins_border=0;
+    int total_bins=num_bins_x*num_bins_y;
+    int* border_x =  (int*) malloc(total_bins*sizeof(int)); // list of x index for border bins
+    int* border_y = (int*) malloc(total_bins*sizeof(int)); // list of y index for border bins
+    identify_border_pixels_in_occupancy_map(occ_map, num_bins_x, num_bins_y, border_map, 
+                                                border_x, border_y, &num_bins_border);
+    
+    
+    
+    free(border_x);
+    free(border_y);
+}
+
+
+
+
+int find_an_adjacent_field_pixel(double* rate_map, int* field_map, int num_bins_x, int num_bins_y, double threshold, int start_x, int start_y, int* field_pixel_count)
+{
+    /*
+        Recursive function that looks for adjacent pixels that are part of a field.
+        
+        To be part of a field, the firing rate should be above the threshold.
+        
+        The function looks at the 9 pixels surrounding rate_map[start_x, start_y], assuming these are valid rates and within the map.
+        If a field pixel is found, the function call itself recursively.
+        
+        field pixels are set to 1 in the field_map
+        field pixels are set to -1.0 in the rate_map
+        field_pixel_count is increased by 1 each time a pixel is added
+    */
+  
+  for (int x = start_x-1;x<=start_x+1;x++)
+  {
+    for (int y = start_y-1;y<=start_y+1;y++)
+    {
+      if( x>=0 && // should be within the map
+          x<num_bins_x && // should be within the map
+          y>=0 && // should be within the map
+          y<num_bins_y && // should be within the map
+                
+          rate_map[((x)*num_bins_y)+y]!=-1.0 && // not invalid rate
+          rate_map[((x)*num_bins_y)+y]> threshold && // above threshold
+          field_map[((x)*num_bins_y)+y]== 0) // not already a pixel
+      {
+        field_map[((x)*num_bins_y)+y]=1; // set the pixels in the field map
+        rate_map[((x)*num_bins_y)+y]=-1.0; // set this firing rate to invalid to ensure we won't add it in a different field
+        (*field_pixel_count)++;
+        find_an_adjacent_field_pixel(rate_map, field_map, num_bins_x, num_bins_y,threshold, x, y,field_pixel_count);// recursive search
+      }
+    }
+  }
+  return 0;
+}
+int detect_one_field(double* rate_map, int* field_map, int num_bins_x, int num_bins_y, double min_peak_rate, double min_peak_rate_proportion)
+{
+    /*
+    Function to detect the field with the largest peak rate
+    
+    Invalid data in rate_map should be -1.0 and not np.nan
+    The function assumes that the field_map is filled with 0.
+    
+    The pixels that are part of the field will be set to -1.0 in rate_map 
+    The pixels that are part of the field will be set to 1 in field_map
+    
+    The field could be any size, so you might want to filter the results. As long as there is one pixel above min_peak_rate, we will return a field.
+    
+    
+    Arguments
+    rate_map: 2D array
+    field_map: 2D array
+    num_bins_x: size of 2D arrays in x dimension
+    num_bins_y: size of 2D arrays in y dimension
+    min_peak_rate: minimal peak firing rate to start field detection
+    min_peak_rate_proportion: threshold to add pixels to a field, as a proportion of its peak
+    
+    Returns the number of pixels in the field, and modify rate_map and field_map if there is a field.
+    */
+    
+    double max_rate = 0;
+    int field_pixel_count = 0; 
+    int peak_x=0;
+    int peak_y=0;
+    for (int x = 0; x < num_bins_x; x++)
+        for (int y = 0; y < num_bins_y; y++)
+            if (rate_map[(x*num_bins_y)+y]!=-1.0 && rate_map[(x*num_bins_y)+y] > max_rate){
+                max_rate = rate_map[(x*num_bins_y)+y];
+                peak_x=x;
+                peak_y=y;
+            }
+    if (max_rate > min_peak_rate){
+        field_map[(peak_x*num_bins_y)+peak_y] = 1;
+        rate_map[(peak_x*num_bins_y)+peak_y] = -1.0;
+        field_pixel_count++;
+        double threshold = max_rate * min_peak_rate_proportion;
+        // loop to add adjacent pixels until all adjacent pixels above the threshold are added.
+        // this is a recursive function. It will call itself many times to add adjacent pixels.
+        find_an_adjacent_field_pixel(rate_map, field_map, num_bins_x, num_bins_y,threshold, peak_x, peak_y, &field_pixel_count);
+    }
+    
+    return field_pixel_count;
+    
+}

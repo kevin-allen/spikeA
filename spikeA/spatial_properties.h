@@ -14,3 +14,5 @@ int find_an_adjacent_border_pixel(double* occ_map, int num_bins_x, int num_bins_
 int identify_border_pixels_in_occupancy_map(double* occ_map, int num_bins_x, int num_bins_y,int* border_map, int* border_x, int* border_y, int* num_bins_border);
 int assign_wall_to_border_pixels(int num_bins_x, int num_bins_y, int* border_x, int* border_y, int* num_bins_border,int* wall_id,int* border_map);
 void detect_border_pixels_in_occupancy_map(double* occ_map, int* border_map, int num_bins_x, int num_bins_y);
+int detect_one_field(double* rate_map, int* field_map, int num_bins_x, int num_bins_y, double min_peak_rate, double min_peak_rate_proportion);
+int find_an_adjacent_field_pixel(double* rate_map, int* field_map, int num_bins_x, int num_bins_y, double threshold, int start_x, int start_y,int* field_pixel_count);
