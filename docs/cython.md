@@ -110,6 +110,9 @@ import spikeA.spike_time # no capital (not the python class but the c extension)
 ?spikeA.spike_time
 ```
 
+If you don't see your function in a jupyter notebook, try restarting your kernel.
+
+
 ```
 dir(spikeA.spike_time)
 ```
