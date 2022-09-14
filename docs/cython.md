@@ -32,9 +32,9 @@ pip install Cython
 
 There are a few steps required to use a c function in python.
 
-1. Declare the function in a .h file.
-2. Write the function in a .c file.
-3. Import the function in a .pyx file and create a wrapper function
+1. Declare the function in a `.h` file.
+2. Write the function in a `.c` file.
+3. Import the function in a `.pyx` file and create a wrapper function. The `.pyx` file starts with an `_`
 4. Compile c code to a library (module)
 5. Import the module and call the function from python
 
