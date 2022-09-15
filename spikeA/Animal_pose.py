@@ -724,12 +724,14 @@ class Animal_pose:
                 raise ValueError("extension not supported")
   
             print("Number of lines in positrack file: {}".format(pt.shape[0]))
-            if 'frame_no' in pt.columns:
-                # this is actually a positrack2 file next to other positrack files
-                pass
-            else:
-                # this is a positrack file
-                pt["hd"] = -pt["hd"]
+    
+            if extension=="positrack":
+                if 'frame_no' in pt.columns:
+                    # this is actually a positrack2 file next to other positrack files
+                    pass
+                else:
+                    # this is a positrack file
+                    pt["hd"] = -pt["hd"]
             
     
             if ttl.shape[0] != pt.shape[0]:
