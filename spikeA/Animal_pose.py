@@ -160,7 +160,7 @@ class Animal_pose:
         
         # remove data points with abnormally high running speed
         speed[speed>100] = np.nan
-        indices = speed >  min_speed # we want to focus on when the animal is moving, when head-direction and heading should be aligned
+        indices = speed > min_speed # we want to focus on when the animal is moving, when head-direction and heading should be aligned
 
         shd = np.sin(hd)
         chd = np.cos(hd)
@@ -172,14 +172,15 @@ class Animal_pose:
         mvLength = np.expand_dims(np.linalg.norm(mvVectors,axis=0),axis=0)
         mvVectors = mvVectors/ mvLength # after this are unitary vectors
         delta = np.arccos((np.sum((mvVectors*hdVectors),axis=0))) # angle between vectors (HD and mvH)
-
-        medDelta = np.nanmedian(delta)
+        
+        medDelta = np.nanmedian(delta[indices]) # median angle for valid indices (where animal is moving)
 
         if medDelta > max_median_delta or plot:
             fig,axes = plt.subplots(nrows=1, ncols=4,figsize=(8,2), constrained_layout=True) # we use pyplot.subplots to get a figure and axes.    
             axes[0].scatter(x,y)
             axes[0].set_xlabel("x")
             axes[0].set_ylabel("y")
+            axes[0].invert_yaxis()
             axes[1].hist(speed,bins=30)
             axes[1].set_xlabel("Speed (cm/sec)")
             axes[2].scatter(heading[indices],hd[indices],s=1,alpha=0.1)
@@ -190,7 +191,7 @@ class Animal_pose:
             axes[3].set_title("Median delta {:.3f}".format(medDelta))
             plt.show()
         if medDelta > max_median_delta and throw_exception:
-            raise ValueError("The movement heading and head-direction of the animal are not aligned.\n The median difference {:.3f}is larger than {:.3f}".format(medDelta,max_median_delta))
+            raise ValueError("The movement heading and head-direction of the animal are not aligned.\n The median difference {:.3f} is larger than {:.3f}".format(medDelta,max_median_delta))
 
     
     def roll_pose_over_time(self,min_roll_sec=20):
@@ -723,6 +724,13 @@ class Animal_pose:
                 raise ValueError("extension not supported")
   
             print("Number of lines in positrack file: {}".format(pt.shape[0]))
+            if 'frame_no' in pt.columns:
+                # this is actually a positrack2 file next to other positrack files
+                pass
+            else:
+                # this is a positrack file
+                pt["hd"] = -pt["hd"]
+            
     
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
@@ -839,11 +847,11 @@ class Animal_pose:
                 print("****************************************************************************************")  
                 
             # either apply an individual px_per_cm or use one for all trials
-            print("transforming pixels to cm with self.ses.px_per_cm:",self.ses.px_per_cm)
             if isinstance(self.ses.px_per_cm, np.ndarray):
                 px_per_cm = self.ses.px_per_cm[i]
             else:
                 px_per_cm = self.ses.px_per_cm
+            print("transforming pixels to cm with px_per_cm:",px_per_cm)
                 
             d[:,[0,1]] /= px_per_cm # transform to cm (for this trial)
 
@@ -944,9 +952,11 @@ class Animal_pose:
         #plt.scatter(movement_direction,hd, s=1)
         ##if the hd data and the position data were aligned, you could fit a linear function going through the origin
         ##to achieve this, the hd data need to be shifted by -pi/2
-        if extension=="positrack":
-            new_hd=new_hd-np.pi/2
-            new_hd[new_hd<=-np.pi]=new_hd[new_hd<=-np.pi]+2*np.pi
+        #~ if extension=="positrack":
+        #~     new_hd=new_hd-np.pi/2
+        #~     new_hd[new_hd<=-np.pi]=new_hd[new_hd<=-np.pi]+2*np.pi
+        #if extension=="positrack":
+        #    new_hd = -new_hd
         
         self.pose[:] = np.nan
         self.pose[:,0] = nt/self.ses.sampling_rate # from sample number to time in seconds
