@@ -727,13 +727,16 @@ class Animal_pose:
     
             if extension=="positrack":
                 if 'frame_no' in pt.columns:
-                    # this is actually a positrack2 file next to other positrack files
+                    # This is actually a positrack2 file that was renamed. Do nothing
                     pass
                 else:
-                    # this is a positrack file
+                    # This is a positrack file, from the original positrack program. 
+                    # To keep movement heading consistent with head-direction, we need to reverse the head-direction
+                    # !!!! Note that invalid data points are set to -1.0 in positrack files!!!!!
+                    # !!!! This code turns invalid data into 1 degree!!!
                     pt["hd"] = -pt["hd"]
             
-    
+            
             if ttl.shape[0] != pt.shape[0]:
                 print("alignment problem")
                 
@@ -748,6 +751,15 @@ class Animal_pose:
                           print("positrack process did not stop before the end of .dat file")
                 
                 # if there are just some ttl pulses missing from positrack, copy the last lines in the positrack file
+                
+                ########################################################
+                # We can't fix synchronization problem this way        #
+                # by simply adding random line at the end              #
+                # how much can the head-direction can change in 666 ms #
+                # I would say we add a max of 5 lines                  #
+                ########################################################
+                
+                
                 if (extension =="positrack" or extension=="positrack2" or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf") and (len(pt) < len(ttl) < len(pt)+20):
                     original_positrack_file = self.ses.path + "/" + t+"o."+ extension
                     missing = len(ttl)-len(pt)

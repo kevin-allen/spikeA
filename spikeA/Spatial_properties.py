@@ -1198,7 +1198,7 @@ class Spatial_properties:
     
    
         
-    def border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30):
+    def border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, return_field_list = False):
         """
         Calculate the border score of a neuron when the animal explores a circular environment.
         
@@ -1227,11 +1227,12 @@ class Spatial_properties:
         min_pixel_number_per_field: minimal number of pixels to be considered a field
         min_peak_rate: minimal peak firing rate within a field to perform field detection
         min_peak_rate_proporition: a pixel needs to be above peak_rate*min_peak_rate_proportion to be added to a field
+        return_field_list: boolean whether to return the field list with which the border score was calculated
         
         
         Return
         
-        CM, CMHalf, DM, border_score, border_score_half
+        CM, CMHalf, DM, border_score, border_score_half number_fields
         """
 
         if not hasattr(self, 'firing_rate_map'):
@@ -1239,13 +1240,13 @@ class Spatial_properties:
         
         # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
         if np.nanmax(self.firing_rate_map) == 0:
-            return np.nan
+            return (np.nan,np.nan,np.nan,np.nan,np.nan,np.nan)
         
         # get the firing fields of the cell, we get a list of dictionaries, each dict is a field
         fieldList = self.firing_rate_map_field_detection_fast(min_pixel_number_per_field=min_pixel_number_per_field, min_peak_rate=min_peak_rate, min_peak_rate_proportion=min_peak_rate_proportion)
         
         if len(fieldList)==0: # if there is no field, there is no border score.
-            return np.nan
+            return (np.nan,np.nan,np.nan,np.nan,np.nan,np.nan)
         
         # border map
         border_map = self.ap.detect_border_pixels_in_occupancy_map()
@@ -1264,9 +1265,59 @@ class Spatial_properties:
         border_score = (CM-DM)/(CM+DM)
         border_score_half = (CMHalf-DM)/(CMHalf+DM)
         
-        return CM, CMHalf, DM, border_score, border_score_half
+        if return_field_list:
+            return CM, CMHalf, DM, border_score, border_score_half,len(fieldList), fieldList
+        else:
+            return CM, CMHalf, DM, border_score, border_score_half,len(fieldList)
         
+    def shuffle_border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=5, min_peak_rate_proportion= 0.30, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
+        """
+        Get a distribution of border scores that would be expected by chance for this neuron
+
+        This uses the border_score_circular_environment() method to get the border scores
+
+        Argument:
+        min_pixel_number_per_field: minimal number of pixels for adjacent pixels above the rate threshold to be considered a field
+        min_peak_rate: minimal peak rate for fields
+        min_peak_rate_proportion: when adding pixels to a field, the rate needs to be higher than peak_rate*min_peak_rate_proportion
+        iterations: how many shufflings to perform
+        cm_per_bin: cm per bin in the firing rate map
+        smoothing_sigma_cm: smoothing in the firing rate map
+        smoothing: smoothing in the firing rate map
+        percentile: percentile of the distribution of shuffled border scores that is used to get the significance threshold
+
+        Return
+        tuple: 
+        0: 1D numpy array with the border scores obtained by chance for this neuron
+        1: 1D numpy array with the border scores (half) obtained by chance for this neuron. This score is high when 1/2 of pixel borders are covered.
+        2: significance threshold for border score
+        3: significance threshold for border score half
         
+        """
+        
+        # keep a copy of the pose that we started with
+        pose_at_start = self.ap.pose.copy()
+        
+        self.border_shuffle=np.empty((iterations))
+        self.border_half_shuffle=np.empty((iterations))
+        
+        for i in range(iterations):
+            
+            self.ap.roll_pose_over_time() # shuffle the position data 
+            self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm) # calculate a firing rate map
+            
+            #res contains CM,CMHalf, DM, border_score, border_score_half, nFields
+            res = self.border_score_circular_environment(min_pixel_number_per_field, min_peak_rate, min_peak_rate_proportion)
+            self.border_shuffle[i] = res[3]
+            self.border_half_shuffle[i] = res[4]
+            self.ap.pose=pose_at_start
+
+        # calculate the threshold
+        self.border_score_threshold =  np.percentile(self.border_shuffle,percentile)
+        self.border_half_score_threshold =  np.percentile(self.border_half_shuffle,percentile)
+        
+        return self.border_shuffle, self.border_half_shuffle, self.border_score_threshold, self.border_half_score_threshold
+       
         
     def field_CM_circular_environment(self,field_map,border_map):
         """
