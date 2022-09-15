@@ -1187,10 +1187,10 @@ class Spatial_properties:
             fieldPixelCount = spikeA.spatial_properties.detect_one_field_func(rateMap,fieldMap, min_peak_rate, min_peak_rate_proportion)
 
             if fieldPixelCount > min_pixel_number_per_field:
-                fieldList.append({"fieldMap": fieldMap,
-                                  "peakRate": np.nanmax(self.firing_rate_map[fieldMap==1]),
-                                  "rateMap": rateMap.copy(),
-                                  "fieldPixelCount": fieldPixelCount})
+                fieldList.append({"field_map": fieldMap,
+                                  "peak_rate": np.nanmax(self.firing_rate_map[fieldMap==1]),
+                                  "rate_map": rateMap.copy(),
+                                  "field_pixel_count": fieldPixelCount})
 
         
         return fieldList
@@ -1198,7 +1198,7 @@ class Spatial_properties:
     
    
         
-    def border_score_circular_environment(self, min_pixel_number_per_field=15, max_fraction_pixel_per_field=0.33, min_peak_rate=4, min_fraction_of_peak_rate=0.45, max_min_peak_rate=10):
+    def border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30):
         """
         Calculate the border score of a neuron when the animal explores a circular environment.
         
@@ -1208,17 +1208,30 @@ class Spatial_properties:
         The score is what was used by Perez-Escobar et al., 2016, and is adapted from https://www.science.org/doi/suppl/10.1126/science.1166466/suppl_file/solstad.som.pdf
         
         Make sure you use xy_range and set the range for the map so that the border of the environment is not at the border of the map.
+        
+        Border score is defined by (CM-DM)/(CM+DM), which can range from -1 to 1.
+        
+        CM is the proportion of border pixels covered by the pixels of one field. CM is calculated for all fields and the largest CM is used to calculate the border score.
+        CMHalf is defined as  1 - (np.abs(0.5-CM)*2), it is 1 if the field covers half of the border pixels, but low if covers none or all border pixels.
+        border_score_half is calculated using CMHalf instead of CM.
+        
+        DM is the mean shortest distance to the periphery for pixels that were part of a firing field, weighted by the firing rate in each pixel. 
+        DM is then normalized as follows. For each pixel in the map, the shortest distance to the periphery was calculated. The largest value obtained over all map pixels was the value used for the normalization. 
+
+        Field detection is done in c, CM and DM in python.
+        
+        There is a CMHalf and border_score_half, CMHalf will give a score of 1 if the neuron covers 50% of the border pixels, and 0 if it covers none or all of the border pixels 
 
         Arguments:
         
         min_pixel_number_per_field: minimal number of pixels to be considered a field
-        max_fraction_pixel_per_field: Not sure what it is doing, was not commented
         min_peak_rate: minimal peak firing rate within a field to perform field detection
-        min_fraction_of_peak_rate: a pixel needs to be above this proportion to be added to a field
-        max_min_peak_rate: not sure what htis is doing, was not commented
+        min_peak_rate_proporition: a pixel needs to be above peak_rate*min_peak_rate_proportion to be added to a field
+        
         
         Return
-        border score
+        
+        CM, CMHalf, DM, border_score, border_score_half
         """
 
         if not hasattr(self, 'firing_rate_map'):
@@ -1228,31 +1241,119 @@ class Spatial_properties:
         if np.nanmax(self.firing_rate_map) == 0:
             return np.nan
         
-        ## steps 
-        # 1. Detect firing fields within the map. For each field, we want a 2D numpy array (map) with field pixels set to 1 and the rest to 0 [done]
-        # 2. Detect the borders in the occupancy map [done]
-        # 3. For each field, calculate the proportion of pixels along the periphery that were also part of the field was calculated. Is the field covering 0.1, 0.5 or 1.0 of the border
-        # 4. The highest value obtained in 3 is CM
-        # 5. CM0.5 is defined as (1−|(0.5−CM)|∗2). CM0.5 has a value of 1 when the firing field covered half of the periphery and a value of 0 when the field covered all of the periphery or nothing of the periphery.
-        # 6. DM was the mean shortest distance to the periphery for pixels that were part of a firing field, weighted by the firing rate in each pixel. 
-        #    DM was then normalized as follows. For each pixel in the map, the shortest distance to the periphery was calculated. The largest value obtained over all map pixels was the value used for the normalization. 
+        # get the firing fields of the cell, we get a list of dictionaries, each dict is a field
+        fieldList = self.firing_rate_map_field_detection_fast(min_pixel_number_per_field=min_pixel_number_per_field, min_peak_rate=min_peak_rate, min_peak_rate_proportion=min_peak_rate_proportion)
         
-        # Computational plan
-        # Field detection could be done in c++ 
-        # CM can be done easily using numpy if we have the maps of the fields
-        # DM could be done in c++ code
+        if len(fieldList)==0: # if there is no field, there is no border score.
+            return np.nan
         
-        # get the firing fields of the cell
-        fieldList = self.firing_rate_map_field_detection_fast(min_pixel_number_per_field=min_pixel_number_per_field,
-                                                              min_peak_rate=min_peak_rate,
-                                                              min_fraction_of_peak_rate=min_fraction_of_peak_rate)
-        
+        # border map
         border_map = self.ap.detect_border_pixels_in_occupancy_map()
         
+        # calculate CM, CM is calculated for each field, then we get the largest CM
+        for field in fieldList:
+            field["CM"] = self.field_CM_circular_environment(field_map = field["field_map"],border_map = border_map)
+        
+        # get the largest CM of all fields
+        CM = np.nanmax([field["CM"] for field in fieldList])
+        CMHalf = 1 - (np.abs(0.5-CM)*2)  # 1 if the pixels of a field covers 50% of the border pixels, but 0 if covers none or all border pixels
+        
+        # calculate DM, DM is not field by field but using all pixels that were part of a field, or all valid pixels in the firing_rate_map
+        DM = self.field_DM_circular_environment(field_list= fieldList, border_map=border_map, rate_map=self.firing_rate_map)
+        
+        border_score = (CM-DM)/(CM+DM)
+        border_score_half = (CMHalf-DM)/(CMHalf+DM)
+        
+        return CM, CMHalf, DM, border_score, border_score_half
         
         
         
+    def field_CM_circular_environment(self,field_map,border_map):
+        """
+        Function to calculate the CM of a firing field. CM is used when calculating a border score.
 
+        This function was develop to work with circular environment. Like in the Perez-Escobar et al. (2016) paper.
+        
+        CM is the proportion of border pixels covered by the pixels of one field.
+
+        Arguments:
+        field_map: 2D array with the pixels of the firing field set to 1 and the rest at 0. 
+        border: 2D array with the pixels of the border of the environment set to 1 and the rest at 0.
+        """
+
+
+        if not field_map.shape==border_map.shape:
+            raise ValueError('The shape of field_map and border_map is not the same')  
+
+        nBorderPixels = np.sum(border_map)
+        myStack = np.dstack([field_map,border_map]) # stack the 2 maps
+        myStackSum = np.sum(myStack,axis=2) # sum the 2 maps
+        nSharedPixels = np.sum(myStackSum==2) # the pixels with a sum of 2 are part of the border and field
+        CM = nSharedPixels/nBorderPixels
+        return CM     
+
+    
+
+    def field_DM_circular_environment(self, field_list, border_map, rate_map):
+        """
+        Calculate DM used in the border score. This works for circular environments
+
+        DM is the mean shortest distance to the periphery for pixels that were part of a firing field, weighted by the firing rate in each pixel. 
+        DM is then normalized as follows. For each pixel in the map, the shortest distance to the periphery was calculated. The largest value obtained over all map pixels was the value used for the normalization. 
+
+        Arguments:
+        field_list: list of dictionaries, each dictionary represent a firing field, as returned sp.firing_rate_map_field_detection_fast()
+        border_map: 2D numpy array, border_map as returned by ap.detect_border_pixels_in_occupancy_map()
+        rate_map: 2D numpy array, firing rate map
+
+        Return:
+        DM
+        """
+        if not isinstance(field_list, list):
+             raise TypeError('field_list should be a list')  
+            
+            
+        if len(field_list) == 0:
+            return np.nan
+        
+        def minimalDistanceBetweenPointAndPointArray(coord,coords):
+            """
+            Find the minimal distance between a point and a series of points in 2 dimensions 
+
+            This is used by field_DM_circular_environment
+
+            Arguments
+            coord: 1D array with x and y coordinate of a point
+            coords: x by 2 array with x and y coordinates of many points
+            """
+            return np.min(np.sqrt((coords[:,0]-coord[0])**2 + (coords[:,1]-coord[1])**2))
+
+        # create a map with all field pixels of all fields. Since the fields do not overlap in space, we can simply sum the stack maps to get a single map. Values of 1.0 are field pixels.
+        all_fields_map = np.sum(np.dstack([field["field_map"] for field in field_list]),axis=2)
+
+        if not all_fields_map.shape == border_map.shape:
+             raise ValueError('shape of all_field_map is not the same as that of the border_map')
+
+        # get the x,y coordinate of our pixels
+        fCoord = np.squeeze(np.dstack(np.where(all_fields_map==1.0))) # field coordinates
+        bCoord = np.squeeze(np.dstack(np.where(border_map==1.0))) # border coordinates
+        rCoord = np.squeeze(np.dstack(np.where(~np.isnan(rate_map)))) # all valid pixels coordinates in the rate map
+
+        # get the firing rate for field pixels
+        rate_lin = rate_map[all_fields_map==1.0]  # rate of the field pixels, I am assuming that np.where give the same pixel order as this line...
+
+        # we now have all we need for calculation of DM
+        # we call a function to get the minimal distance between a point to a series of points within a np.apply_along_axis. Equivalent of two nested for loops
+        # we multiply the minimal distance to border by the rate of each field bin
+        # then we do a sum and divide by the sum of the firing rate of field pixels, these two last steps are the firing rate weighted mean.
+        DM_not_normalized = np.sum(np.apply_along_axis(minimalDistanceBetweenPointAndPointArray,1,fCoord, bCoord)*rate_lin)/np.sum(rate_lin)
+        # we get our normalization factor, which is the largest minimal distance to the border of any valid pixel of the rate map 
+        distance_normalization = np.max(np.apply_along_axis(minimalDistanceBetweenPointAndPointArray,1,rCoord, bCoord))
+        DM = DM_not_normalized/distance_normalization
+
+        return DM
+
+    
     def border_score(self, arena_shape=None, min_pixel_number_per_field=15, max_fraction_pixel_per_field=0.33, min_peak_rate=4, min_fraction_of_peak_rate=0.45, max_min_peak_rate=10):
         """
         Calculate the border score of a neuron.
