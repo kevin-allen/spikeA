@@ -823,7 +823,8 @@ class Animal_pose:
                 else:
                     # This is a positrack file, from the original positrack program. 
                     # To keep movement heading consistent with head-direction, we need to reverse the head-direction
-                    pt["hd"] = -pt["hd"]
+                    #~ pt["hd"] = -pt["hd"]
+                    d[:,2] = -d[:,2]
 
             # get the positrack acquisition time (not needed for ktan/ttl- dat syncing, but for other data that is in rostime ( = nanoseconds since epoch ))
             if extension=="positrack2":
