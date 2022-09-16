@@ -727,23 +727,40 @@ class Animal_pose:
                 data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
                 data = data.astype(np.float32)
                 pt = pd.DataFrame({"x":data[:,11], "y":data[:,12],"hd": data[:,10]})
-            else :
+            
+            else:
                 raise ValueError("extension not supported")
   
-            print("Number of lines in positrack file: {}".format(pt.shape[0]))
+            
+            # check the positrack file
+            print("Number of lines in positrack file: {}".format(len(pt)))
     
-            if ttl.shape[0] != pt.shape[0]:
-                print("alignment problem")
+            # check that positrack is within recording (start recording, *, start positrack, ..., stop positrack, *, stop recording); *=min 100ms
+            startPosi = ttl[0]/self.ses.sampling_rate
+            print("start tracking at: {:.4f} sec".format(startPosi))
+            timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
+            print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
+            if startPosi < 0.1:
+                print("positrack process was started too early, maybe before start of ktan recording .dat file")
+            if timeToEnd <0.1:
+                print("positrack process did not stop before the end of .dat file")
+
+            # check if the number of ttl pulses matches number of video frames
+            if len(ttl) != len(pt):
+                problem = True
+                print("!!!\nalignment problem\n!!!")
                 
-                if ttl.shape[0] < pt.shape[0]:
-                    print("{} more video frames than ttl pulses".format(pt.shape[0]-ttl.shape[0]))
-                    print("first ttl sample: {}".format(ttl[0]))
-                    print("last ttl sample: {}".format(ttl[-1]))
-                    print("samples in dat file: {}".format(df.total_samples))
-                    timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
-                    print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
-                    if (timeToEnd<0.10):
-                          print("positrack process did not stop before the end of .dat file")
+                delta = len(pt) - len(ttl)
+                if delta > 0:
+                    print("{} more video frames than ttl pulses".format(delta))
+                else:
+                    print("{} more ttl pulses than video frames".format(-delta))
+                
+                print("first ttl sample: {}".format(ttl[0]))
+                print("last ttl sample: {}".format(ttl[-1]))
+                print("samples in dat file: {}".format(df.total_samples))
+                            
+                
                 
                 # if there are just some ttl pulses missing from positrack, copy the last lines in the positrack file
                 
@@ -764,12 +781,14 @@ class Animal_pose:
                         print("Number of lines in adjusted positrack file:", len(pt_mod))
                         pt = pt_mod
                         print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
+                        problem = False
                     elif (len(ttl) < len(pt)):
                         # more positrack frames than ttl pulses
                         pt_mod = pt[:len(ttl)] # just take as many frames as needed
                         print("Number of lines in adjusted positrack file:", len(pt_mod))
                         pt = pt_mod
                         print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
+                        problem = False
                         
                     # do NOT touch original files
                     #~ original_positrack_file = self.ses.path + "/" + t+"o."+ extension
@@ -783,7 +802,7 @@ class Animal_pose:
                 # we will need more code to solve simple problems 
                 #
                 #
-                else:
+                if problem:
                     raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
                     
@@ -813,15 +832,14 @@ class Animal_pose:
             #~ d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T
             d = np.array(pt[['x', 'y', 'hd']])
             
-            # set invalid values to np.nan (Note that invalid data points are set to -1.0 in positrack files - does not apply for positrack2)
             if extension=="positrack":
-                d[d==-1.0] = np.nan
-                
                 if 'frame_no' in pt.columns:
                     # This is actually a positrack2 file that was renamed. Do nothing
                     pass
                 else:
-                    # This is a positrack file, from the original positrack program. 
+                    # This is a positrack file, from the original positrack program.
+                    # set invalid values to np.nan (Note that invalid data points are set to -1.0 in positrack files - does not apply for positrack2)
+                    d[d==-1.0] = np.nan
                     # To keep movement heading consistent with head-direction, we need to reverse the head-direction
                     #~ pt["hd"] = -pt["hd"]
                     d[:,2] = -d[:,2]
@@ -848,11 +866,11 @@ class Animal_pose:
             # add cos and sin to our d array
             x = np.stack([c,s]).T
             d = np.hstack([d,x]) # now x, y , hd, cos(hd), sin(hd)
-          
-        
-            valid = np.sum(~np.isnan(d))
-            invalid = np.sum(np.isnan(d))
-            prop_invalid = invalid/d.size
+            
+            # check for valid and invalid values (valid line = all values are finite so not nan or inf in all columns (x,y,hd))
+            valid = np.sum(np.all(np.isfinite(d),axis=1)) #~ valid = np.sum(~np.isnan(d))
+            invalid = len(d)-valid #~ invalid = np.sum(np.isnan(d))
+            prop_invalid = invalid/len(d) # 1-valid/len(d) #~ prop_invalid = invalid/d.size
             print("Invalid values: {}".format(invalid))
             print("Valid values: {}".format(valid))
             print("Percentage of invalid values: {:.3}%".format(prop_invalid*100))
