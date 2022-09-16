@@ -771,10 +771,9 @@ class Animal_pose:
                 # I would say we add a max of 5 lines                  #
                 ########################################################
                 
-                
+                # allow for a maximum 5 difference of ttl and positrack lines in either way
                 if (extension =="positrack" or extension=="positrack2" or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf"):
-                    if (len(pt) < len(ttl) < len(pt)+5):
-                        # maximum 5 positrack lines are missing
+                    if (len(pt) < len(ttl) <= len(pt)+5):
                         #~ missing = len(ttl)-len(pt)
                         #~ print("Missing lines:", missing)
                         #~ pt_mod = pt.append(pt[(len(pt)-missing):])
@@ -784,7 +783,7 @@ class Animal_pose:
                         ttl = ttl[:len(pt)]
                         print("Alignment problem solved by deleting superfluent ttl pulses")
                         problem = False
-                    elif (len(ttl) < len(pt)):
+                    elif (len(ttl) < len(pt) <= len(ttl)+5):
                         # more positrack frames than ttl pulses
                         pt_mod = pt[:len(ttl)] # just take as many frames as needed
                         print("Number of lines in adjusted positrack file:", len(pt_mod))
