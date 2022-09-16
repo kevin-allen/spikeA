@@ -742,7 +742,7 @@ class Animal_pose:
             print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
             if startPosi < 0.1:
                 print("positrack process was started too early, maybe before start of ktan recording .dat file")
-            if timeToEnd <0.1:
+            if timeToEnd < 0.1:
                 print("positrack process did not stop before the end of .dat file")
 
             # check if the number of ttl pulses matches number of video frames
@@ -775,19 +775,21 @@ class Animal_pose:
                 if (extension =="positrack" or extension=="positrack2" or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf"):
                     if (len(pt) < len(ttl) < len(pt)+5):
                         # maximum 5 positrack lines are missing
-                        missing = len(ttl)-len(pt)
-                        print("Missing lines:", missing)
-                        pt_mod = pt.append(pt[(len(pt)-missing):])
-                        print("Number of lines in adjusted positrack file:", len(pt_mod))
-                        pt = pt_mod
-                        print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
+                        #~ missing = len(ttl)-len(pt)
+                        #~ print("Missing lines:", missing)
+                        #~ pt_mod = pt.append(pt[(len(pt)-missing):])
+                        #~ print("Number of lines in adjusted positrack file:", len(pt_mod))
+                        #~ pt = pt_mod
+                        #~ print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
+                        ttl = ttl[:len(pt)]
+                        print("Alignment problem solved by deleting superfluent ttl pulses")
                         problem = False
                     elif (len(ttl) < len(pt)):
                         # more positrack frames than ttl pulses
                         pt_mod = pt[:len(ttl)] # just take as many frames as needed
                         print("Number of lines in adjusted positrack file:", len(pt_mod))
                         pt = pt_mod
-                        print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
+                        print("Alignment problem solved by deleting superfluent frames in positrack")
                         problem = False
                         
                     # do NOT touch original files
