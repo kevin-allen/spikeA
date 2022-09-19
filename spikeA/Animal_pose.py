@@ -679,6 +679,10 @@ class Animal_pose:
         # interpolate to have data for the entire .dat file (padded with np.nan at the beginning and end when there was no tracking)
         interpolation_step = self.ses.sampling_rate/interpolation_frequency_hz # interpolate at x Hz
         print("Interpolation step: {} samples".format(interpolation_step))
+        
+        print("")
+        print("Loop through {} trials".format(self.ses.n_trials))
+        print("")
 
 
         #loop for trials
