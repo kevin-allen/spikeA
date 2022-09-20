@@ -679,6 +679,10 @@ class Animal_pose:
         # interpolate to have data for the entire .dat file (padded with np.nan at the beginning and end when there was no tracking)
         interpolation_step = self.ses.sampling_rate/interpolation_frequency_hz # interpolate at x Hz
         print("Interpolation step: {} samples".format(interpolation_step))
+        
+        print("")
+        print("Loop through {} trials".format(self.ses.n_trials))
+        print("")
 
 
         #loop for trials
@@ -699,14 +703,21 @@ class Animal_pose:
             up_file_name = self.ses.path + "/" + t+".ttl_up.npy"
             up_file = Path(up_file_name)
             
-            if use_previous_up_detection and up_file.exists() :
-                print("Getting ttl pulses time from",up_file)
-                ttl = np.load(up_file)    # read up file
-            else: # get the ttl pulses from .dat file
-               
-                ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([self.ses.n_channels-1]))
+            if use_previous_up_detection and up_file.exists():
+                # read up file
+                print("Getting ttl pulses time from", up_file)
+                ttl = np.load(up_file)
+            else:
+                # get the ttl pulses from .dat file (on ttl_pulse_channel or last channel per default)
+                if ttl_pulse_channel is None:
+                    ttl_pulse_channel = self.ses.n_channels-1
+                ttl_channel_data = df.get_data_one_block(0,df.files_last_sample[-1],np.array([ttl_pulse_channel]))
                 ttl,downs = detectTTL(ttl_data = ttl_channel_data)
-            
+            if up_file.exists() == False:
+                # save up file for future reading
+                print("Saving",up_file)
+                np.save(up_file, ttl)                    
+
             print("Number of ttl pulses detected: {}".format(ttl.shape[0]))
                 
             # read the positrack file
@@ -720,35 +731,40 @@ class Animal_pose:
                 data = np.reshape(np.fromfile(file=positrack_file_name,dtype=np.int32),(-1,21))
                 data = data.astype(np.float32)
                 pt = pd.DataFrame({"x":data[:,11], "y":data[:,12],"hd": data[:,10]})
-            else :
+            
+            else:
                 raise ValueError("extension not supported")
   
-            print("Number of lines in positrack file: {}".format(pt.shape[0]))
+            
+            # check the positrack file
+            print("Number of lines in positrack file: {}".format(len(pt)))
     
-            if extension=="positrack":
-                if 'frame_no' in pt.columns:
-                    # This is actually a positrack2 file that was renamed. Do nothing
-                    pass
-                else:
-                    # This is a positrack file, from the original positrack program. 
-                    # To keep movement heading consistent with head-direction, we need to reverse the head-direction
-                    # !!!! Note that invalid data points are set to -1.0 in positrack files!!!!!
-                    # !!!! This code turns invalid data into 1 degree!!!
-                    pt["hd"] = -pt["hd"]
-            
-            
-            if ttl.shape[0] != pt.shape[0]:
-                print("alignment problem")
+            # check that positrack is within recording (start recording, *, start positrack, ..., stop positrack, *, stop recording); *=min 100ms
+            startPosi = ttl[0]/self.ses.sampling_rate
+            print("start tracking at: {:.4f} sec".format(startPosi))
+            timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
+            print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
+            if startPosi < 0.1:
+                print("positrack process was started too early, maybe before start of ktan recording .dat file")
+            if timeToEnd < 0.1:
+                print("positrack process did not stop before the end of .dat file")
+
+            # check if the number of ttl pulses matches number of video frames
+            if len(ttl) != len(pt):
+                problem = True
+                print("!!!\nalignment problem\n!!!")
                 
-                if ttl.shape[0] < pt.shape[0]:
-                    print("{} more video frames than ttl pulses".format(pt.shape[0]-ttl.shape[0]))
-                    print("first ttl sample: {}".format(ttl[0]))
-                    print("last ttl sample: {}".format(ttl[-1]))
-                    print("samples in dat file: {}".format(df.total_samples))
-                    timeToEnd = (df.total_samples-ttl[-1])/self.ses.sampling_rate
-                    print("last ttl to end of dat file duration: {:.4f} sec".format(timeToEnd))
-                    if (timeToEnd<0.10):
-                          print("positrack process did not stop before the end of .dat file")
+                delta = len(pt) - len(ttl)
+                if delta > 0:
+                    print("{} more video frames than ttl pulses".format(delta))
+                else:
+                    print("{} more ttl pulses than video frames".format(-delta))
+                
+                print("first ttl sample: {}".format(ttl[0]))
+                print("last ttl sample: {}".format(ttl[-1]))
+                print("samples in dat file: {}".format(df.total_samples))
+                            
+                
                 
                 # if there are just some ttl pulses missing from positrack, copy the last lines in the positrack file
                 
@@ -759,41 +775,41 @@ class Animal_pose:
                 # I would say we add a max of 5 lines                  #
                 ########################################################
                 
-                
-                if (extension =="positrack" or extension=="positrack2" or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf") and (len(pt) < len(ttl) < len(pt)+20):
-                    original_positrack_file = self.ses.path + "/" + t+"o."+ extension
-                    missing = len(ttl)-len(pt)
-                    print("Missing lines:",missing)
-                    pt_mod = pt.append(pt[(len(pt)-missing):])
-                    print("Number of lines in adjusted positrack file:", len(pt_mod))
-                    os.rename(positrack_file_name, original_positrack_file)
-                    if (extension=='positrack'):
-                        pt.to_csv(positrack_file_name, sep=' ')
-                    else:
-                        pt.to_csv(positrack_file_name, sep=',')
-                    pt = pt_mod
-                    print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
-                elif (extension=="positrack" or extension=="positrack2"or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf") and (ttl.shape[0]<pt.shape[0]):
-                    original_positrack_file = self.ses.path + "/" + t+"o."+ extension
-                    pt_mod = pt[:ttl.shape[0]]
-                    print("Number of lines in adjusted positrack file:", pt_mod.shape[0])
-                    os.rename(positrack_file_name, original_positrack_file)
-                    pt = pt_mod
-                    if (extension=='positrack'):
-                        pt.to_csv(positrack_file_name, sep=' ')
-                    else:
-                        pt.to_csv(positrack_file_name, sep=',')
-                    print("Alignment problem solved by deleting superfluent ttl pulses in positrack")
+                # allow for a maximum 5 difference of ttl and positrack lines in either way
+                if (extension =="positrack" or extension=="positrack2" or extension=="positrack2_kf" or extension=="positrack2_post" or extension=="positrack_post" or extension=="positrack_kf"):
+                    if (len(pt) < len(ttl) <= len(pt)+5):
+                        #~ missing = len(ttl)-len(pt)
+                        #~ print("Missing lines:", missing)
+                        #~ pt_mod = pt.append(pt[(len(pt)-missing):])
+                        #~ print("Number of lines in adjusted positrack file:", len(pt_mod))
+                        #~ pt = pt_mod
+                        #~ print("Alignment problem solved by adding "+str(missing)+" ttl pulses to positrack")
+                        ttl = ttl[:len(pt)]
+                        print("Alignment problem solved by deleting superfluent ttl pulses")
+                        problem = False
+                    elif (len(ttl) < len(pt) <= len(ttl)+5):
+                        # more positrack frames than ttl pulses
+                        pt_mod = pt[:len(ttl)] # just take as many frames as needed
+                        print("Number of lines in adjusted positrack file:", len(pt_mod))
+                        pt = pt_mod
+                        print("Alignment problem solved by deleting superfluent frames in positrack")
+                        problem = False
+                        
+                    # do NOT touch original files
+                    #~ original_positrack_file = self.ses.path + "/" + t+"o."+ extension
+                    #~ os.rename(positrack_file_name, original_positrack_file)
+                    #~ if (extension=='positrack'):
+                    #~     pt.to_csv(positrack_file_name, sep=' ')
+                    #~ else:
+                    #~     pt.to_csv(positrack_file_name, sep=',')
+                    
 
                 # we will need more code to solve simple problems 
                 #
                 #
-                else:
+                if problem:
                     raise ValueError("Synchronization problem (positrack {} and ttl pulses {}) for trial {}".format(pt.shape[0],ttl.shape[0],t))
 
-            if up_file.exists() == False:
-                print("Saving",up_file)
-                np.save(up_file, ttl)                    
                     
             
             """
@@ -817,12 +833,22 @@ class Animal_pose:
             print("max=", np.max(deltadiff),", min=",np.min(deltadiff))                
             """
             
-            # create a numpy array with the position data
-            d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T 
-            # set invalid values to np.nan
+            # create a numpy array with the position data (in the dataframe, the columns "x", "y", "hd" always exists and are needed)
+            #~ d = np.stack([pt["x"].values,pt["y"].values,pt["hd"].values]).T
+            d = np.array(pt[['x', 'y', 'hd']])
+            
             if extension=="positrack":
-                d[d==-1.0]=np.nan
-                
+                if 'frame_no' in pt.columns:
+                    # This is actually a positrack2 file that was renamed. Do nothing
+                    pass
+                else:
+                    # This is a positrack file, from the original positrack program.
+                    # set invalid values to np.nan (Note that invalid data points are set to -1.0 in positrack files - does not apply for positrack2)
+                    d[d==-1.0] = np.nan
+                    # To keep movement heading consistent with head-direction, we need to reverse the head-direction
+                    #~ pt["hd"] = -pt["hd"]
+                    d[:,2] = -d[:,2]
+
             # get the positrack acquisition time (not needed for ktan/ttl- dat syncing, but for other data that is in rostime ( = nanoseconds since epoch ))
             if extension=="positrack2":
                 #print("extension is positrack2")
@@ -831,11 +857,11 @@ class Animal_pose:
                 print("get positrack time from",positrack_time[0],"to",positrack_time[-1]," (duration = ",positrack_time[-1]-positrack_time[0],")")
                 self.pt_times.extend(positrack_time)
 
-            # if data are in degrees, turn into radians
+            # if data are in degrees, turn into radians (this should actually be always the case: HD data in positrack and positrack2 are stored in degrees)
             hdMin, hdMax = np.nanmin(d[:,2]),np.nanmax(d[:,2])
             hdRange = hdMax - hdMin
             print("hdRange: {}".format(hdRange))
-            if hdRange > 2*np.pi:
+            if hdRange > 2*np.pi + 0.1: # to avoid numerical wrong comparision, range is either 2pi or 360
                 print("degree to radian transformation")
                 d[:,2] = d[:,2]/180*np.pi
                 
@@ -845,11 +871,11 @@ class Animal_pose:
             # add cos and sin to our d array
             x = np.stack([c,s]).T
             d = np.hstack([d,x]) # now x, y , hd, cos(hd), sin(hd)
-          
-        
-            valid = np.sum(~np.isnan(d))
-            invalid = np.sum(np.isnan(d))
-            prop_invalid = invalid/d.size
+            
+            # check for valid and invalid values (valid line = all values are finite so not nan or inf in all columns (x,y,hd))
+            valid = np.sum(np.all(np.isfinite(d),axis=1)) #~ valid = np.sum(~np.isnan(d))
+            invalid = len(d)-valid #~ invalid = np.sum(np.isnan(d))
+            prop_invalid = invalid/len(d) # 1-valid/len(d) #~ prop_invalid = invalid/d.size
             print("Invalid values: {}".format(invalid))
             print("Valid values: {}".format(valid))
             print("Percentage of invalid values: {:.3}%".format(prop_invalid*100))
