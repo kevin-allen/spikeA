@@ -677,6 +677,12 @@ int detect_one_field(double* rate_map, int* field_map, int num_bins_x, int num_b
         rate_map[(peak_x*num_bins_y)+peak_y] = -1.0;
         field_pixel_count++;
         double threshold = max_rate * min_peak_rate_proportion;
+        
+        // this is to prevent the bins surrounding a field with high peak from being detected as a second peak
+        if (threshold > min_peak_rate){
+            threshold = min_peak_rate;
+        }
+        
         // loop to add adjacent pixels until all adjacent pixels above the threshold are added.
         // this is a recursive function. It will call itself many times to add adjacent pixels.
         find_an_adjacent_field_pixel(rate_map, field_map, num_bins_x, num_bins_y,threshold, peak_x, peak_y, &field_pixel_count);
