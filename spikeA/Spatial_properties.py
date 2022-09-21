@@ -121,7 +121,7 @@ class Spatial_properties:
         
         
         
-    def firing_rate_head_direction_histogram(self, deg_per_bin=10, smoothing_sigma_deg=10, smoothing=True):
+    def firing_rate_head_direction_histogram(self, deg_per_bin=10, smoothing_sigma_deg=10, smoothing=True, recalculate_hd_occupancy_histo=False):
         """
         Method of the Spatial_properties class to calculate the firing rate of a neuron as a function of head direction.
         
@@ -133,6 +133,7 @@ class Spatial_properties:
         deg_per_bin: degrees per bins in the head-direction histogram
         smoothing_sigma_deg: standard deviation of the gaussian kernel used to smooth the firing rate head direction histogram
         smoothing: boolean indicating whether or not smoothing is applied
+        recalculate_hd_occupancy_histo: force to call ap.head_direction_occupancy_histogram to generate a new hd occupancy
         
         Return:
         The Spatial_properties.firing_rate_head_direction_histo is set. It is a 1D numpy array containing the firing rate in Hz as a function of head direction.
@@ -142,10 +143,11 @@ class Spatial_properties:
         self.hd_histo_smoothing = smoothing
         
       
-        # create a new hd occupancy histogram
-        self.ap.head_direction_occupancy_histogram(deg_per_bin = self.hd_histo_deg_per_bin, 
-                                                 smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
-                                                 smoothing = smoothing, zero_to_nan = True)
+        # create a new hd occupancy histogram (if needed or desired)        
+        if not hasattr(self.ap, 'hd_occupancy_histogram') or recalculate_hd_occupancy_histo:
+            self.ap.head_direction_occupancy_histogram(deg_per_bin = self.hd_histo_deg_per_bin, 
+                                                     smoothing_sigma_deg = self.hd_histo_smoothing_sigma_deg, 
+                                                     smoothing = smoothing, zero_to_nan = True)
         #print(self.ap.hd_occupancy_histogram)
         
         self.spike_head_direction()

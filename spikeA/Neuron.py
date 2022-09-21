@@ -23,7 +23,7 @@ class Neuron:
         set_spike_train()
         
     """
-    def __init__(self,name, subject=None, brain_area=None, channels=None,electrode_id=None):
+    def __init__(self, name, clu_id=None, subject=None, brain_area=None, channels=None, electrode_id=None):
         """
         Constructor of the Neuron Class
         """
@@ -33,12 +33,13 @@ class Neuron:
         self.channels = channels
         self.electrode_id = electrode_id
         
+        self.clu_id = clu_id
+        
         # 3 types of analysis for a neurons (spike train, spatial properties and spike waveforms)
         # each will have its own class with associated attributes and methods
         self.spike_train = None
         self.spatial_properties = None
         self.spike_waveform = None
-        return
     
     def set_spatial_properties(self, animal_pose):
         """
