@@ -45,7 +45,7 @@ class Cell_group:
             if not (len(names)==len(stl.clu_ids)):
                 raise TypeError("When you pass names, length must match number of cells, but was {}, expected {}".format(len(names), len(stl.clu_ids)))
             
-        self.neuron_list=[Neuron(name=name, clu_id=clu_id) for name,clu_id in zip(names,stl.clu_ids)]
+        self.neuron_list=[Neuron(name=name, cluster_number=clu_id) for name,clu_id in zip(names,stl.clu_ids)]
         
         ## set the spike_train objects of your neurons
         for i,n in enumerate(self.neuron_list):
@@ -75,7 +75,7 @@ class Cell_group:
         
         for n in self.neuron_list:
             #~ clu_id = int(n.name)
-            clu_id = n.clu_id
+            clu_id = n.cluster_number
             channels = ses.get_channels_from_cluster(clu_id, maxchannels)
             shanks_arr, active_shanks, electrodes = ses.get_active_shanks(channels)
             n.channels = channels

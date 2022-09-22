@@ -11,7 +11,8 @@ class Neuron:
     Class containing information about a single neuron.
     
     Attributes:
-        name: Name of the neuron. Usually used as the beginning of the file names. Format is assumed to be subject-date-time
+        name: Name of the neuron. Usually used as the beginning of the file names and ending with the clustering number. Format is assumed to be subject-date-time
+        cluster_number: Number obtained from the Spike_train_loader, usually from the clustering procedure.
         subject: Name of the subject (animal).
         brain_area: Brain area in which the neuron was recorded
         channels: Channels on which the neuron was recorded. This is used to get the spike waveforms.
@@ -23,7 +24,7 @@ class Neuron:
         set_spike_train()
         
     """
-    def __init__(self, name, clu_id=None, subject=None, brain_area=None, channels=None, electrode_id=None):
+    def __init__(self, name, cluster_number=None, subject=None, brain_area=None, channels=None, electrode_id=None):
         """
         Constructor of the Neuron Class
         """
@@ -33,7 +34,7 @@ class Neuron:
         self.channels = channels
         self.electrode_id = electrode_id
         
-        self.clu_id = clu_id
+        self.cluster_number = cluster_number
         
         # 3 types of analysis for a neurons (spike train, spatial properties and spike waveforms)
         # each will have its own class with associated attributes and methods
