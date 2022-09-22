@@ -121,7 +121,7 @@ class Spatial_properties:
         
         
         
-    def firing_rate_head_direction_histogram(self, deg_per_bin=10, smoothing_sigma_deg=10, smoothing=True, recalculate_hd_occupancy_histo=False):
+    def firing_rate_head_direction_histogram(self, deg_per_bin=10, smoothing_sigma_deg=10, smoothing=True, recalculate_hd_occupancy_histo=True):
         """
         Method of the Spatial_properties class to calculate the firing rate of a neuron as a function of head direction.
         
