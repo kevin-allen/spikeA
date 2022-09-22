@@ -25,7 +25,7 @@ class Cell_group:
     
     """
     
-    def __init__(self, stl, animal_pose=None,names=None):
+    def __init__(self, stl, animal_pose=None, names=None):
         """
         We create a list of Neuron object and set the spike trains of the neurons using a Spike_train_loader object. 
         
@@ -40,9 +40,12 @@ class Cell_group:
         ## create a list of neurons
         if names is None:
             ## use a list comprehension, use the stl.clu_ids to set the name of the neurons
-            self.neuron_list=[Neuron(name=str(clu)) for clu in stl.clu_ids]
+            names = [str(clu) for clu in stl.clu_ids]
         else:
-            self.neuron_list=[Neuron(name=name) for name in names]
+            if not (len(names)==len(stl.clu_ids)):
+                raise TypeError("When you pass names, length must match number of cells, but was {}, expected {}".format(len(names), len(stl.clu_ids)))
+            
+        self.neuron_list=[Neuron(name=name, clu_id=clu_id) for name,clu_id in zip(names,stl.clu_ids)]
         
         ## set the spike_train objects of your neurons
         for i,n in enumerate(self.neuron_list):
@@ -71,7 +74,8 @@ class Cell_group:
         ses.init_shanks()
         
         for n in self.neuron_list:
-            clu_id = int(n.name)
+            #~ clu_id = int(n.name)
+            clu_id = n.clu_id
             channels = ses.get_channels_from_cluster(clu_id, maxchannels)
             shanks_arr, active_shanks, electrodes = ses.get_active_shanks(channels)
             n.channels = channels
