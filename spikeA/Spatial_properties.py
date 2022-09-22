@@ -1196,7 +1196,7 @@ class Spatial_properties:
         return fieldList
         
     
-    def shuffle_border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=5, min_peak_rate_proportion= 0.30, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,n_wall_sections = 36, wall_section_width_radian= np.pi/2,percentile=95):
+    def shuffle_border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=5, min_peak_rate_proportion= 0.30, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
         """
         Get a distribution of border scores that would be expected by chance for this neuron
 
@@ -1210,8 +1210,6 @@ class Spatial_properties:
         cm_per_bin: cm per bin in the firing rate map
         smoothing_sigma_cm: smoothing in the firing rate map
         smoothing: smoothing in the firing rate map
-        n_wall_sections: number of border wall subsections
-        wall_section_width_radian: width of each border wall subsection
         percentile: percentile of the distribution of shuffled border scores that is used to get the significance threshold
 
         Return
@@ -1242,7 +1240,7 @@ class Spatial_properties:
         return self.border_shuffle, self.border_score_threshold,
        
         
-    def border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, return_field_list = False, n_wall_sections = 36, wall_section_width_radian= np.pi/2):
+    def border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, return_field_list = False, n_wall_sections = 36, wall_section_width_radian= 2*np.pi/3):
         """
         Calculate the border score of a neuron when the animal explores a circular environment.
         
@@ -1273,7 +1271,8 @@ class Spatial_properties:
         min_peak_rate: minimal peak firing rate within a field to perform field detection
         min_peak_rate_proporition: a pixel needs to be above peak_rate*min_peak_rate_proportion to be added to a field
         return_field_list: boolean whether to return the field list with which the border score was calculated
-        
+        n_wall_sections: number of border wall subsection that will be generated
+        wall_section_width_radian: width in radian of the wall subsections
         
         Return
         
@@ -1327,7 +1326,7 @@ class Spatial_properties:
         else:
             return CM, DM, border_score, len(fieldList)
         
-    def circular_border_wall_sections(self, border_map, n_sections = 36, section_width_radian= np.pi/2):
+    def circular_border_wall_sections(self, border_map, n_sections = 36, section_width_radian= 2*np.pi/3):
         """
         The function returns maps in which a subsection of the wall of a circular environment.
 
@@ -1409,6 +1408,7 @@ class Spatial_properties:
         myStack = np.dstack([field_map,border_map]) # stack the 2 maps
         myStackSum = np.sum(myStack,axis=2) # sum the 2 maps
         nSharedPixels = np.sum(myStackSum==2) # the pixels with a sum of 2 are part of the border and field
+        #print(nBorderPixels,nSharedPixels,np.nansum(field_map))
         CM = nSharedPixels/nBorderPixels
         return CM     
 
