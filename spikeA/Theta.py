@@ -198,30 +198,33 @@ class Theta:
         start = np.where(x>0)[0]
         end = np.where(x<0)[0]
 
+        if start.shape[0]==0 and end.shape[0]==0:
+            epochs=np.array([])
+            return epochs
+        else:
+            if start.shape[0] == 0:
+                if above_threshold[0]==1: # if there is no start but data above threshold
+                    start = np.array([0])
 
-        if start.shape[0] == 0:
-            if aboveThreshold[0]==1: # if there is no start but data above threshold
-                start = np.array([0])
+            if end.shape[0] == 0:
+                if above_threshold[0]==1: # if there is no end but data above threshold
+                    end = np.array([theta_delta_ratio.shape[0]-1])
 
-        if end.shape[0] == 0:
-            if aboveThreshold[0]==1: # if there is no start but data above threshold
-                end = np.array([theta_delta_ratio.shape[0]-1])
+            if end[0] < start[0]: # started with an end
+                start = np.concatenate([np.array([0]),start])
 
-        if end[0] < start[0]: # started with an end
-            start = np.concatenate([np.array([0]),start])
+            if end[-1] < start[-1]: # end with a start
+                end = np.concatenate([end, np.array([theta_delta_ratio.shape[0]-1])])
 
-        if end[-1] < start[-1]: # end with a start
-            end = np.concatenate([end, np.array([theta_delta_ratio.shape[0]-1])])
+            if start.shape[0] != end.shape[0]:
+                print("problem with start and end of epochs")
 
-        if start.shape[0] != end.shape[0]:
-            print("problem with start and end of epochs")
+            epochs = np.vstack([start,end]).T
 
-        epochs = np.vstack([start,end]).T
+            # check that the epocs have the minimal length
+            epochs = epochs[(epochs[:,1]-epochs[:,0])> theta_epoch_min_length_samples]
 
-        # check that the epocs have the minimal length
-        epochs = epochs[(epochs[:,1]-epochs[:,0])> theta_epoch_min_length_samples]
-
-        return epochs 
+            return epochs 
 
     def detect_cycles(self, filteredData):
         """
@@ -255,7 +258,10 @@ class Theta:
             epoch_data = filteredData[start:end]
             cycles = self.detect_cycles(epoch_data)+start
             myCycleList.append(cycles)
-        allCycles = np.concatenate(myCycleList)
+        if myCycleList:
+            allCycles = np.concatenate(myCycleList)
+        else:
+            allCycles = myCycleList
         return allCycles
 
     def detect_theta_cycles_one_channel(self, data):
