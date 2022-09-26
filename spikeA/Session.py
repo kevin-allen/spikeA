@@ -78,7 +78,54 @@ class Session:
             return Klustakwik_session(self.name,self.path)
         elif self.data_type == "kilosort":
             return Kilosort_session(self.name,self.path)
+    
+    def session_environment_trial_data_frame(self):
+        """
+        Method to get the trial time as a pandas DataFrame. 
+        Compare to using self.desen, it merges adjacent trials in time that are in the same environment.
+        For examples: circ80 circ80 rest autopi autopi rest circ80 becomes circ80 rest autopi rest circ80
+
+        You can use it to get the intervals in a given environment if you want adjacent trials in the same environment to be merged.
         
+        Returns 
+        pandas DataFrame with session, environment, no, trialCode, startTime, endTime and duration columns
+        """
+        envSeen = []
+        envList = []
+        trialCodeList = []
+        envCountList = []
+        envDuration = []
+        start = []
+        end = []
+        prevEnv = ""
+        prevIndex = -1
+        for i, env in enumerate(self.desen):
+            if env != prevEnv: # we have a new environment
+
+                index = envSeen.count(env)
+                trialCodeList.append(env+"_{}".format(index))
+
+                envList.append(env)
+                envCountList.append(index)
+
+                envDuration.append(self.trial_intervals.inter[i][1]-self.trial_intervals.inter[i][0])
+                prevEnv=env
+                envSeen.append(env)
+                start.append(self.trial_intervals.inter[i][0])
+                end.append(self.trial_intervals.inter[i][1])
+            else : 
+                envDuration[-1]= envDuration[-1]+self.trial_intervals.inter[i][1]-self.trial_intervals.inter[i][0]
+                end[-1] = self.trial_intervals.inter[i][1]
+
+
+        return pd.DataFrame({"session":self.name,
+                             "environment": envList,
+                             "no": envCountList,
+                             "trialCode": trialCodeList,
+                             "startTime": start,
+                             "endTime": end,
+                             "duration": envDuration})
+    
     def __str__(self): 
         return  str(self.__class__) + '\n' + '\n'.join((str(item) + ' = ' + str(self.__dict__[item]) for item in self.__dict__))
    
