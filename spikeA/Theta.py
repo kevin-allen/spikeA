@@ -199,8 +199,9 @@ class Theta:
         end = np.where(x<0)[0]
 
         if start.shape[0]==0 and end.shape[0]==0:
-            epochs=np.array([])
-            return epochs
+            start=np.array([])
+            end=np.array([])
+
         else:
             if start.shape[0] == 0:
                 if above_threshold[0]==1: # if there is no start but data above threshold
@@ -219,12 +220,12 @@ class Theta:
             if start.shape[0] != end.shape[0]:
                 print("problem with start and end of epochs")
 
-            epochs = np.vstack([start,end]).T
+        epochs = np.vstack([start,end]).T
 
-            # check that the epocs have the minimal length
-            epochs = epochs[(epochs[:,1]-epochs[:,0])> theta_epoch_min_length_samples]
+        # check that the epocs have the minimal length
+        epochs = epochs[(epochs[:,1]-epochs[:,0])> theta_epoch_min_length_samples]
 
-            return epochs 
+        return epochs 
 
     def detect_cycles(self, filteredData):
         """
@@ -351,7 +352,7 @@ class Theta:
             cycles[c]=[]
 
 
-        for i in range(len(self.session.file_names["dat"])):
+        for i in range(len(self.session.file_names["dat"])-2,len(self.session.file_names["dat"])):
             print("reading from {}".format(df.file_names[i]))
 
             data = df.get_data_one_block(start_sample=df.files_first_sample[i], 
@@ -364,6 +365,8 @@ class Theta:
 
 
         for c in channel_list: # create one array per channel, and set the time in seconds
+            
+            print(np.ndim(epochs[c]))
             epochs[c]=np.concatenate(epochs[c])/self.session.sampling_rate
             cycles[c]=np.concatenate(cycles[c])/self.session.sampling_rate
 
