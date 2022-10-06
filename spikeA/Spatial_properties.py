@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.ndimage import sum as ndi_sum
 from scipy.ndimage import center_of_mass as ndi_center_of_mass
+from skimage.measure import EllipseModel
 from scipy.stats import pearsonr
 import math
 import cv2
@@ -725,7 +726,7 @@ class Spatial_properties:
         maxradius = np.min(np.array(self.spatial_autocorrelation_map.shape))/2
 
         # get midpoint
-        midpoint = np.array(self.spatial_autocorrelation_map.shape)/2
+        midpoint = np.array(self.spatial_autocorrelation_map.T.shape)/2
         
         # find proper dimensions for doughnut
         self.points_inside_dougnut = []
@@ -755,7 +756,7 @@ class Spatial_properties:
         # use the autocorrelation map to modify doughnut
         doughnut = self.spatial_autocorrelation_map.copy()
 
-        outsidedoughnut = np.array([ np.array([x_,y_]) for x_,y_ in np.ndindex(self.spatial_autocorrelation_map.shape) if math.dist(midpoint, [x_,y_]) < r_inner_radius_use or math.dist(midpoint, [x_,y_]) > r_outer_radius_use ])
+        outsidedoughnut = np.array([ np.array([x_,y_]) for x_,y_ in np.ndindex(self.spatial_autocorrelation_map.shape) if math.dist([midpoint[1],midpoint[0]], [x_,y_]) < r_inner_radius_use or math.dist([midpoint[1],midpoint[0]], [x_,y_]) > r_outer_radius_use ])
         outsidedoughnut = (outsidedoughnut[:,0], outsidedoughnut[:,1])
         doughnut[outsidedoughnut] = np.nan
         
@@ -797,13 +798,19 @@ class Spatial_properties:
         return r
     
     
-    def grid_score(self, threshold=0.1, neighborhood_size=5):
+    def grid_score(self, threshold=0.1, neighborhood_size=5, calculate_ellipticity=False, correct_ellipticity=False):
         
         """
         Method of the Spatial_properties class to calculate the grid score.
         
         Before running this function, you need to create a firing rate map 2d
-        using  Spatial_properties.firing_rate_map_2d()    
+        using  Spatial_properties.firing_rate_map_2d()  
+        
+        If calculate_ellipticity=True, an ellipse is fitted to the fields found by calculate_doughnut in the autocorrelation map. Ellipse parameters (eccentricity and ellipticity) are set.
+        
+        If correct_ellipticity=True, an ellipse is fitted to the fields found by calculate_doughnut in the autocorrelation map. Ellipse parameters are set. 
+        In addition, the pose data is rotated and the y axis is stretched/squeezed to make the ellipse into a circle.
+        A new firing rate map, autocorrelation map and doughnut are calculated. Then the position data and the firing rate map are set back to the original versions.
         
         Return
         grid score 
@@ -817,6 +824,43 @@ class Spatial_properties:
             return np.nan
         
         self.calculate_doughnut(threshold = threshold, neighborhood_size = neighborhood_size)
+        
+        if calculate_ellipticity or correct_ellipticity:
+            p_dist=[math.dist(self.autocorr_midpoint, p) for p in self.points_inside_dougnut]
+            X=[i[0] for i in self.points_inside_dougnut]
+            Y=[i[1] for i in self.points_inside_dougnut]
+            #remove middle point
+            X=np.delete(X,int(np.where(p_dist==np.min(p_dist))[0]))
+            Y=np.delete(Y,int(np.where(p_dist==np.min(p_dist))[0]))
+            #fit ellipse to points
+            points=np.column_stack([X,Y])
+            ellipse = EllipseModel()
+            ellipse.estimate(points)
+            xc, yc, a, b, theta = np.array(ellipse.params, dtype=float)
+            #calculate
+            self.eccentricity=np.sqrt(1-((np.min([a,b])*np.min([a,b]))/(np.max([a,b])*np.max([a,b]))))
+            self.ellipticity=(np.max([a,b])-np.min([a,b]))/np.max([a,b])
+            
+        if correct_ellipticity:
+            if b/a < 5 and b/a > 0.2:
+                #save current ap.pose and firing rate map
+                current_pose=self.ap.pose.copy()
+                current_firing_rate_map=self.firing_rate_map.copy()
+                #rotate position data
+                poseXY=[self.ap.rotate(point, origin=(xc,yc), radians=-theta) for point in zip(self.ap.pose[:,1],self.ap.pose[:,2])]
+                for n,point in enumerate(poseXY):
+                    self.ap.pose[n,1]=point[0] #x
+                    self.ap.pose[n,2]=point[1]
+                self.ap.pose[:,2]=self.ap.pose[:,2]*b/a #y stretched or sqeezed to match x
+                #recalculate the firing rate map, autocorrelation (called by calculate_doughnut) and doughnut
+                self.firing_rate_map_2d(cm_per_bin =self.map_cm_per_bin, smoothing_sigma_cm = self.map_smoothing_sigma_cm, smoothing=self.map_smoothing)
+                self.calculate_doughnut()
+                #set back
+                self.ap.pose=current_pose
+                self.firing_rate_map=current_firing_rate_map
+            else:
+                grid_score=np.nan
+                return grid_score
 
         rotations60 = [60, 120]
         rotations30= [30, 90, 150]
@@ -829,7 +873,7 @@ class Spatial_properties:
         return grid_score
     
     
-    def shuffle_grid_score(self, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
+    def shuffle_grid_score(self, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95, correct_ellipticity=False):
         """
         Get a distribution of grid score that would be expected by chance for this neuron
 
@@ -877,7 +921,7 @@ class Spatial_properties:
         for i in range(iterations):
             self.ap.roll_pose_over_time() # shuffle the position data 
             self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm) # calculate a firing rate map
-            self.grid_shuffle[i] = self.grid_score() # calculate the grid score from the new map
+            self.grid_shuffle[i] = self.grid_score(correct_ellipticity=correct_ellipticity) # calculate the grid score from the new map
             self.ap.pose=pose_at_start
 
         # calculate the threshold
