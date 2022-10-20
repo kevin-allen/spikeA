@@ -151,6 +151,7 @@ class Spike_phase:
     def spike_phase_stats(self):
         """
         Calculate circular mean and mean vector length of the spike phase
+        ##Calculate Rayleigh p-value and Rayleigh z## (p value mostly 0 anyway...)
         """
         
         if self.phase is None:
@@ -167,7 +168,21 @@ class Spike_phase:
         
         mean_vector_length = np.sqrt(x**2+y**2)
         
-        return preferred_phase,mean_vector_length
+        ##Rayleigh stats
+        #n = np.sum(np.ones_like(phase), axis=0)
+#
+        ## compute Rayleigh's R
+        #R = n * mean_vector_length
+#
+        ## compute Rayleigh's z
+        #z_rayleigh = R ** 2 / n
+#
+        ## compute p value using approxation in Zar, p. 617
+        #p_rayleigh = np.exp(np.sqrt(1 + 4 * n + 4 * (n ** 2 - R ** 2)) - (1 + 2 * n))
+#
+#
+        return preferred_phase,mean_vector_length#,p_rayleigh,z_rayleigh
+        
         
     def plot_phase_histogram(self,ax):
         """
@@ -189,8 +204,9 @@ class Spike_phase:
         else:
             x = 0.5
             
-        ax.text(x, 0.1, "mvl: {:.3f}".format(mvl), transform=ax.transAxes)
-        ax.text(x, 0.2, "mean: {:.3f}".format(pp), transform=ax.transAxes)
+        ax.text(x, 0.2, "mvl: {:.3f}".format(mvl), transform=ax.transAxes)
+        ax.text(x, 0.3, "mean: {:.3f}".format(pp), transform=ax.transAxes)
+        #ax.text(x, 0.1, "p rayleigh: {:.3f}".format(p), transform=ax.transAxes)
         for spine in ['top', 'right']:
             ax.spines[spine].set_visible(False)
         

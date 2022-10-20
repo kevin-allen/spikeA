@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.ndimage import sum as ndi_sum
 from scipy.ndimage import center_of_mass as ndi_center_of_mass
+from skimage.measure import EllipseModel
 from scipy.stats import pearsonr
 import math
 import cv2
@@ -725,7 +726,7 @@ class Spatial_properties:
         maxradius = np.min(np.array(self.spatial_autocorrelation_map.shape))/2
 
         # get midpoint
-        midpoint = np.array(self.spatial_autocorrelation_map.shape)/2
+        midpoint = np.array(self.spatial_autocorrelation_map.T.shape)/2
         
         # find proper dimensions for doughnut
         self.points_inside_dougnut = []
@@ -755,7 +756,7 @@ class Spatial_properties:
         # use the autocorrelation map to modify doughnut
         doughnut = self.spatial_autocorrelation_map.copy()
 
-        outsidedoughnut = np.array([ np.array([x_,y_]) for x_,y_ in np.ndindex(self.spatial_autocorrelation_map.shape) if math.dist(midpoint, [x_,y_]) < r_inner_radius_use or math.dist(midpoint, [x_,y_]) > r_outer_radius_use ])
+        outsidedoughnut = np.array([ np.array([x_,y_]) for x_,y_ in np.ndindex(self.spatial_autocorrelation_map.shape) if math.dist([midpoint[1],midpoint[0]], [x_,y_]) < r_inner_radius_use or math.dist([midpoint[1],midpoint[0]], [x_,y_]) > r_outer_radius_use ])
         outsidedoughnut = (outsidedoughnut[:,0], outsidedoughnut[:,1])
         doughnut[outsidedoughnut] = np.nan
         
@@ -797,13 +798,63 @@ class Spatial_properties:
         return r
     
     
-    def grid_score(self, threshold=0.1, neighborhood_size=5):
+    def calculate_ellipse_parameters(self):
+        """
+        An ellipse is fitted to the fields found by calculate_doughnut in the autocorrelation map. Ellipse parameters (eccentricity, ellipticity, ellipse axes and rotation) are set.
+        """
+        if not hasattr(self, 'doughnut'):
+            raise ValueError('Call self.calculate_doughnut() before calling this function')
+            
+        p_dist=[math.dist(self.autocorr_midpoint, p) for p in self.points_inside_dougnut]
+        X=[i[0] for i in self.points_inside_dougnut]
+        Y=[i[1] for i in self.points_inside_dougnut]
+        #remove middle point
+        X=np.delete(X,np.where(p_dist==np.min(p_dist))[0])
+        Y=np.delete(Y,np.where(p_dist==np.min(p_dist))[0])
+        #fit ellipse to points
+        points=np.column_stack([X,Y])
+        ellipse = EllipseModel()
+        if ellipse.estimate(points):
+            xc, yc, a, b, theta = ellipse.params
+            #calculate
+            self.eccentricity=np.sqrt(1-((np.min([a,b])*np.min([a,b]))/(np.max([a,b])*np.max([a,b]))))
+            self.ellipticity=(np.max([a,b])-np.min([a,b]))/np.max([a,b])
+            self.ellipse_axes=(a,b)
+            self.ellipse_rotation=theta
+        else:
+            self.ellipticity=np.nan
+            self.eccentricity=np.nan
+            self.ellipse_axes=(np.nan,np.nan)
+            self.ellipse_rotation=np.nan 
+            
+            
+    def correct_pose_ellipticity(self):
+        """
+        The pose data is rotated and the y axis is stretched/squeezed to make the ellipse into a circle.
+        """
+        #rotate position data
+        xy = np.column_stack([self.ap.pose[:,1],self.ap.pose[:,2]])
+        angle = -self.ellipse_rotation #in radian
+        mat = np.array([[np.cos(angle),-np.sin(angle)],[np.sin(angle),np.cos(angle)]]) #2D rotation matrix
+        self.ap.pose[:,1:3] = xy@mat
+        self.ap.pose[:,2]=self.ap.pose[:,2]*self.ellipse_axes[1]/self.ellipse_axes[0] #y stretched or sqeezed to match x
+        
+            
+    def grid_score(self, threshold=0.1, neighborhood_size=5, calculate_ellipticity=False, correct_ellipticity=False, keep_corrected_map=False):
         
         """
         Method of the Spatial_properties class to calculate the grid score.
         
         Before running this function, you need to create a firing rate map 2d
-        using  Spatial_properties.firing_rate_map_2d()    
+        using  Spatial_properties.firing_rate_map_2d()  
+        
+        If calculate_ellipticity=True, an ellipse is fitted to the fields found by calculate_doughnut in the autocorrelation map. Ellipse parameters (eccentricity and ellipticity) are set.
+        
+        If correct_ellipticity=True, an ellipse is fitted to the fields found by calculate_doughnut in the autocorrelation map. Ellipse parameters are set. 
+        In addition, the pose data is rotated and the y axis is stretched/squeezed to make the ellipse into a circle.
+        A new firing rate map, autocorrelation map and doughnut are calculated. Then the position data and the firing rate map are set back to the original versions.
+        
+        If keep_corrected_map=True, the map created to correct for ellipticity is kept. However, the pose data is still set back. This will only take effect if correct_ellipticity is True.
         
         Return
         grid score 
@@ -814,9 +865,44 @@ class Spatial_properties:
         
         # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
         if np.nanmax(self.firing_rate_map) == 0:
+            if calculate_ellipticity or correct_ellipticity:
+                self.ellipticity=np.nan
+                self.eccentricity=np.nan
+                self.ellipse_axes=(np.nan,np.nan)
+                self.ellipse_rotation=np.nan
             return np.nan
         
         self.calculate_doughnut(threshold = threshold, neighborhood_size = neighborhood_size)
+
+        if not self.points_inside_dougnut:
+            grid_score=np.nan
+            if calculate_ellipticity or correct_ellipticity:
+                self.ellipticity=np.nan
+                self.eccentricity=np.nan
+                self.ellipse_axes=(np.nan,np.nan)
+                self.ellipse_rotation=np.nan
+            return grid_score
+        
+        if calculate_ellipticity or correct_ellipticity:
+            self.calculate_ellipse_parameters()
+        
+        #the ellipse should not be stretched/squeezed by more than a factor of 4
+        if correct_ellipticity and (self.ellipse_axes[1]/self.ellipse_axes[0] < 4 and self.ellipse_axes[1]/self.ellipse_axes[0] > 0.25):
+            #save current ap.pose and firing rate map
+            current_pose=self.ap.pose.copy()
+            current_firing_rate_map=self.firing_rate_map.copy()
+
+            self.correct_pose_ellipticity()
+
+            #recalculate the firing rate map, autocorrelation (called by calculate_doughnut) and doughnut
+            self.firing_rate_map_2d(cm_per_bin=self.map_cm_per_bin, smoothing_sigma_cm = self.map_smoothing_sigma_cm, smoothing=self.map_smoothing)
+            self.calculate_doughnut()
+
+            #set back
+            self.ap.pose=current_pose
+            if not keep_corrected_map:
+                self.firing_rate_map=current_firing_rate_map
+
 
         rotations60 = [60, 120]
         rotations30= [30, 90, 150]
@@ -829,7 +915,7 @@ class Spatial_properties:
         return grid_score
     
     
-    def shuffle_grid_score(self, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
+    def shuffle_grid_score(self, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, percentile=95, correct_ellipticity=False):
         """
         Get a distribution of grid score that would be expected by chance for this neuron
 
@@ -870,16 +956,21 @@ class Spatial_properties:
         plt.show()
         """
         
-        # keep a copy of the pose that we started with
+        # keep a copy of the pose and the firing rate map that we started with
         pose_at_start = self.ap.pose.copy()
+        current_firing_rate_map=self.firing_rate_map.copy()
+        
         
         self.grid_shuffle=np.empty(iterations)
         for i in range(iterations):
             self.ap.roll_pose_over_time() # shuffle the position data 
             self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm) # calculate a firing rate map
-            self.grid_shuffle[i] = self.grid_score() # calculate the grid score from the new map
-            self.ap.pose=pose_at_start
-
+            self.grid_shuffle[i] = self.grid_score(correct_ellipticity=correct_ellipticity) # calculate the grid score from the new map
+        
+        #reset the pose data and the firing rate map
+        self.ap.pose=pose_at_start
+        self.firing_rate_map=current_firing_rate_map
+        
         # calculate the threshold
         self.grid_score_threshold =  np.percentile(self.grid_shuffle,percentile)
         
