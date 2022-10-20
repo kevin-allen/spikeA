@@ -1215,7 +1215,7 @@ class Spatial_properties:
         percentile: percentile of the distribution of shuffled border scores that is used to get the significance threshold
 
         Return
-        tuple: 1D numpy array with the border scores obtained by chance for this neuron and significance threshold for border score
+        tuple: 3 1D numpy array with the border scores, CM and DM obtained by chance for this neuron
         
         
         """
@@ -1224,6 +1224,8 @@ class Spatial_properties:
         pose_at_start = self.ap.pose.copy()
         
         self.border_shuffle=np.empty((iterations))
+        self.CM_shuffle=np.empty((iterations))
+        self.DM_shuffle=np.empty((iterations))
       
         for i in range(iterations):
             
@@ -1233,13 +1235,12 @@ class Spatial_properties:
             #res contains CM,CMHalf, DM, border_score, border_score_half, nFields
             res = self.border_score_circular_environment(min_pixel_number_per_field, min_peak_rate, min_peak_rate_proportion)
             # cm, dm, border_score, n_fields
+            self.CM_shuffle[i] = res[0] 
+            self.DM_shuffle[i] = res[1] 
             self.border_shuffle[i] = res[2] 
             self.ap.pose=pose_at_start
 
-        # calculate the threshold
-        self.border_score_threshold =  np.percentile(self.border_shuffle,percentile)
-        
-        return self.border_shuffle, self.border_score_threshold,
+        return self.border_shuffle, self.CM_shuffle, self.DM_shuffle
        
         
     def border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, return_field_list = False, n_wall_sections = 36, wall_section_width_radian= 2*np.pi/3):
