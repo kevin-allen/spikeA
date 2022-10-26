@@ -25,7 +25,7 @@ class Cell_group:
     
     """
     
-    def __init__(self, stl, animal_pose=None):
+    def __init__(self, stl, animal_pose=None, names=None):
         """
         We create a list of Neuron object and set the spike trains of the neurons using a Spike_train_loader object. 
         
@@ -38,8 +38,14 @@ class Cell_group:
             raise TypeError("stl should be a Spike_train_loader object but is {}".format(type(stl)))
         
         ## create a list of neurons
-        ## use a list comprehension, use the stl.clu_ids to set the name of the neurons
-        self.neuron_list=[Neuron(name=str(clu)) for clu in stl.clu_ids]
+        if names is None:
+            ## use a list comprehension, use the stl.clu_ids to set the name of the neurons
+            names = [str(clu) for clu in stl.clu_ids]
+        else:
+            if not (len(names)==len(stl.clu_ids)):
+                raise TypeError("When you pass names, length must match number of cells, but was {}, expected {}".format(len(names), len(stl.clu_ids)))
+            
+        self.neuron_list=[Neuron(name=name, cluster_number=clu_id) for name,clu_id in zip(names,stl.clu_ids)]
         
         ## set the spike_train objects of your neurons
         for i,n in enumerate(self.neuron_list):
@@ -68,7 +74,8 @@ class Cell_group:
         ses.init_shanks()
         
         for n in self.neuron_list:
-            clu_id = int(n.name)
+            #~ clu_id = int(n.name)
+            clu_id = n.cluster_number
             channels = ses.get_channels_from_cluster(clu_id, maxchannels)
             shanks_arr, active_shanks, electrodes = ses.get_active_shanks(channels)
             n.channels = channels
@@ -109,28 +116,16 @@ class Cell_group:
             
             self.neuron_list.append(n)
         
-        
-
-    def mean_firing_rate(self):
-        """
-        get the mean firing rate for all neurons (total number of spikes of all neurons)
-        sum of mean firing rate = sum of (spikes of neuron / interval duration) = (sum of spikes of neuron) / interval duration
-        
-        Returns:
-        The average number of spikes of all neurons per second (in Hertz)
-        """
-        self.mean_firing_rate_list = [ n.spike_train.mean_firing_rate() for n in self.neuron_list ]
-        return np.sum(self.mean_firing_rate_list)
-    
     def mean_firing_rate_per_neuron(self):
         """
-        get the mean firing rate per neuron
+        Calculate the mean firing rate of each neuron (spikes per second for each neuron of the Cell_group object) 
         
         Returns:
-        The mean firing rate per neuron (in Hertz)
+        A list with the mean firing rate of each neuron in Hertz
         """
-        self.mean_firing_rate()
-        return np.mean(self.mean_firing_rate_list)
+        self.mean_firing_rate_list = [ n.spike_train.mean_firing_rate() for n in self.neuron_list ]
+        
+        return self.mean_firing_rate_list
     
     
     def make_pairs(self,pair_type="permutations"):
@@ -185,12 +180,13 @@ class Cell_group:
         
         Returns:
         self.st_autocorrelation: 2D np.ndarray with one spike time autocorrelation per row
+        self.st_autocorrelation_bins: 1D np.ndarray with the edges of the bins
         """
         
         myRange = np.arange(min_sec,max_sec+bin_size_sec,bin_size_sec)
         self.st_autocorrelation = np.ndarray((len(self.neuron_list),myRange.shape[0]-1)) # to store the results
         
-        for i,n in tqdm(enumerate(self.neuron_list)):
+        for i,n in enumerate(self.neuron_list):
             n.spike_train.spike_time_autocorrelation(bin_size_sec = bin_size_sec, min_sec = min_sec, max_sec = max_sec)
             self.st_autocorrelation[i,:] = n.spike_train.st_autocorrelation_histogram[0]
         self.st_autocorrelation_bins = myRange
