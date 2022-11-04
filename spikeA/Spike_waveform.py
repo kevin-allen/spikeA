@@ -50,7 +50,7 @@ class Spike_waveform:
         It first gets all the waveforms in a 3D array and then get the mean to reduce the array to a 2D array [channels,block_size]
         
         Arguments:
-        block_size = Number of time points in the waveform
+        block_size = Number of time points in the waveform (centered around spike)
         channels= channel list as 1D np.array
         n_spikes= if you set this to a positive integer, it will limit the analysis to the first n spikes. By default, the value is None and all spikes are analyzed
         
@@ -88,8 +88,10 @@ class Spike_waveform:
             blocks[:,:,bl] = self.dfr.get_data_one_block(int(t-block_size/2),int(t+block_size/2),self.channels)
             bl=bl+1
         
-        # get the mean of all spikes, results in a 2D array
-        self.mean_waveforms =  np.mean(blocks, axis = 2)
+        # save all waveforms (3D array)
+        self.spike_waveform = blocks
+        # get and save the mean of all waveforms around spikes, results in a 2D array (calculate mean across last axis, that is for each n_spikes)
+        self.mean_waveforms = np.mean(blocks, axis = 2)
         
     
     def largest_amplitude_waveform(self):
