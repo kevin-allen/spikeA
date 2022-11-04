@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Session import Session
 from spikeA.Session import Kilosort_session
-# from spikeA.Cell_group import Cell_group
+from spikeA.Cell_group import Cell_group
 from spikeA.Spike_train_loader import Spike_train_loader
 from spikeA.Intervals import Intervals
 import os
@@ -118,7 +118,7 @@ class Spike_waveform:
             returns: array with waveforms
         """    
         # load session
-        name = str(path).split("/")[-1]
+        name = path.rstrip("/").split("/")[-1].split("_")[0]
         ses = Kilosort_session(name=name,path=path)
         ses.load_parameters_from_files()
         stl = Spike_train_loader()
@@ -137,7 +137,7 @@ class Spike_waveform:
             df = Dat_file_reader(file_names=[f"{path}/{name}.dat"], n_channels=ses.n_channels)
 
             #template for array:
-            array = np.zeros(recording_channels, block_size, len(cg.neuron_list))
+            array = np.zeros((recording_channels, block_size, len(cg.neuron_list)))
 
             for i,n in enumerate(cg.neuron_list):
                 print("i/n",i,n.name)
