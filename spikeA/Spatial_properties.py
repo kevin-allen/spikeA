@@ -67,11 +67,14 @@ class Spatial_properties:
     
     def spike_position(self):
         """
-        Method to calculate the position of each spike of the Spike_train object.
+        Method to calculate the position of each spike of the Spike_train object in 2D.
+        
+        The spike position is not stored in the Spatial_properties object but returned by the function
+        This behavior was implement to save memory when working thousands of Spatial_properties objects in memory.
                
         
         Return
-        self.spike_posi
+        2D numpy array, 2 columns with x and y position associated with each spike
         """
         
         ## check that the Animal_pose and Spike_train object have the same intervals
@@ -81,15 +84,17 @@ class Spatial_properties:
         if np.any(self.ap.intervals.inter != self.st.intervals.inter):
             raise ValueError("The intervals in the Animal_pose and Spike_train objects are not the same. Please make sure the intervals in the Animal_pose and Spike_train objects are the same before calling spike_position()")
         
-        self.fx = interp1d(self.ap.pose[:,0], self.ap.pose[:,1], bounds_error=False)
-        self.fy = interp1d(self.ap.pose[:,0], self.ap.pose[:,2], bounds_error=False)
+        fx = interp1d(self.ap.pose[:,0], self.ap.pose[:,1], bounds_error=False)
+        fy = interp1d(self.ap.pose[:,0], self.ap.pose[:,2], bounds_error=False)
 
         # create a numpy 2D array to store the spike position
-        self.spike_posi = np.empty((self.st.st.shape[0],2))
+        spike_posi = np.empty((self.st.st.shape[0],2))
         
         # get the position of the animal at each spike time
-        self.spike_posi[:,0] = self.fx(self.st.st)
-        self.spike_posi[:,1] = self.fy(self.st.st)
+        spike_posi[:,0] = fx(self.st.st)
+        spike_posi[:,1] = fy(self.st.st)
+        
+        return spike_posi
     
     def spike_head_direction(self):
         """
@@ -397,12 +402,12 @@ class Spatial_properties:
                                  smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
         
         ## get the position of every spike
-        self.spike_position()
+        spike_posi = self.spike_position()
         
         ## calculate the number of spikes per bin in the map
         ## we use the bins of the occupancy map to make sure that the spike count maps and occupancy map have the same dimension
-        spike_count,x_edges,y_edges = np.histogram2d(x = self.spike_posi[:,0], 
-                                                     y= self.spike_posi[:,1],
+        spike_count,x_edges,y_edges = np.histogram2d(x = spike_posi[:,0], 
+                                                     y= spike_posi[:,1],
                                                      bins= self.ap.occupancy_bins)
         
         # save this for later (e.g., in information_score())
@@ -444,9 +449,9 @@ class Spatial_properties:
                                  smoothing = smoothing, zero_to_nan = True,x_range=x_range, linspace = linspace,n_bins=n_bins)
         
         # this will work with the x and y data, but we will only use the x
-        self.spike_position() 
+        spike_posi = self.spike_position() 
         
-        spike_count,x_edges = np.histogram(self.spike_posi[:,0],bins= self.ap.occupancy_bins)
+        spike_count,x_edges = np.histogram(spike_posi[:,0],bins= self.ap.occupancy_bins)
         
         # save this for later 
         self.spike_count = spike_count

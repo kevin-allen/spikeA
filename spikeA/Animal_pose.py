@@ -252,7 +252,7 @@ class Animal_pose:
         
     
     
-    def save_pose_to_file(self,file_name=None):
+    def save_pose_to_file(self,file_name=None,verbose=True):
         """
         Save the original pose for this session into an npy file
         
@@ -270,8 +270,9 @@ class Animal_pose:
             fn = file_name
         else:
             fn = self.ses.fileBase+self.pose_file_extension
-            
-        print("Saving original pose (shape: {}) to".format(self.pose_ori.shape),fn)
+        
+        if verbose:
+            print("Saving original pose (shape: {}) to".format(self.pose_ori.shape),fn)
         np.save(file = fn, arr = self.pose_ori) 
             
     def load_pose_from_file(self,file_name=None, verbose=False, pose_file_extension = None):
@@ -688,6 +689,7 @@ class Animal_pose:
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
         use_previous_up_detection: if True, it will look for a file containing the time of ttl pulses instead of detecting the ttl pulses from the dat file (slow)
+        transform_to_cm: if True, the data will be assumed to enter as pixels and will be transformed into cm.
                 
         Return
         No value is returned but self.time and self.pose are set
