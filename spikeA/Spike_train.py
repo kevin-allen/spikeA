@@ -113,6 +113,11 @@ class Spike_train:
         """
         Function to limit the analysis to spikes within a set of set specific time intervals
         
+        Note on memory use:
+        When intervals are not set, self.st points to self.st_ori (numpy array with all spikes)
+        When you use set_intervals(), a new numpy array is stored in self.st which contains only the spikes within the intervals. self.st_ori is kept as a backup of the complete spike train.
+        A side effect of calling set_intervals() is that the memory size of the Spike_train object will increase. You can return the size to the original size by calling unset_intervals()
+        
         Arguments:
         inter: 2D numpy array, one interval per row, time in seconds
         

@@ -370,27 +370,27 @@ class Kilosort_session(Session):
         # read the desen file
         if not os.path.isfile(self.file_names["desen"]):
             raise IOError("{} file not found".format(self.file_names["desen"]))
-        self.desen = open(self.file_names["desen"]).read().split('\n')[:-1]
+        self.desen = open(self.file_names["desen"]).read().strip().split('\n')
         
         # read the desel file 
         if not os.path.isfile(self.file_names["desel"]):
             raise IOError("{} file not found".format(self.file_names["desel"]))
-        self.desel = open(self.file_names["desel"]).read().split('\n')[:-1]
+        self.desel = open(self.file_names["desel"]).read().strip().split('\n')
         
         # read the stimulation file
         if not os.path.isfile(self.file_names["stimulation"]):
             raise IOError("{} file not found".format(self.file_names["stimulation"]))
-        self.stimulation = open(self.file_names["stimulation"]).read().split('\n')[:-1]
+        self.stimulation = open(self.file_names["stimulation"]).read().strip().split('\n')
         
         # read the setup file
         if not os.path.isfile(self.file_names["setup"]):
             raise IOError("{} file not found".format(self.file_names["setup"]))
-        self.setup = open(self.file_names["setup"]).read().split('\n')[:-1]
+        self.setup = open(self.file_names["setup"]).read().strip().split('\n')
         
         # read the environmentFamiliarity file
         if not os.path.isfile(self.file_names["environmentFamiliarity"]):
             raise IOError("{} file not found".format(self.file_names["environmentFamiliarity"]))
-        self.environmentFamiliarity = open(self.file_names["environmentFamiliarity"]).read().split('\n')[:-1]
+        self.environmentFamiliarity = open(self.file_names["environmentFamiliarity"]).read().strip().split('\n')
         
         # read the px_per_cm file
         if not os.path.isfile(self.file_names["px_per_cm"]):
