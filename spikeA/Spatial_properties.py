@@ -1,3 +1,4 @@
+
 import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
@@ -865,6 +866,7 @@ class Spatial_properties:
         
         # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
         if np.nanmax(self.firing_rate_map) == 0:
+            self.points_inside_dougnut=[]
             if calculate_ellipticity or correct_ellipticity:
                 self.ellipticity=np.nan
                 self.eccentricity=np.nan

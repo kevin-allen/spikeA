@@ -262,7 +262,7 @@ class Theta:
         if myCycleList:
             allCycles = np.concatenate(myCycleList)
         else:
-            allCycles = myCycleList
+            allCycles = np.empty((0, 2), int)
         return allCycles
 
     def detect_theta_cycles_one_channel(self, data):
@@ -352,7 +352,7 @@ class Theta:
             cycles[c]=[]
 
 
-        for i in range(len(self.session.file_names["dat"])-2,len(self.session.file_names["dat"])):
+        for i in range(0,len(self.session.file_names["dat"])):
             print("reading from {}".format(df.file_names[i]))
 
             data = df.get_data_one_block(start_sample=df.files_first_sample[i], 
@@ -365,8 +365,6 @@ class Theta:
 
 
         for c in channel_list: # create one array per channel, and set the time in seconds
-            
-            print(np.ndim(epochs[c]))
             epochs[c]=np.concatenate(epochs[c])/self.session.sampling_rate
             cycles[c]=np.concatenate(cycles[c])/self.session.sampling_rate
 
