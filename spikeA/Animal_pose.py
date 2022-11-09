@@ -579,12 +579,12 @@ class Animal_pose:
     
     
         
-    def occupancy(self, arena):
+    def occupancy(self, environment_shape=None):
         """
         Function to calculate the proportions of bins of the occupancy map covered by the animal. Can be used for rectanglular and circular arenas.
         
         Arguments
-        arena: specifies the shape of the arena:circle/square        
+        arena: specifies the shape of the arena:circle/rectangle /square      
         
         Return
         occupancy
@@ -592,15 +592,15 @@ class Animal_pose:
         if not hasattr(self, 'occupancy_map'):
             raise TypeError('You have to call ap.occupancy_map_2d() before calling this function')
         
-        if arena == 'square':
+        if environment_shape == 'rectangle' or environment_shape=='square':
             area = self.occupancy_map.shape[0]*self.occupancy_map.shape[1] # area of a rectangle
 
-        elif arena == 'circle':
+        elif environment_shape == 'circle':
             # use the smaller dimension as diameter of the circle as there might be reflections outside the arena
             area = ((np.min(self.occupancy_map.shape)/2)**2)*np.pi # area of a circle
             
         else:
-            raise TypeError("This arena shape is not supported. Only square or circle can be used.")
+            raise TypeError("This arena shape is not supported. Only square, rectangle or circle can be used.")
 
         occupancy = self.occupancy_map[~np.isnan(self.occupancy_map)].shape[0]/area
         
@@ -1220,29 +1220,29 @@ class Animal_pose:
         return border_map                                 
 
     
-    def invalid_outside_spatial_area(self, shape=None, radius=None, length=None, center=None):
+    def invalid_outside_spatial_area(self, environment_shape=None, radius=None, length=None, center=None):
         """
         Method that set the position data (self.pose[:,1:7]) outside a defined zone to np.nan.
         
-        The area can be a circle or a square.
+        The area can be a circle or a rectangle.
         
         To undo, call self.unset_intervals() or self.set_intervals(). unset_intervals() and set_intervals() use the data stored in self.ori_pose
         
         This function should be called **after** setting any relevant Intervals for the analysis.
         
         Arguments:
-        shape: "circle","square"
+        environment_shape: "circle","rectangle","square"
         radius: radius of a circle, only needed if working with circle
-        length: length of a square
-        center: 1D np.array of size 2, [x,y], center of a circle/square
+        length: tuple with the length in x and y direction
+        center: 1D np.array of size 2, [x,y], center of a circle/rectangle
         
         Return:
         Nothing is returned. self.pose[,1:7] are set to np.nan if the animal is not in the zone.
         """
-        valid_shapes = ["circle","square"]
+        valid_shapes = ["circle","square","rectangle"]
         
-        if not shape in valid_shapes:
-            raise ValueError("shape should be part of the list {}".format(valid_shapes))
+        if not environment_shape in valid_shapes:
+            raise ValueError("environment_shape should be part of the list {}".format(valid_shapes))
         
         # if center is not specified, determine from center of mass of the occupancy map
         if center is None:
@@ -1266,7 +1266,7 @@ class Animal_pose:
 
                 
         # deal with circle
-        if shape == "circle":
+        if environment_shape == "circle":
             if radius is None:
                 raise ValueError("set the radius argument")
             
@@ -1276,21 +1276,28 @@ class Animal_pose:
             self.pose[dist>radius,1:7] = np.nan
             
             r = radius
-        # deal with square
-        if shape == "square":
+            
+        # deal with rectangle
+        if environment_shape == "rectangle" or environment_shape=="square":
             if length is None:
                 raise ValueError("set the length argument")
+            if isinstance(length,int):
+                length=(length,length)
             
-            # set pixels outside square of length length np.nan
-            self.pose[self.pose[:,1] > center[0]+length/2, 1:7] = np.nan
-            self.pose[self.pose[:,2] > center[1]+length/2, 1:7] = np.nan
-            self.pose[self.pose[:,1] < center[0]-length/2, 1:7] = np.nan
-            self.pose[self.pose[:,2] < center[1]-length/2, 1:7] = np.nan
+            # set pixels outside rectangle of length length np.nan
+            self.pose[self.pose[:,1] > center[0]+length[0]/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] > center[1]+length[1]/2, 1:7] = np.nan
+            self.pose[self.pose[:,1] < center[0]-length[0]/2, 1:7] = np.nan
+            self.pose[self.pose[:,2] < center[1]-length[1]/2, 1:7] = np.nan
             
-            r = length/2
+            r=np.asarray([length[0]/2,length[1]/2])
+
 
         center = np.array(center) # tuple to numpy array
-        xy_range = np.array([center - r, center + r]) # square that covers the valid range
+        if environment_shape=="circle":
+            xy_range = np.array([center - r, center + r]) # square that covers the valid range
+        if environment_shape=='rectangle' or environment_shape=='square':
+            xy_range = np.array([center - r, center + r]) # rectangle that covers the valid range
         return xy_range # useful to have this for restricting the area later
 
 
