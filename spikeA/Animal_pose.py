@@ -252,7 +252,7 @@ class Animal_pose:
         
     
     
-    def save_pose_to_file(self,file_name=None):
+    def save_pose_to_file(self,file_name=None,verbose=True):
         """
         Save the original pose for this session into an npy file
         
@@ -270,11 +270,12 @@ class Animal_pose:
             fn = file_name
         else:
             fn = self.ses.fileBase+self.pose_file_extension
-            
-        print("Saving original pose (shape: {}) to".format(self.pose_ori.shape),fn)
+        
+        if verbose:
+            print("Saving original pose (shape: {}) to".format(self.pose_ori.shape),fn)
         np.save(file = fn, arr = self.pose_ori) 
             
-    def load_pose_from_file(self,file_name=None, verbose=False):
+    def load_pose_from_file(self,file_name=None, verbose=False, pose_file_extension = None):
         """
         Load the pose data from file.
         
@@ -283,13 +284,18 @@ class Animal_pose:
         
         Arguments
         file_name: If you want to save to a specific file name, set this argument. Otherwise, the self.ses object will be used to determine the file name.
+        verbose: print a lot of information
+        pose_file_extension: the extension of the file you want to load. If not set, self.pose_file_extension is used. If set, it will modify the value of self.pose_extension and load the appropriate pose file. If you give file_name, setting pose_file_extension will have no effect.
         """
         if file_name is None and self.ses is None:
             raise ValueError("self.ses is not set and no file name is given")
         
-        if file_name is not None:
+        if file_name is not None: # use the file_name provided
             fn = file_name
-        else:
+        else: # generate the file name from the information we have
+            if pose_file_extension is not None:
+                self.pose_file_extension = pose_file_extension
+                
             fn = self.ses.fileBase+self.pose_file_extension
         
         
@@ -637,9 +643,42 @@ class Animal_pose:
         
         self.hd_occupancy_histogram_per_occupancy_bin = pose_hd_hist
      
+    def load_ttl_ups_files(self, ses = None, add_trial_offset=True):
+        """
+        Function to load ttl_ups data from data saved to file
+        
+        The ttl_ups files are created in self.pose_from_positrack_files() by scanning the synch channel of the .dat files for ttl pulses.
+        
+        The values in ttl_ups are the time in samples within each .dat file.
+        
+        Arguments:
+        ses: a spikeA.session
+        add_trial_offset: whether to add the trial offset to the ttl ups. 
+        """
+         
+        if ses is None and self.ses is None:
+            raise TypeError("Please provide a session object with the ses argument")
+        
+        if ses is not None:
+            if not (issubclass(type(ses),Session) or isinstance(ses,Session)): 
+                raise TypeError("ses should be a subclass of the Session class")
+        
+        self.ttl_ups = []
+        trial_sample_offset = 0
+        
+        for i,t in enumerate(self.ses.trial_names):
+            up_file_name = self.ses.path + "/" + t+".ttl_up.npy"
+            dat_file_name = self.ses.path + "/" + t+".dat"
+            df = Dat_file_reader(file_names=[dat_file_name],n_channels = self.ses.n_channels)
+            ttls = np.load(up_file_name)
+            if add_trial_offset:
+                ttls = ttls+trial_sample_offset
+            
+            self.ttl_ups.append(ttls)
+            trial_sample_offset+=df.total_samples
         
 
-    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2", use_previous_up_detection=True):
+    def pose_from_positrack_files(self,ses=None, ttl_pulse_channel=None, interpolation_frequency_hz = 50, extension= "positrack2", use_previous_up_detection=True,transform_to_cm=True):
 
         """
         Method to calculute pose at fixed interval from a positrack file.
@@ -650,6 +689,7 @@ class Animal_pose:
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
         use_previous_up_detection: if True, it will look for a file containing the time of ttl pulses instead of detecting the ttl pulses from the dat file (slow)
+        transform_to_cm: if True, the data will be assumed to enter as pixels and will be transformed into cm.
                 
         Return
         No value is returned but self.time and self.pose are set
@@ -887,13 +927,13 @@ class Animal_pose:
                 print("****************************************************************************************")  
                 
             # either apply an individual px_per_cm or use one for all trials
-            if isinstance(self.ses.px_per_cm, np.ndarray):
-                px_per_cm = self.ses.px_per_cm[i]
-            else:
-                px_per_cm = self.ses.px_per_cm
-            print("transforming pixels to cm with px_per_cm:",px_per_cm)
-                
-            d[:,[0,1]] /= px_per_cm # transform to cm (for this trial)
+            if transform_to_cm == True:
+                if isinstance(self.ses.px_per_cm, np.ndarray):
+                    px_per_cm = self.ses.px_per_cm[i]
+                else:
+                    px_per_cm = self.ses.px_per_cm
+                print("transforming pixels to cm with px_per_cm:",px_per_cm)
+                d[:,[0,1]] /= px_per_cm # transform to cm (for this trial)
 
             # estimate functions to interpolate
             fx = interp1d(ttl[:], d[:,0], bounds_error=False) # x we will start at 0 until the end of the file
