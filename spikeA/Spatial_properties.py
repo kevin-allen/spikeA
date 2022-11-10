@@ -1298,8 +1298,8 @@ class Spatial_properties:
         
         """
         
-        if environment_shape not in ["circle","rectangle"]:
-            raise ValueError('environment_shape should be "circle" or "rectangle"')
+        if environment_shape not in ["circle","rectangle","square"]:
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         # keep a copy of the pose that we started with
         pose_at_start = self.ap.pose.copy()
@@ -1365,8 +1365,8 @@ class Spatial_properties:
         CM, DM, border_score, number_fields
         """
  
-        if environment_shape not in ["circle","rectangle"]:
-            raise ValueError('environment_shape should be "circle" or "rectangle"')
+        if environment_shape not in ["circle","rectangle","square"]:
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         
         if not hasattr(self, 'firing_rate_map'):
@@ -1399,10 +1399,10 @@ class Spatial_properties:
         if environment_shape == "circle":
             # get our series of circular wall subsections 
             border_section_maps = self.circular_border_wall_sections(border_map=border_map,n_sections = n_wall_sections , section_width_radian = wall_section_width_radian)
-        elif environment_shape == "rectangle":
+        elif environment_shape == "rectangle" or environment_shape == "square":
             border_section_maps = self.detect_walls_rectangular_environment(border_map=border_map)
         else:
-            raise ValueError('environment_shape should be "circle" or "rectangle"')
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         # calculate CM, CM is calculated for each field x wall section combinations, then we get the largest CM
         for field in fieldList: # get the max CM for each field
