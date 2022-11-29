@@ -1281,7 +1281,7 @@ class Animal_pose:
         if environment_shape == "rectangle" or environment_shape=="square":
             if length is None:
                 raise ValueError("set the length argument")
-            if isinstance(length,int):
+            if isinstance(length,int) or isinstance(length,float):
                 length=(length,length)
             
             # set pixels outside rectangle of length length np.nan
