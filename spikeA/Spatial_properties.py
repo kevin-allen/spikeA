@@ -1,3 +1,4 @@
+
 import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
@@ -870,6 +871,7 @@ class Spatial_properties:
         
         # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
         if np.nanmax(self.firing_rate_map) == 0:
+            self.points_inside_dougnut=[]
             if calculate_ellipticity or correct_ellipticity:
                 self.ellipticity=np.nan
                 self.eccentricity=np.nan
@@ -1092,6 +1094,10 @@ class Spatial_properties:
       
     def firing_rate_map_field_detection(self, min_pixel_number_per_field=25, max_fraction_pixel_per_field=0.33, min_peak_rate=4, min_fraction_of_peak_rate=0.45, max_min_peak_rate=10):
         """
+        
+        Don't use this, use firing_rate_map_field_detection_fast()
+        
+        
         Method of the Spatial_properties class to calculate the position and size of fields in the firing rate map.
         
         If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
@@ -1292,8 +1298,8 @@ class Spatial_properties:
         
         """
         
-        if environment_shape not in ["circle","rectangle"]:
-            raise ValueError('environment_shape should be "circle" or "rectangle"')
+        if environment_shape not in ["circle","rectangle","square"]:
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         # keep a copy of the pose that we started with
         pose_at_start = self.ap.pose.copy()
@@ -1359,8 +1365,8 @@ class Spatial_properties:
         CM, DM, border_score, number_fields
         """
  
-        if environment_shape not in ["circle","rectangle"]:
-            raise ValueError('environment_shape should be "circle" or "rectangle"')
+        if environment_shape not in ["circle","rectangle","square"]:
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         
         if not hasattr(self, 'firing_rate_map'):
@@ -1393,20 +1399,20 @@ class Spatial_properties:
         if environment_shape == "circle":
             # get our series of circular wall subsections 
             border_section_maps = self.circular_border_wall_sections(border_map=border_map,n_sections = n_wall_sections , section_width_radian = wall_section_width_radian)
-        elif environment_shape == "rectangle":
+        elif environment_shape == "rectangle" or environment_shape == "square":
             border_section_maps = self.detect_walls_rectangular_environment(border_map=border_map)
         else:
-            raise ValueError('environment_shape should be "circle" or "rectangle"')
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         # calculate CM, CM is calculated for each field x wall section combinations, then we get the largest CM
         for field in fieldList: # get the max CM for each field
-            field["CM"] = np.max([self.field_CM_circular_environment(field_map = field["field_map"],border_map = border_section_maps[i]) for i in range(border_section_maps.shape[0])])
+            field["CM"] = np.max([self.field_CM(field_map = field["field_map"],border_map = border_section_maps[i]) for i in range(border_section_maps.shape[0])])
              
         # get the largest CM of all fields
         CM = np.nanmax([field["CM"] for field in fieldList])
         
         # calculate DM, DM is not field by field but using all pixels that were part of a field, or all valid pixels in the firing_rate_map
-        DM = self.field_DM_circular_environment(field_list= fieldList, border_map=border_map, rate_map=self.firing_rate_map)
+        DM = self.field_DM(field_list= fieldList, border_map=border_map, rate_map=self.firing_rate_map)
         
         border_score = (CM-DM)/(CM+DM)
         
@@ -1449,6 +1455,8 @@ class Spatial_properties:
         rightWallMap = np.logical_and(np.logical_and(ys>topWallIndex,ys<bottomWallIndex),xs==indexMaxRight)
 
         return np.stack([topWallMap,bottomWallMap,leftWallMap,rightWallMap])
+    
+    
     
     def circular_border_wall_sections(self, border_map, n_sections = 36, section_width_radian= 2*np.pi/3):
         """
@@ -1511,11 +1519,10 @@ class Spatial_properties:
 
         return res
         
-    def field_CM_circular_environment(self,field_map,border_map):
+        
+    def field_CM(self,field_map,border_map):
         """
-        Function to calculate the CM of a firing field in circular environments. CM is used when calculating a border score.
-
-        This function was develop to work with circular environment. 
+        Function to calculate the CM of a firing field. CM is used when calculating a border score. 
         
         CM is the proportion of border pixels covered by the pixels of one field.
 
@@ -1538,9 +1545,9 @@ class Spatial_properties:
 
     
 
-    def field_DM_circular_environment(self, field_list, border_map, rate_map):
+    def field_DM(self, field_list, border_map, rate_map):
         """
-        Calculate DM used in the border score. This works for circular environments
+        Calculate DM used in the border score.
 
         DM is the mean shortest distance to the periphery for pixels that were part of a firing field, weighted by the firing rate in each pixel. 
         DM is then normalized as follows. For each pixel in the map, the shortest distance to the periphery was calculated. The largest value obtained over all map pixels was the value used for the normalization. 
@@ -1560,11 +1567,12 @@ class Spatial_properties:
         if len(field_list) == 0:
             return np.nan
         
+        
         def minimalDistanceBetweenPointAndPointArray(coord,coords):
             """
             Find the minimal distance between a point and a series of points in 2 dimensions 
 
-            This is used by field_DM_circular_environment
+            This is used by field_DM
 
             Arguments
             coord: 1D array with x and y coordinate of a point
