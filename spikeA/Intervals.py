@@ -37,6 +37,10 @@ class Intervals:
         # check that inter is a numpy array
         if not isinstance(inter, np.ndarray):
             raise TypeError("inter argument should be a numpy.ndarray but was {}".format(type(inter)))
+        # if inter consists of only a single interval, add the missing 1 dimension
+        if inter.ndim == 1:
+            inter = np.array([inter])
+        # assert that inter is a list of which each element is an interval
         if inter.ndim != 2:
             raise TypeError("inter argument should have 2 dimensions")
         # check if it has 2 column
@@ -69,6 +73,29 @@ class Intervals:
         1D numpy array containing spike times within the intervals
         """
         return st[self.is_within_intervals(st)]
+    
+    def cycles_within_intervals(self,cycles):
+        """
+        Return a 2D numpy array containing only the cycles that are within the intervals
+        
+        Arguments
+        cycles: 2D numpy array containing start and end of cycles, one cycle per row. The array has 2 columns
+        
+        Returns
+        2D numpy array containing only the cycles that are within the intervalsd
+        """
+        
+        within = np.zeros((cycles.shape[0],self.inter.shape[0]))
+        
+        # for each interval, check if the cycles are within the intervals
+        for i in range(self.inter.shape[0]):
+            s=self.inter[i,0]
+            e=self.inter[i,1]
+            within[:,i]=(np.logical_and(cycles[:,0]>=s, cycles[:,0]<=e)) & (np.logical_and(cycles[:,1]>=s, cycles[:,1]<=e))
+        
+        return cycles[np.sum(within,axis=1)>0]
+        
+        
 
     def is_within_intervals(self,time):
         """

@@ -269,17 +269,17 @@ class Dat_file_reader:
                     #print("copy from ",i1," to the end of the file (",self.samples_per_file[i],") in file ",f1)
                     #print("into 0 to ", self.samples_per_file[i]-i1)
                     #print(self.samples_per_file[i]-i1)
-                    my_block[channels, 0:(self.samples_per_file[i]-i1)] = my_mapped_file[channels,i1:self.samples_per_file[i]]
+                    my_block[np.arange(len(channels)), 0:(self.samples_per_file[i]-i1)] = my_mapped_file[channels,i1:self.samples_per_file[i]]
                     copied = copied + self.samples_per_file[i]-i1
 
                 elif i == f2: # last file
                     #print("copy from the begining of the file ",f2, " to ", i2)
                     #print("copied:",copied, " of ", samples_to_read)
-                    my_block[channels, copied:] = my_mapped_file[channels,0:i2]
+                    my_block[np.arange(len(channels)), copied:] = my_mapped_file[channels,0:i2]
 
                 else: # files in the middle
                     #print("read the entire file ",i)
-                    my_block[channels, copied:(copied+self.samples_per_file[i])] = my_mapped_file[channels,:]
+                    my_block[np.arange(len(channels)), copied:(copied+self.samples_per_file[i])] = my_mapped_file[channels,:]
                     copied = copied + self.samples_per_file[i] 
         return my_block
     
@@ -314,4 +314,41 @@ class Dat_file_reader:
             raise ValueError("Problem with size of merged file {}, {},{}".format(outFileName,merge_size,np.sum(self.size_of_files)))
         else:
             print("File sizes match {}, {},{}".format(outFileName,merge_size,np.sum(self.size_of_files)))
-    
+            
+            
+    def delete_merged_dat_files(self,path):
+
+        """
+        This function checks if the merged dat file exists. If yes, it checks if all single dat files exist and if the waveforms have been created. If yes, it removes the merged dat file. 
+        
+        Argument:
+        path to the session (eg "/adata/electro/mouse/mouse-date-01xx")
+        """
+        
+        name = str(path).split("/")[-1]
+        desen = open(f"{str(path)}/{name}.desen").read().split('\n')[:-1]
+        mouse_name=name.split('-')[0]
+        date_name=name.split('-')[1]
+        number_of_trials = len(desen)
+
+        #check if the merged dat file still exists
+        merged_dat=f"{path}/{name}.dat"
+        if not os.path.exists(merged_dat):
+            print(f"{merged_dat} has already been deleted.")
+        else:
+            #check that all single dat files exist
+            dat_files=[f"{path}/{mouse_name}-{date_name}_0{trial+1}.dat" for trial in range(number_of_trials)]
+            for dat_file in dat_files:
+                if not os.path.exists(dat_file):
+                    raise ValueError(f"{dat_file} is missing")
+
+            #check that the waveforms have been created
+            file=f"{path}/{name}.waveforms.npy"
+            if not os.path.exists(file):
+                print("Creating waveforms")
+                Spike_waveform.save_waveforms(path=path)
+                #raise ValueError(f"For {name}, you need to create the waveforms first")
+                
+            else:
+                os.remove(merged_dat)
+                print(f"Deleted {merged_dat}")

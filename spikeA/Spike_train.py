@@ -113,6 +113,11 @@ class Spike_train:
         """
         Function to limit the analysis to spikes within a set of set specific time intervals
         
+        Note on memory use:
+        When intervals are not set, self.st points to self.st_ori (numpy array with all spikes)
+        When you use set_intervals(), a new numpy array is stored in self.st which contains only the spikes within the intervals. self.st_ori is kept as a backup of the complete spike train.
+        A side effect of calling set_intervals() is that the memory size of the Spike_train object will increase. You can return the size to the original size by calling unset_intervals()
+        
         Arguments:
         inter: 2D numpy array, one interval per row, time in seconds
         
@@ -173,7 +178,28 @@ class Spike_train:
         st = st/sampling_rate # to get the time in seconds
        
         self.set_spike_train(st = st)
+    
+    def generate_poisson_spike_train_from_rate_vector(self,mu, sampling_rate=20000):
+        """
+        Generate a spike train from a random poisson distribution.
         
+        Arguments
+        mu: Firing rate vector in Hz
+        sampling_Rate: sampling rate for the poisson process
+                
+        Results are stored in self.st
+        """
+        # check that sampling_rate value makes sense
+        if sampling_rate <= 0 or sampling_rate > 100000:
+            raise ValueError("sampling_rate arguemnt of the Spike_time constructor should be larger than 0 and smaller than 100000 but was {}".format(sampling_rate))
+        
+        # variables to sample the poisson distribution
+        mu = mu/sampling_rate # rate for each sample from the poisson distribution
+        mu[mu<0.0] = 0.0
+        st = np.nonzero(poisson.rvs(mu))[0] # np.nonzero returns a tuple of arrays, we get the first element of the tuple
+        st = st/sampling_rate # to get the time in seconds
+       
+        self.set_spike_train(st = st)
         
     def generate_modulated_poisson_spike_train(self,rate_hz=50, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 1,min_rate_bins_per_cycle=10,phase_shift=0):
         """
@@ -238,7 +264,7 @@ class Spike_train:
         the total number of spikes of the cluster.
         """
         if self.st is None:
-            raise ValueError("set the spike train before using Spike_train.n_spike()")
+            raise ValueError("set the spike train before using Spike_train.n_spikes()")
         return self.st.shape[0]
     
     def mean_firing_rate(self):
@@ -356,13 +382,18 @@ class Spike_train:
         self.ifr is a tupple containing the ifr, the count, and mid point of the bin.
         """    
         
-        count, edges = np.histogram(self.st, bins = np.arange(0, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec))
+        bins =  np.arange(np.min(self.intervals.inter), np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
+        
+        #plt.hist(np.append(np.diff(bins),bin_size_sec+0.1),bins=50)
+        #plt.title("bins in spike_train")
+        #plt.show()
+        
+        count, edges = np.histogram(self.st, bins = bins)
         
         # from spike count to rate 
         hz = count / (bin_size_sec)
         
         ifr = gaussian_filter1d(hz.astype(np.float32), sigma = sigma)
-        
         
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
@@ -410,34 +441,52 @@ class Spike_train:
             plt.plot(np.arange(-timewindow,timewindow,1),self.ifr_autocorrelation)
                 
                 
-    def instantaneous_firing_rate_power_spectrum(self, nfft = None, scaling = "density"):
+    def instantaneous_firing_rate_power_spectrum(self, nperseg = 2**9, scaling = "spectrum"):
         """
         Calculates the power spectrum of the instantaneous firing rate
         
         Arguments:
-        The instantaneous_firing_rate() arrays saved in self.ifr
-        nfft:
-        scaling:
+        nperseg: The data is divided in overlapping segments. This is the segment length.
+        scaling: can be 'spectrum' or 'density'
         
         Returns:
         Save the results in self.ifr_power_spectrum
         """
 
-        f, ps = signal.periodogram(self.ifr[0],fs=self.ifr_rate)
+        f, ps = signal.welch(self.ifr[0],fs=self.ifr_rate, nperseg=nperseg, scaling=scaling)
         self.ifr_power_spectrum = f, ps
     
-    def instantaneous_firing_rate_crosscorelation(self,spike2=None,normed= False, max_lag_sec= 0.2):
+    
+    def instantaneous_firing_rate_power_spectrum_plot(self):
+        """
+        Plot the power spectrum of the instantaneous firing rate (self.ifr_power_spectrum)
+        
+        Arguments:
+        2 numpy arrays from self.ifr_power_spectrum
+        
+        Returns:
+        A plot of the ifr power spectrum.
+        """
+        if self.ifr_power_spectrum is None:
+            print("Need to run instantaneous_firing_rate_power_spectrum first")
+            
+        plt.plot(self.ifr_power_spectrum[0], self.ifr_power_spectrum[1])
+        plt.xlabel("Hz")
+        plt.ylabel("PSD (s**2)") #assuming that scaling='spectrum'; otherwise use s**2/Hz
+        
+        
+    def instantaneous_firing_rate_crosscorrelation(self,spike2=None,normed= False, max_lag_sec= 0.2):
         """
         Calculates the instantaneous firing rate crosscorrelation.
         
         Arguments:
-        spike2:
-        normed: 
-        max_lag_sec:
+        spike2: second Spike train object to correlate with
+        normed: normalize to max correlation
+        max_lag_sec: max delta time in seconds between two cells
         The instantaneous_firing_rate() arrays saved in self.ifr
         
         Returns:
-        The results are saved in self.ifr_corsscorrelation (normed) or self.ifr_crosscorrelation (not normed).
+        The results are saved in self.ifr_corsscorrelation (normed or not normed).
         """
         if spike2 is None:
             spike2 = Spike_train(name= "spike2", sampling_rate= 20000,st=np.arange(0,10000))
@@ -446,15 +495,15 @@ class Spike_train:
         spike2.inter_spike_intervals()
         spike2.instantaneous_firing_rate()
         
-        if normed== False:  
-            res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
-            maxlag= max_lag_sec/self.ifr_bin_size_sec
-            res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
-            self.ifr_crosscorrelation=res
-        elif normed==True:
-            self.ifr_corsscorrelation= res/np.max(res)
+        res= np.correlate(self.ifr[0],spike2.ifr[0],mode='full')
+        maxlag= max_lag_sec/self.ifr_bin_size_sec
+        res= res[int(res.size/2-maxlag):int(res.size/2+maxlag)]
+        if not normed:
+            self.ifr_crosscorrelation = res
+        else:
+            self.ifr_crosscorrelation = res/np.max(res)
             
-    def instantaneous_firing_rate_crosscorelation_plot(self,timewindow=None):
+    def instantaneous_firing_rate_crosscorrelation_plot(self,timewindow=None):
         """
         Plots the instantaneous firing rate crosscorrelation.
         
@@ -478,22 +527,7 @@ class Spike_train:
         self.ifr_power_spectrum = f, psd
   
         
-    def instantaneous_firing_rate_power_spectrum_plot(self):
-        """
-        Plot the power spectrum of the instantaneous firing rate (self.ifr_power_spectrum)
-        
-        Arguments:
-        2 numpy arrays from self.ifr_power_spectrum
-        
-        Returns:
-        A plot of the ifr power spectrum.
-        """
-        if self.ifr_power_spectrum is None:
-            print("Need to run instantaneous_firing_rate_power_spectrum first")
-            
-        plt.plot(self.ifr_power_spectrum[0], self.ifr_power_spectrum[1])
-        plt.xlabel("Hz")
-        plt.ylabel("PSD (s**2/Hz)")
+    
         
     def spike_time_autocorrelation(self,bin_size_sec=0.0005, min_sec=-0.1, max_sec=0.1):
         """
