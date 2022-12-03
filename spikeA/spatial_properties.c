@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 
+
 double correlation (double* x, double* y, int size, double invalid)
 {
   /* return the r value of a linear correlation
@@ -144,6 +145,453 @@ map.
     }
   free(value_1_correlation);
   free(value_2_correlation);
+}
+
+
+void detect_border_pixels_in_occupancy_map(double* occ_map, int* border_map, int num_bins_x, int num_bins_y)
+{
+    // This function return a border map in which the border pixels have a value of 1 and the rest 0
+    
+    int num_bins_border=0;
+    int total_bins=num_bins_x*num_bins_y;
+    int* border_x =  (int*) malloc(total_bins*sizeof(int)); // list of x index for border bins
+    int* border_y = (int*) malloc(total_bins*sizeof(int)); // list of y index for border bins
+    identify_border_pixels_in_occupancy_map(occ_map, num_bins_x, num_bins_y, border_map, 
+                                                border_x, border_y, &num_bins_border);
+    
+    
+    
+    free(border_x);
+    free(border_y);
+}
+
+void remove_internal_bins_from_border(int num_bins_x, int num_bins_y, int* border_map, int* border_x, int* border_y, int* num_bins_border)
+{
+  // takes care of the "border" bins that are in the middle of the map
+  
+  // is_border needs to be above 0 for a border pixel to be kept
+  int min;
+  int max;
+  int min_index;
+  int max_index;
+  int* is_border= (int*) malloc(sizeof(int)* (*num_bins_border));
+  for(int i = 0; i < (*num_bins_border); i++)
+    is_border[i]=0;
+
+  // find the outside bins for each row
+  for(int x = 0; x < num_bins_x; x++)
+  {
+    min=num_bins_x;
+    max=0;
+    min_index=-1;
+    max_index=-1;
+    for(int i = 0; i < (*num_bins_border);i++)
+    {
+      if(border_x[i]==x)
+      {
+        if(border_y[i]>max){
+          max=border_y[i];
+          max_index=i;
+        }
+        if(border_y[i]<min){
+          min=border_y[i];
+          min_index=i;
+        }
+      }
+    }
+    // for this row, keep only the extrem values
+    if(max_index!=-1)
+      is_border[max_index]=1;
+    if(min_index!=-1)
+      is_border[min_index]=1;
+  }
+  // find the outside bins for each column
+  for(int y = 0; y < num_bins_y; y++)
+  {
+    min=num_bins_y;
+    max=0;
+    min_index=-1;
+    max_index=-1;
+    for(int i = 0; i < (*num_bins_border);i++)
+    {
+      if(border_y[i]==y)
+      {
+        if(border_x[i]>max){
+          max=border_x[i];
+          max_index=i;
+        }
+        if(border_x[i]<min){
+          min=border_x[i];
+          min_index=i;
+        }
+      }
+    }
+     // for this row, keep only the extrem values
+     if(max_index!=-1)
+       is_border[max_index]=1;
+     if(min_index!=-1)
+       is_border[min_index]=1;
+    }
+
+    int new_num_bins=0;
+  for(int i = 0; i < (*num_bins_border);i++)
+  {
+    if(is_border[i]>0)
+      new_num_bins++;
+  }
+
+  
+  // remove the bins that is_border==0
+  int removed=0;
+  for(int i = 0; i < (*num_bins_border);i++)
+  {
+    if(is_border[i]==0)
+    {
+      // remove from the map
+      border_map[(border_x[i]*num_bins_y)+border_y[i]]=0;
+      removed++;
+    }
+    else
+    {
+      border_x[i-removed]=border_x[i];
+      border_y[i-removed]=border_y[i];
+    }
+  }
+  *num_bins_border=new_num_bins;
+  free(is_border);
+}
+
+int find_border_starting_point(double* occ_map, int num_bins_x, int num_bins_y,
+                               int* border_map,
+                               int* border_x,int* border_y,int* num_bins_border)
+{
+  //printf("find_border_starting_point\n");
+  //printf("num_bins_x: %d, num_bins_y: %d\n",num_bins_x,num_bins_y);
+  for (int x = 0 ; x < num_bins_x; x++)
+  {
+    for (int y = 0; y < num_bins_y; y++)
+    {
+      if (x!=0&&x!=num_bins_x-1&&y!=0&&y!=num_bins_y-1)
+      {  
+        // a starting point could be a valid pixel, with 3 non visited pixels on right, and none on the left, or reverse
+        if((border_map[((x)*num_bins_y)+y]!=1 &&
+           occ_map[((x)*num_bins_y)+y]!=-1 &&
+           occ_map[((x-1)*num_bins_y)+y-1]==-1 &&
+           occ_map[((x-1)*num_bins_y)+y]==-1 &&
+           occ_map[((x-1)*num_bins_y)+y+1]==-1 &&
+           occ_map[((x+1)*num_bins_y)+y-1]!=-1 &&
+           occ_map[((x+1)*num_bins_y)+y]!=-1 && 
+           occ_map[((x+1)*num_bins_y)+y+1]!=-1)
+             ||
+               (border_map[((x)*num_bins_y)+y]!=1 &&
+               occ_map[((x)*num_bins_y)+y]!=-1 &&
+               occ_map[((x-1)*num_bins_y)+y-1]!=-1 &&
+               occ_map[((x-1)*num_bins_y)+y]!=-1 &&
+               occ_map[((x-1)*num_bins_y)+y+1]!=-1 &&
+               occ_map[((x+1)*num_bins_y)+y-1]==-1 &&
+               occ_map[((x+1)*num_bins_y)+y]==-1 &&
+               occ_map[((x+1)*num_bins_y)+y+1]==-1))
+        {
+          border_map[(x*num_bins_y)+y]=1;
+          border_x[*num_bins_border]=x;
+          border_y[*num_bins_border]=y;
+         // Rprintf("starting at %d %d\n",x,y);
+          (*num_bins_border)++;
+     //      printf("starting %d at %d %d\n",*num_bins_border,x,y);
+          return 1;
+        }
+        // a border pixels could have 3 non visited pixels above, and none below, or reverse
+        if((border_map[((x)*num_bins_y)+y]!=1 &&
+           occ_map[((x)*num_bins_y)+y]!=-1 &&
+           occ_map[((x-1)*num_bins_y)+y-1]==-1 &&
+           occ_map[((x)*num_bins_y)+y-1]==-1 &&
+           occ_map[((x+1)*num_bins_y)+y-1]==-1 &&
+           occ_map[((x-1)*num_bins_y)+y+1]!=-1 &&
+           occ_map[((x)*num_bins_y)+y+1]!=-1 &&
+           occ_map[((x+1)*num_bins_y)+y+1]!=-1)
+             ||
+               (border_map[((x)*num_bins_y)+y]!=1 &&
+               occ_map[((x)*num_bins_y)+y]!=-1 &&
+               occ_map[((x-1)*num_bins_y)+y-1]!=-1 &&
+               occ_map[((x)*num_bins_y)+y-1]!=-1 &&
+               occ_map[((x+1)*num_bins_y)+y-1]!=-1 &&
+               occ_map[((x-1)*num_bins_y)+y+1]==-1 &&
+               occ_map[((x)*num_bins_y)+y+1]==-1 &&
+               occ_map[((x+1)*num_bins_y)+y+1]==-1))
+        {
+          border_map[(x*num_bins_y)+y]=1;
+          border_x[*num_bins_border]=x;
+          border_y[*num_bins_border]=y;
+          (*num_bins_border)++;
+        //  printf("starting %d at %d %d\n",*num_bins_border,x,y);
+         // Rprintf("starting at %d %d\n",x,y);
+          return 1;
+        }
+        
+        // a border pixel could have 3 non visited pixels and be at one of the 4 corners of the rectangle
+        // need this otherwise we miss 2 corners in a rectangular map
+        if((border_map[((x)*num_bins_y)+y]!=1 && // top left
+           occ_map[((x)*num_bins_y)+y]!=-1 &&
+           occ_map[((x-1)*num_bins_y)+y]==-1 &&
+           occ_map[((x-1)*num_bins_y)+y+1]==-1 &&
+           occ_map[((x)*num_bins_y)+y+1]==-1 &&
+           occ_map[((x)*num_bins_y)+y-1]!=-1 &&
+           occ_map[((x+1)*num_bins_y)+y]!=-1 &&
+           occ_map[((x+1)*num_bins_y)+y+1]!=-1)
+          ||
+            (border_map[((x)*num_bins_y)+y]!=1 && // top right
+            occ_map[((x)*num_bins_y)+y]!=-1 &&
+            occ_map[((x)*num_bins_y)+y+1]==-1 &&
+            occ_map[((x+1)*num_bins_y)+y+1]==-1 &&
+            occ_map[((x+1)*num_bins_y)+y]==-1 &&
+            occ_map[((x-1)*num_bins_y)+y]!=-1 &&
+            occ_map[((x-1)*num_bins_y)+y-1]!=-1 &&
+            occ_map[((x)*num_bins_y)+y-1]!=-1)
+          ||
+            (border_map[((x)*num_bins_y)+y]!=1 && // bottom left
+            occ_map[((x)*num_bins_y)+y]!=-1 &&
+            occ_map[((x-1)*num_bins_y)+y]==-1 &&
+            occ_map[((x-1)*num_bins_y)+y-1]==-1 &&
+            occ_map[((x)*num_bins_y)+y-1]==-1 &&
+            occ_map[((x)*num_bins_y)+y+1]!=-1 &&
+            occ_map[((x+1)*num_bins_y)+y+1]!=-1 &&
+            occ_map[((x+1)*num_bins_y)+y]!=-1)
+            ||
+            (border_map[((x)*num_bins_y)+y]!=1 && // bottom right
+            occ_map[((x)*num_bins_y)+y]!=-1 &&
+            occ_map[((x)*num_bins_y)+y-1]==-1 &&
+            occ_map[((x+1)*num_bins_y)+y-1]==-1 &&
+            occ_map[((x+1)*num_bins_y)+y]==-1 &&
+            occ_map[((x-1)*num_bins_y)+y]!=-1 &&
+            occ_map[((x-1)*num_bins_y)+y+1]!=-1 &&
+            occ_map[((x)*num_bins_y)+y+1]!=-1))
+        {
+          border_map[(x*num_bins_y)+y]=1;
+          border_x[*num_bins_border]=x;
+          border_y[*num_bins_border]=y;
+          (*num_bins_border)++;
+          // printf("starting %d at %d %d\n",*num_bins_border,x,y);
+         // Rprintf("starting at %d %d\n",x,y);
+          return 1;
+        }
+      }
+      else
+      {// border could be a visited bin on the edge of the occ map
+        if (occ_map[(x*num_bins_y)+y]!=-1&&border_map[((x)*num_bins_y)+y]!=1)
+        {
+          border_map[(x*num_bins_y)+y]=1;
+          border_x[*num_bins_border]=x;
+          border_y[*num_bins_border]=y;
+          (*num_bins_border)++;
+         //  printf("starting %d at %d %d\n",*num_bins_border,x,y);
+        //  Rprintf("starting at %d %d\n",x,y);
+          return 1;
+        }
+      }
+    }
+  }
+  return 0;
+}
+
+int find_an_adjacent_border_pixel(double* occ_map, int num_bins_x, int num_bins_y,int*border_map,int*border_x,int* border_y,int* num_bins_border)
+{
+  // look for a pixels around the last added pixel that could be a border, in the 9 pixels around it
+  for (int x = border_x[(*num_bins_border)-1]-1;x<=border_x[(*num_bins_border)-1]+1;x++)
+  {
+    for (int y = border_y[(*num_bins_border)-1]-1;y<=border_y[(*num_bins_border)-1]+1;y++)
+    {
+      if(
+        ((x>0 && // not in x==0, we need to see a -1.0 value on the left side
+          x<num_bins_x-1 && // not is x = length(x), we need to see a -1.0 value on the right side
+          border_map[((x)*num_bins_y)+y]!=1 &&  // not already considered a border pixel
+          occ_map[((x)*num_bins_y)+y]!=-1&&y<num_bins_y) && // bin was visited by animal and is not after y limit
+          (occ_map[((x-1)*num_bins_y)+y]==-1 || occ_map[((x+1)*num_bins_y)+y]==-1)) // should have an invalid bin on right or left side
+        || 
+          ((y>0 && 
+          y<num_bins_y-1 && 
+          border_map[((x)*num_bins_y)+y]!=1 && 
+          occ_map[((x)*num_bins_y)+y]!=-1&&x<num_bins_x) &&
+          (occ_map[(x*num_bins_y)+y-1]==-1 || occ_map[(x*num_bins_y)+y+1]==-1)))
+      {
+        border_map[(x*num_bins_y)+y]=1;
+        border_x[*num_bins_border]=x;
+        border_y[*num_bins_border]=y;
+     //   Rprintf("adding %d %d\n",x,y);
+        (*num_bins_border)++;
+        find_an_adjacent_border_pixel(occ_map,num_bins_x,num_bins_y,border_map,border_x,border_y,num_bins_border);// recursive search
+        return 1;
+      }
+    }
+  }
+  return 0;
+}
+int identify_border_pixels_in_occupancy_map(double* occ_map, int num_bins_x, int num_bins_y,
+                                            int* border_map, int* border_x, int* border_y, 
+                                            int* num_bins_border)
+{
+  // set border map to 0
+  for(int i = 0; i < num_bins_x*num_bins_y;i++) // set border map to 0
+    {border_map[i]=0;}
+
+  *num_bins_border=0;
+
+    while(find_border_starting_point(occ_map, num_bins_x, num_bins_y,border_map,border_x,border_y,num_bins_border))
+    {
+      //recursive algorhythm! Inspired by conversation with Jozsef and Catherine in Vienna
+      find_an_adjacent_border_pixel(occ_map, num_bins_x, num_bins_y,border_map,border_x,border_y,num_bins_border);
+    }
+  // remove internal bins 
+  remove_internal_bins_from_border(num_bins_x, num_bins_y, border_map, border_x, border_y, num_bins_border);
+  return 0;
+}
+
+
+
+int assign_wall_to_border_pixels(int num_bins_x, int num_bins_y, int* border_x, int* border_y, int* num_bins_border,int* wall_id,int* border_map)
+{
+  /* 
+     function assumes that there are 2 vertical and 2 horizontal walls.
+     the two vertical or horizontal walls should be in different half of the map
+     We simply count the number of border pixels for each row or column of the map
+     Walls should results in a high number of pixel for a given row or column
+   
+     Note that a pixel can only be assigned to one border. It is assigned to the closest wall, if distances are equal the assignation
+     is arbitrary set by the order of if statements
+  */
+  
+  double* col_sum = (double*) malloc(num_bins_x*sizeof(double));
+  double* row_sum = (double*) malloc(num_bins_y*sizeof(double));
+  double sum,max;
+  int h1=0,h2=0,v1=0,v2=0; // coordinate of the horizontal and vertical walls
+  int dist_h1=0;
+  int dist_h2=0;
+  int dist_v1=0;
+  int dist_v2=0;
+  int* x;
+  int* y;
+  int* id;
+  int num_bins_wall;
+
+  for(int i = 0; i < num_bins_x; i++)
+  {
+    sum=0;
+    for(int j = 0; j < *num_bins_border; j++)
+    {
+      if(border_x[j]==i)
+        sum++;
+    }
+    col_sum[i]=sum;
+  }
+  
+  for(int i = 0; i < num_bins_y; i++)
+  {
+    sum=0;
+    for(int j = 0; j < *num_bins_border; j++)
+    {
+      if(border_y[j]==i)
+        sum++;
+    }
+    row_sum[i]=sum;
+  }
+  
+  max=0;
+  for(int i = 0; i < num_bins_x/2; i++)
+  {
+    if(col_sum[i]>max)
+    {
+      max=col_sum[i];
+      v1=i;
+    }
+  }
+  max=0;
+  for(int i = num_bins_x/2; i < num_bins_x; i++)
+  {
+    if(col_sum[i]>max)
+    {
+      max=col_sum[i];
+      v2=i;
+    }
+  }
+  max=0;
+  for(int i = 0; i < num_bins_y/2; i++)
+  {
+    if(row_sum[i]>max)
+    {
+      max=row_sum[i];
+      h1=i;
+    }
+  }
+  max=0;
+  for(int i = num_bins_y/2; i < num_bins_y; i++)
+  {
+    if(row_sum[i]>max)
+    {
+      max=row_sum[i];
+      h2=i;
+    }
+  }
+  
+  for(int i =0; i < *num_bins_border;i++)
+    wall_id[i]=-1;
+  
+  for(int i =0; i < *num_bins_border;i++)
+  {
+    dist_v1=sqrt((border_x[i]-v1)*(border_x[i]-v1));
+    dist_v2=sqrt((border_x[i]-v2)*(border_x[i]-v2));
+    dist_h1=sqrt((border_y[i]-h1)*(border_y[i]-h1));
+    dist_h2=sqrt((border_y[i]-h2)*(border_y[i]-h2));
+ 
+ 
+    // assign to the closest border
+    if(dist_v1<2&&dist_v1<=dist_v2&&dist_v1<=dist_h1&&dist_v1<=dist_h2)
+       wall_id[i]=0;
+    if(dist_v2<2&&dist_v2<=dist_v1&&dist_v2<=dist_h1&&dist_v2<=dist_h2)
+      wall_id[i]=1;
+    if(dist_h1<2&&dist_h1<=dist_h2&&dist_h1<=dist_v1&&dist_h1<=dist_v2)
+      wall_id[i]=2;
+    if(dist_h2<2&&dist_h2<=dist_h1&&dist_h2<=dist_v1&&dist_h2<=dist_v2)
+      wall_id[i]=3;
+  }
+  
+  // if a pixels is not associated to a wall, remove it from the border_map;
+  for(int i =0; i < *num_bins_border;i++)
+  {
+    if(wall_id[i]==-1)
+    {
+      border_map[(border_x[i]*num_bins_y)+border_y[i]]=0;
+    }
+  }
+  // remove border pixels that are not close to a wall
+  x = (int*)malloc((*num_bins_border)*sizeof(int));
+  y = (int*)malloc((*num_bins_border)*sizeof(int));
+  id =(int*)malloc((*num_bins_border)*sizeof(int));
+  num_bins_wall=0;
+  
+  for(int i =0; i < *num_bins_border;i++)
+  {
+    if(wall_id[i]!=-1)
+    {
+      x[num_bins_wall]=border_x[i];
+      y[num_bins_wall]=border_y[i];
+      id[num_bins_wall]=wall_id[i];
+      num_bins_wall++;
+    }
+  }
+  for(int i = 0; i < num_bins_wall; i++)
+  {
+    border_x[i]=x[i];
+    border_y[i]=y[i];
+    wall_id[i]=id[i];
+  }
+  
+  (*num_bins_border)=num_bins_wall;
+  
+  free(col_sum);
+  free(row_sum);
+  free(x);
+  free(y);
+  free(id);
+  return 0;
 }
 
 

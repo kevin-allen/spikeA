@@ -6,6 +6,7 @@ from scipy import ndimage
 from scipy.ndimage import gaussian_filter1d
 import os.path
 import os
+import spikeA.spatial_properties
 
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.ttl import detectTTL
@@ -22,11 +23,12 @@ class Animal_pose:
     
     Position data are in cm.
     Angular data are in radians to make computations simpler
+    Yaw should be from -180 to 180, 0 is in direction of positive x-axis, pi/2 up, -pi/2 down.
     
     Attributes:
     
         pose: 2D numpy array, columns are (time, x,y,z,yaw,pitch,roll). This is a pointer to pose_ori or pose_inter
-        pose_ori: 2D numpy array of the original data loaded, it should never be modified
+        pose_ori: 2D numpy array of the original data loaded, This array should never be modified!
         pose_inter: 2D numpy array of the pose data that are within the intervals set
         pose_rolled: 2D numpy array of the pose data but shuffled (or rolled) to get shuffling distributions
         speed: 1D numpy array of speed data of the original pose data
@@ -89,18 +91,35 @@ class Animal_pose:
         
         This function is used to "shuffle" the position data relative to the spike train of neurons in order to get maps that would be expected if the neurons was not spatially selective.
         This procedure is used to calculated significance thresholds for spatial information score, grid scores, etc.
-        The position data are shifted forward from their original time by a random amount that is larger than min_roll_sec. 
+        The position data are shifted forward from their current time by a random amount that is larger than min_roll_sec. 
         You should set your intervals before calling this function.
         
-        When you are done with the shuffling analysis, just reset the intervals of the Animal_pose to get the original pose back or do ap.pose = ap.pose_inter
+        This function will set self.pose to self.pose_rolled
+        It is recommended to make a copy of pose before the shuffling procedure and reset ap.pose to the original copy when you are done.
         
         
         Example:
         
-        """
+        # keep a copy of the pose that we started with
+        pose_at_start = sp.ap.pose.copy()
         
-        # each time we call this function 
-        self.pose = self.pose_inter 
+        # allocate memory for the shuffle data
+        sp.head_direction_shuffle=np.empty(iterations)
+        
+        
+        for i in range(iterations):
+            sp.ap.roll_pose_over_time() # shuffle the position data 
+            sp.firing_rate_head_direction_histogram(deg_per_bin=deg_per_bin, smoothing_sigma_deg = smoothing_sigma_deg, smoothing=smoothing)  
+            sp.head_direction_shuffle[i] = sp.head_direction_score()[2] # calculate the new HD score (vector length only) with the shuffled HD data
+            
+            sp.ap.pose=pose_at_start # reset the pose to the one we started with
+
+        # calculate the threshold
+        sp.head_direction_score_threshold =  np.percentile(sp.head_direction_shuffle,percentile)
+        
+        
+        
+        """
         
         total_time_sec = self.intervals.total_interval_duration_seconds()
         if total_time_sec < 2*min_roll_sec:
@@ -122,7 +141,6 @@ class Animal_pose:
         
         self.pose = self.pose_rolled
         
-        #print(time_shift,time_per_datapoint,shift,self.pose.shape[0])
     
     
     def save_pose_to_file(self,file_name=None):
@@ -170,7 +188,7 @@ class Animal_pose:
             raise OSError(fn+" is missing")
         #print("Loading original pose from",fn)
         self.pose_ori = np.load(file = fn) 
-        self.pose = self.pose_ori
+        self.pose = self.pose_ori.copy() # the self.pose should not point to the self.pose_ori
     
         ## create intervals that cover all the data in self.pose
         if self.intervals is not None:
@@ -212,7 +230,7 @@ class Animal_pose:
         self.intervals.set_inter(inter)
         
         # only use the poses that are within the intervals
-        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] 
+        self.pose_inter = self.pose_ori[self.intervals.is_within_intervals(self.pose_ori[:,timeColumnIndex])] # this should create a copy of self.pose_ori, not a reference
         # self.st is now pointing to self.st_inter
         self.pose = self.pose_inter
         #print("Number of poses: {}".format(self.pose.shape[0]))
@@ -227,7 +245,8 @@ class Animal_pose:
         if self.pose is None:
             raise ValueError("pose should be set before setting the intervals")
         
-        self.pose = self.pose_ori
+        self.pose = self.pose_ori.copy() # create a copy of our pose_ori, not a pointer
+
         # set default time intervals from 0 to just after the last spike
         self.intervals.set_inter(inter=np.array([[0,self.pose[:,0].max()+1]]))
         #print("Number of poses: {}".format(self.pose.shape[0]))
@@ -620,6 +639,84 @@ class Animal_pose:
         
         # apply gaussian filter for smoothing
         self.speed = gaussian_filter1d(speed, sigma=sigma)
+    
+    def detect_border_pixels_in_occupancy_map(self):
+        """
+        Method to detect the border pixels in an occupancy map
+        
+        A border map is created in which all pixels are 0 and border pixels are 1.
+        
+        This function in implemented in c code located in spatial_properties.c, spatial_properties.h and _spatial_properties.pyx
+        
+        No arguments:
+        
+        Returns:
+        2D numpy array containing with the border pixels set to 1 and the rest set to 0
+        
+        Example
+        
+        from spikeA.Animal_pose import Animal_pose
+        import numpy as np
+        import matplotlib.pyplot as plt
+        
+        # create a circular environment
+        points = np.arange(-20,20,1)
+        xs,ys = np.meshgrid(points,points)
+        occ_map = np.sqrt(xs**2+ys**2)
+        occ_map[occ_map>10] = -1.0
+        
+        ap = Animal_pose()
+        ap.occupancy_map=occ_map
+        brd = ap.detect_border_pixels_in_occupancy_map()
+        
+        fig,ax = plt.subplots(1,2)
+        ax[0].imshow(occ_map)
+        ax[1].imshow(brd)
+        plt.show()
+        """
+        
+        ## convert nan values to -1 for C function
+        occ_map = self.occupancy_map.copy()
+        
+        occ_map[np.isnan(occ_map)]=-1.0
+        
+        ## create an empty array of the appropriate dimensions to store the border pixels
+        border_map = np.zeros_like(occ_map,dtype=np.int32)
+        spikeA.spatial_properties.detect_border_pixels_in_occupancy_map_func(occ_map,border_map)
+        return border_map                                 
 
-
-
+    def invalid_outside_spatial_area(self, shape = None, radius = None, center = None):
+        """
+        Method that set the position data (self.pose[:,1:4]) outside a defined zone to np.nan.
+        
+        The area can be a circle. We should write it for rectangle when we have time.
+        
+        To undo, call self.unset_intervals() or self.set_intervals(). unset_intervals() and set_intervals() use the data stored in self.ori_pose
+        
+        This function should be called **after** setting any relevant Intervals for the analysis.
+        
+        Arguments:
+        shape: "circle"
+        radius: radius of a circle, only needed if working with circle
+        center: 1D np.array of size 2, [x,y], center of a circle, only needed if working with circle
+        
+        Return:
+        Nothing is returned. self.pose[,1:4] are set to np.nan if the animal is not in the zone.
+        """
+        valid_shapes = ["circle"]
+        
+        if not shape in valid_shapes:
+            raise ValueError("shape should be part of the list {}".format(valid_shapes))
+        
+        # deal with circle
+        if shape == "circle":
+            if radius is None:
+                raise ValueError("set the radius argument")
+            if center is None:
+                raise ValueError("set the center argument")
+            
+            # calculate distance to center
+            dist = np.sqrt((self.pose[:,1]-center[0])**2 + (self.pose[:,2]-center[1])**2)
+            # outside circle = np.nan
+            self.pose[dist>radius,1:4] = np.nan
+                             
