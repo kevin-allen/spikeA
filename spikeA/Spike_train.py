@@ -397,7 +397,7 @@ class Spike_train:
         
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
-        keep=self.intervals.is_within_intervals(mid)
+        keep=self.intervals.is_within_intervals(mid,include_ties=False)
                 
         if outside_interval_solution == "remove":    
             self.ifr = ifr[keep],count[keep],mid[keep]    

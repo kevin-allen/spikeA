@@ -186,7 +186,7 @@ class Simulated_place_cell(Neuron):
         tStepSize = self.ap.pose[1,0]-self.ap.pose[0,0]
         pose = np.stack([self.ap.pose[:,0],self.ap.pose[:,1],self.ap.pose[:,2],self.ap.pose[:,4]]).T # only consider the data that we will be using
         keepIndices = ~np.isnan(pose).any(axis=1)
-        maxT = np.sum(keepIndices)*tStepSize+tStepSize
+        maxT = np.sum(keepIndices)*tStepSize+tStepSize/2
         
         self.ap.pose = self.ap.pose[keepIndices]
         
@@ -314,7 +314,7 @@ class Simulated_grid_cell(Neuron):
         tStepSize = self.ap.pose[1,0]-self.ap.pose[0,0]
         pose = np.stack([self.ap.pose[:,0],self.ap.pose[:,1],self.ap.pose[:,2],self.ap.pose[:,4]]).T # only consider the data that we will be using
         keepIndices = ~np.isnan(pose).any(axis=1)
-        maxT = np.sum(keepIndices)*tStepSize+tStepSize
+        maxT = np.sum(keepIndices)*tStepSize+tStepSize/2
         
         self.ap.pose = self.ap.pose[keepIndices]
         
