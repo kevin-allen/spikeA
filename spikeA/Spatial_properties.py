@@ -377,7 +377,7 @@ class Spatial_properties:
     
         
     
-    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
+    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -397,10 +397,11 @@ class Spatial_properties:
         self.map_smoothing_sigma_cm = smoothing_sigma_cm
         self.map_smoothing = smoothing
         
-        # create a new occupancy map
-        self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
-                                 smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                 smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
+        # create a new occupancy map (if needed or desired)
+        if not hasattr(self.ap, 'occupancy_map_2d') or recalculate_occupancy_map:
+            self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
+                                     smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
+                                     smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
         
         ## get the position of every spike
         spike_posi = self.spike_position()
