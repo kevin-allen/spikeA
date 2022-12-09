@@ -123,7 +123,7 @@ class Spatial_properties:
         ihdc = fhdc(self.st.st)
         ihds = fhds(self.st.st)
         
-        # get radians from cos and sin
+        # get radians from sin and cos
         self.spike_hd = np.arctan2(ihds,ihdc) 
         
         
@@ -775,7 +775,6 @@ class Spatial_properties:
     
             
     def correlation_from_doughnut_rotation(self, degree):
-        
         """
         Method of the Spatial_properties class to calculate the correlations for different angles of rotation of the doughnut. 
         Return
@@ -803,7 +802,6 @@ class Spatial_properties:
         r,p = pearsonr(self.doughnut[indices],self.doughnut_rotated[indices])
     
         return r
-    
     
     def calculate_ellipse_parameters(self):
         """
