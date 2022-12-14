@@ -1,3 +1,4 @@
+
 import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
@@ -122,7 +123,7 @@ class Spatial_properties:
         ihdc = fhdc(self.st.st)
         ihds = fhds(self.st.st)
         
-        # get radians from cos and sin
+        # get radians from sin and cos
         self.spike_hd = np.arctan2(ihds,ihdc) 
         
         
@@ -376,7 +377,7 @@ class Spatial_properties:
     
         
     
-    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None):
+    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -396,10 +397,11 @@ class Spatial_properties:
         self.map_smoothing_sigma_cm = smoothing_sigma_cm
         self.map_smoothing = smoothing
         
-        # create a new occupancy map
-        self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
-                                 smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                 smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
+        # create a new occupancy map (if needed or desired)
+        if not hasattr(self.ap, 'occupancy_map_2d') or recalculate_occupancy_map:
+            self.ap.occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
+                                     smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
+                                     smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
         
         ## get the position of every spike
         spike_posi = self.spike_position()
@@ -773,7 +775,6 @@ class Spatial_properties:
     
             
     def correlation_from_doughnut_rotation(self, degree):
-        
         """
         Method of the Spatial_properties class to calculate the correlations for different angles of rotation of the doughnut. 
         Return
@@ -801,7 +802,6 @@ class Spatial_properties:
         r,p = pearsonr(self.doughnut[indices],self.doughnut_rotated[indices])
     
         return r
-    
     
     def calculate_ellipse_parameters(self):
         """
@@ -870,6 +870,7 @@ class Spatial_properties:
         
         # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
         if np.nanmax(self.firing_rate_map) == 0:
+            self.points_inside_dougnut=[]
             if calculate_ellipticity or correct_ellipticity:
                 self.ellipticity=np.nan
                 self.eccentricity=np.nan
@@ -1089,42 +1090,13 @@ class Spatial_properties:
     
         return r
 
-    
-    def identify_wall(self, number_in_array, counts, walls):
-    #the goal is to identify the 2 horizontal or the 2 vertical walls in a square arena
-        if len(walls)<2:
-            #one wall is where the number of border pixels is highest
-            array_index = np.where(counts==np.max(counts))
-            #if 2 numbers occur equally often
-            if array_index[0].shape[0]>1:
-                array_index=array_index[0]
-            wall = number_in_array[array_index[0]]
-            #remove from the lists so that the second wall can also be found
-            number_in_array = np.delete(number_in_array, array_index[0])
-            counts = np.delete(counts, array_index[0])
-            #if the function has already identified one wall, check if the putative other wall has sufficient distance
-            if len(walls)==1:
-                if wall in range(int(walls[0]-2),int(walls[0]+2)):
-                    #if the 2 walls are too close, find a different second wall
-                    self.identify_wall(number_in_array, counts, walls)
-                else:
-                    #otherwise we are done
-                    walls.append(wall)
-                    return(walls)
-            #if this is the first wall to be identified, call the function again to find the other one
-            else:
-                walls.append(wall)
-                self.identify_wall(number_in_array, counts, walls)
-        else:
-            return(walls)
-    
-    
-   
-        
-        
-        
+      
     def firing_rate_map_field_detection(self, min_pixel_number_per_field=25, max_fraction_pixel_per_field=0.33, min_peak_rate=4, min_fraction_of_peak_rate=0.45, max_min_peak_rate=10):
         """
+        
+        Don't use this, use firing_rate_map_field_detection_fast()
+        
+        
         Method of the Spatial_properties class to calculate the position and size of fields in the firing rate map.
         
         If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
@@ -1164,6 +1136,10 @@ class Spatial_properties:
 
     def detect_one_field(self, rate_map, fields, peak_rate, min_pixel_number_per_field, max_fraction_pixel_per_field, min_peak_rate, min_fraction_of_peak_rate, max_min_peak_rate):
         """
+        
+        Don't use this, use firing_rate_map_field_detection_fast()
+        
+        
         Method of the Spatial_properties class to detect firing fields in the firing rate map.
         
         This function is recursive. 
@@ -1206,6 +1182,10 @@ class Spatial_properties:
           
     def find_field_pixels(self, p, field_pixels, rate_map, peak_rate, min_fraction_of_peak_rate,max_min_peak_rate):
         """
+        
+        Don't use this, use firing_rate_map_field_detection_fast()
+        
+        
         Method of the Spatial_properties class to determine if adjacent pixels to a start pixel belong to the firing field in the firing rate map.
         
         This function is recursive. 
@@ -1294,7 +1274,7 @@ class Spatial_properties:
         return fieldList
         
     
-    def shuffle_border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=5, min_peak_rate_proportion= 0.30, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
+    def shuffle_border_score(self, min_pixel_number_per_field=20, min_peak_rate=5, min_peak_rate_proportion= 0.30, iterations=500, environment_shape = None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
         """
         Get a distribution of border scores that would be expected by chance for this neuron
 
@@ -1305,6 +1285,7 @@ class Spatial_properties:
         min_peak_rate: minimal peak rate for fields
         min_peak_rate_proportion: when adding pixels to a field, the rate needs to be higher than peak_rate*min_peak_rate_proportion
         iterations: how many shufflings to perform
+        environment_shape: shape of the recording environment, should be rectangular or circular
         cm_per_bin: cm per bin in the firing rate map
         smoothing_sigma_cm: smoothing in the firing rate map
         smoothing: smoothing in the firing rate map
@@ -1315,6 +1296,9 @@ class Spatial_properties:
         
         
         """
+        
+        if environment_shape not in ["circle","rectangle","square"]:
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         # keep a copy of the pose that we started with
         pose_at_start = self.ap.pose.copy()
@@ -1329,33 +1313,34 @@ class Spatial_properties:
             self.firing_rate_map_2d(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm) # calculate a firing rate map
             
             #res contains CM,CMHalf, DM, border_score, border_score_half, nFields
-            res = self.border_score_circular_environment(min_pixel_number_per_field, min_peak_rate, min_peak_rate_proportion)
+            res = self.border_score(min_pixel_number_per_field, min_peak_rate, min_peak_rate_proportion, environment_shape = environment_shape)
             # cm, dm, border_score, n_fields
             self.CM_shuffle[i] = res[0] 
             self.DM_shuffle[i] = res[1] 
             self.border_shuffle[i] = res[2] 
             self.ap.pose=pose_at_start
+            
+        self.border_score_threshold =  np.nanpercentile(self.border_shuffle,percentile)
 
-        return self.border_shuffle, self.CM_shuffle, self.DM_shuffle
+        return self.border_shuffle, self.border_score_threshold, self.CM_shuffle, self.DM_shuffle
        
         
-    def border_score_circular_environment(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, return_field_list = False, n_wall_sections = 36, wall_section_width_radian= 2*np.pi/3):
+    def border_score(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, return_field_list = False, environment_shape = None, n_wall_sections = 36, wall_section_width_radian= 2*np.pi/3):
         """
-        Calculate the border score of a neuron when the animal explores a circular environment.
-        
+        Calculate the border score of a neuron when the animal explores a circular or rectangular environment.
         
         You should call self.firing_rate_map_2d() before calling self.border_score()
         
         Adapted from https://www.science.org/doi/suppl/10.1126/science.1166466/suppl_file/solstad.som.pdf
         
-        Instead of using 4 walls as in square environment, we will get 36 walls ranging 45 degrees around the circular environment and calculate CM for these 36 overlapping walls.
+        For circular environments, instead of using 4 walls as in rectangular environment, we get 36 walls ranging 45 degrees around the circular environment and calculate CM for these 36 overlapping walls.
         This is used because most MEC border cells do not fire all around the arena but rather on one side of it.
         
         Make sure you use xy_range and set the range for the map so that the border of the environment is not at the border of the map.
         
         Border score is defined by (CM-DM)/(CM+DM), which can range from -1 to 1.
         
-        CM is the proportion of border pixels covered by the pixels of one field. The border pixels in this case are separated into separate 36 walls and we test each field against the 36 walls and take the highest score.
+        CM is the highest proportion of wall pixels that are covered by the pixels of one field.
         CM is calculated for all fields and the largest CM is used to calculate the border score.
         
         DM is the mean shortest distance to the periphery for pixels that were part of a firing field, weighted by the firing rate in each pixel. 
@@ -1370,14 +1355,19 @@ class Spatial_properties:
         min_peak_rate: minimal peak firing rate within a field to perform field detection
         min_peak_rate_proporition: a pixel needs to be above peak_rate*min_peak_rate_proportion to be added to a field
         return_field_list: boolean whether to return the field list with which the border score was calculated
-        n_wall_sections: number of border wall subsection that will be generated
-        wall_section_width_radian: width in radian of the wall subsections
+        environment_shape: "circle" or "rectangle" 
+        n_wall_sections: number of border wall subsection that will be generated, only used for circular environments
+        wall_section_width_radian: width in radian of the wall subsections, only used for circular environments
         
         Return
         
         CM, DM, border_score, number_fields
         """
-
+ 
+        if environment_shape not in ["circle","rectangle","square"]:
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
+        
+        
         if not hasattr(self, 'firing_rate_map'):
             raise ValueError('Call self.firing_rate_map_2d() before calling self.border_score()')
         
@@ -1386,7 +1376,7 @@ class Spatial_properties:
             raise ValueError('firing_rate_map {} and occupancy map {} have a different size'.format(self.firing_rate_map.shape,self.ap.occupancy_map.shape))
         
         
-        # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
+        # if the map has a peak firing rate of 0, it is not possible to calculate a border score
         if np.nanmax(self.firing_rate_map) == 0:
             if return_field_list:
                 return (np.nan,np.nan,np.nan,0,None)
@@ -1405,18 +1395,23 @@ class Spatial_properties:
         # border map
         border_map = self.ap.detect_border_pixels_in_occupancy_map()
         
-        # get our series of circular wall subsections 
-        border_section_maps = self.circular_border_wall_sections(border_map=border_map,n_sections = n_wall_sections , section_width_radian = wall_section_width_radian)
+        if environment_shape == "circle":
+            # get our series of circular wall subsections 
+            border_section_maps = self.circular_border_wall_sections(border_map=border_map,n_sections = n_wall_sections , section_width_radian = wall_section_width_radian)
+        elif environment_shape == "rectangle" or environment_shape == "square":
+            border_section_maps = self.detect_walls_rectangular_environment(border_map=border_map)
+        else:
+            raise ValueError('environment_shape should be "circle" or "rectangle" or "square"')
         
         # calculate CM, CM is calculated for each field x wall section combinations, then we get the largest CM
         for field in fieldList: # get the max CM for each field
-            field["CM"] = np.max([self.field_CM_circular_environment(field_map = field["field_map"],border_map = border_section_maps[i]) for i in range(border_section_maps.shape[0])])
+            field["CM"] = np.max([self.field_CM(field_map = field["field_map"],border_map = border_section_maps[i]) for i in range(border_section_maps.shape[0])])
              
         # get the largest CM of all fields
         CM = np.nanmax([field["CM"] for field in fieldList])
         
         # calculate DM, DM is not field by field but using all pixels that were part of a field, or all valid pixels in the firing_rate_map
-        DM = self.field_DM_circular_environment(field_list= fieldList, border_map=border_map, rate_map=self.firing_rate_map)
+        DM = self.field_DM(field_list= fieldList, border_map=border_map, rate_map=self.firing_rate_map)
         
         border_score = (CM-DM)/(CM+DM)
         
@@ -1425,6 +1420,43 @@ class Spatial_properties:
         else:
             return CM, DM, border_score, len(fieldList)
         
+    def detect_walls_rectangular_environment(self, border_map):
+        """
+        Function to detect the wall of a rectangular environment
+
+        Argument:
+        border_map: 2D numpy array, border pixels are set to 1, rest 0, This is the output of ap.detect_border_pixels_in_occupancy_map()
+
+        Return:
+        3D numpy array containing the 4 walls. The first dimension has a size of 4 for the 4 walls, the second and third dimensions have the same size as the border_map
+        """
+
+        midIndex = int(border_map.shape[0]/2)
+        topWallIndex= np.argmax(border_map.sum(axis=1)[:midIndex])
+        bottomWallIndex = np.argmax(border_map.sum(axis=1)[midIndex:])+midIndex
+
+        midIndex = int(border_map.shape[1]/2)
+        leftWallIndex= np.argmax(border_map.sum(axis=0)[:midIndex])
+        rightWallIndex = np.argmax(border_map.sum(axis=0)[midIndex:])+midIndex
+
+        xs, ys = np.meshgrid(np.arange(0,border_map.shape[0]),np.arange(0,border_map.shape[1])) # get 2 2D arrays with the x or y coordinate of the pixels
+
+        indexMaxTop = np.expand_dims(border_map[:midIndex].argmax(axis=0),0)
+        topWallMap = np.logical_and(np.logical_and(xs>leftWallIndex,xs<rightWallIndex),ys==indexMaxTop)
+
+        indexMaxBottom = np.expand_dims(border_map.shape[0]-1-np.flip(border_map,axis=0).argmax(axis=0),0)
+        bottomWallMap = np.logical_and(np.logical_and(xs>leftWallIndex,xs<rightWallIndex),ys==indexMaxBottom)
+
+        indexMaxLeft = np.expand_dims(border_map.argmax(axis=1),1)
+        leftWallMap = np.logical_and(np.logical_and(ys>topWallIndex,ys<bottomWallIndex),xs==indexMaxLeft)
+
+        indexMaxRight = np.expand_dims(border_map.shape[1]-1-np.flip(border_map,axis=1).argmax(axis=1),1)
+        rightWallMap = np.logical_and(np.logical_and(ys>topWallIndex,ys<bottomWallIndex),xs==indexMaxRight)
+
+        return np.stack([topWallMap,bottomWallMap,leftWallMap,rightWallMap])
+    
+    
+    
     def circular_border_wall_sections(self, border_map, n_sections = 36, section_width_radian= 2*np.pi/3):
         """
         The function returns maps in which a subsection of the wall of a circular environment.
@@ -1486,11 +1518,10 @@ class Spatial_properties:
 
         return res
         
-    def field_CM_circular_environment(self,field_map,border_map):
+        
+    def field_CM(self,field_map,border_map):
         """
-        Function to calculate the CM of a firing field in circular environments. CM is used when calculating a border score.
-
-        This function was develop to work with circular environment. 
+        Function to calculate the CM of a firing field. CM is used when calculating a border score. 
         
         CM is the proportion of border pixels covered by the pixels of one field.
 
@@ -1513,9 +1544,9 @@ class Spatial_properties:
 
     
 
-    def field_DM_circular_environment(self, field_list, border_map, rate_map):
+    def field_DM(self, field_list, border_map, rate_map):
         """
-        Calculate DM used in the border score. This works for circular environments
+        Calculate DM used in the border score.
 
         DM is the mean shortest distance to the periphery for pixels that were part of a firing field, weighted by the firing rate in each pixel. 
         DM is then normalized as follows. For each pixel in the map, the shortest distance to the periphery was calculated. The largest value obtained over all map pixels was the value used for the normalization. 
@@ -1535,11 +1566,12 @@ class Spatial_properties:
         if len(field_list) == 0:
             return np.nan
         
+        
         def minimalDistanceBetweenPointAndPointArray(coord,coords):
             """
             Find the minimal distance between a point and a series of points in 2 dimensions 
 
-            This is used by field_DM_circular_environment
+            This is used by field_DM
 
             Arguments
             coord: 1D array with x and y coordinate of a point
@@ -1572,230 +1604,8 @@ class Spatial_properties:
 
         return DM
 
-    
-    def border_score(self, arena_shape=None, min_pixel_number_per_field=15, max_fraction_pixel_per_field=0.33, min_peak_rate=4, min_fraction_of_peak_rate=0.45, max_min_peak_rate=10):
-        """
-        Calculate the border score of a neuron.
-        
-        You should call self.firing_rate_map_2d() before calling self.border_score()
-        
-        Score is calculated like in the first border cell paper: https://www.science.org/doi/suppl/10.1126/science.1166466/suppl_file/solstad.som.pdf
-        
-        Make sure you use xy_range and set the range for the map so that the border of the environment is not at the border of the map.
-
-        Arguments:
-        
-        arena_shape: shape of the environment, can be "square" or "circle"
-        min_pixel_number_per_field: minimal number of pixels to be considered a field
-        max_fraction_pixel_per_field: Not sure what it is doing, was not commented
-        min_peak_rate: minimal peak firing rate within a field to perform field detection
-        min_fraction_of_peak_rate: a pixel needs to be above this proportion to be added to a field
-        max_min_peak_rate: not sure what htis is doing, was not commented
-        
-        
-        Return
-        border score
-    
-        """
-        
-        if not arena_shape in ["square","circle"]:
-            raise ValueError("Unsupported arena_shape; arena needs to be square or circle")
-
-        if not hasattr(self, 'firing_rate_map'):
-            raise ValueError('Call self.firing_rate_map_2d() before calling self.border_score()')
-        
-        # if the map has a peak firing rate of 0, it is not possible to calculate a grid score
-        if np.nanmax(self.firing_rate_map) == 0:
-            return np.nan
-            
-        # get the firing fields of the cell
-        self.firing_rate_map_field_detection(min_pixel_number_per_field=min_pixel_number_per_field,
-                                             max_fraction_pixel_per_field=max_fraction_pixel_per_field, 
-                                             min_peak_rate=min_peak_rate, 
-                                             min_fraction_of_peak_rate=min_fraction_of_peak_rate, 
-                                             max_min_peak_rate=max_min_peak_rate)
-        
-        field_pixel = self.firing_rate_map_fields.copy()
-        field_pixel_array=[(x,y) for i,n in enumerate(field_pixel) for x,y in field_pixel[i]]
-
-        
-        #detect the borders in the occupancy map
-        border_map = self.ap.detect_border_pixels_in_occupancy_map()
-        border_pixel_array = np.where(border_map!=0)
-
-        # get the border pixels in form of an array of tuples (x,y)
-        border_pixel = [(np.asarray(x),np.asarray(y)) for x,y in zip(border_pixel_array[0], border_pixel_array[1])]
-
-        # initialize variables
-        number_common_pixels = np.zeros(len(field_pixel))
-        distance_to_border=np.zeros(border_map.shape[0]*border_map.shape[1])
-        distance_to_border=np.reshape(distance_to_border, (border_map.shape[0],border_map.shape[1]))
-        border_map_indices=[(np.asarray(x),np.asarray(y)) for (x,y) in np.nditer(np.meshgrid(range(border_map.shape[0]),range(border_map.shape[1])))]
-        if arena_shape=="square":
-            best_wall=np.zeros(len(field_pixel))
-
-        #no need to run analysis if there are no fields
-        if field_pixel:
-            #to calculate CM for a rectangular arena, we need to identify the 4 borders separately
-            if arena_shape=="square":
-                #get horizontal walls
-                number_in_array, counts = np.unique(border_pixel_array[0], return_counts=True)
-                horizontal_walls=[]    
-                self.identify_wall(number_in_array,counts,horizontal_walls)
-                #get vertical walls
-                number_in_array, counts = np.unique(border_pixel_array[1], return_counts=True)
-                vertical_walls=[]    
-                self.identify_wall(number_in_array,counts,vertical_walls)
-
-                horizontal_walls=np.sort(horizontal_walls, axis=None)
-                vertical_walls=np.sort(vertical_walls, axis=None)
-
-                #assign all border pixels to one of the 4 walls
-                #get the wall pixels
-                h1_wall_indices=[(np.asarray(x),np.asarray(y)) for x,y in zip(np.repeat(horizontal_walls[0],np.abs(vertical_walls[1]-vertical_walls[0])+1), range(int(vertical_walls[0]),int(vertical_walls[1]+1)))]
-                h2_wall_indices=[(np.asarray(x),np.asarray(y)) for x,y in zip(np.repeat(horizontal_walls[1],np.abs(vertical_walls[1]-vertical_walls[0])+1), range(int(vertical_walls[0]),int(vertical_walls[1]+1)))]
-                v1_wall_indices=[(np.asarray(x),np.asarray(y)) for x,y in zip(range(int(horizontal_walls[0]),int(horizontal_walls[1]+1)), np.repeat(vertical_walls[0],np.abs(horizontal_walls[1]-horizontal_walls[0])+1))]
-                v2_wall_indices=[(np.asarray(x),np.asarray(y)) for x,y in zip(range(int(horizontal_walls[0]),int(horizontal_walls[1]+1)), np.repeat(vertical_walls[1],np.abs(horizontal_walls[1]-horizontal_walls[0])+1))]
-
-                wall_h1=[]; wall_h2=[]; wall_v1=[]; wall_v2=[]
-                walls=[wall_h1, wall_h2, wall_v1, wall_v2]
-
-                for b,b_pixel in enumerate(border_pixel):
-                    #calculate the distance of each border pixel to the 4 walls
-                    distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-b_pixel[1])**2) for pixel in h1_wall_indices]
-                    distance_to_h1=np.nanmin(distance)
-                    distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-b_pixel[1])**2) for pixel in h2_wall_indices]
-                    distance_to_h2=np.nanmin(distance)
-                    distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-b_pixel[1])**2) for pixel in v1_wall_indices]
-                    distance_to_v1=np.nanmin(distance)
-                    distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-b_pixel[1])**2) for pixel in v2_wall_indices]
-                    distance_to_v2=np.nanmin(distance)
-
-                    wall_distances=[distance_to_h1, distance_to_h2, distance_to_v1, distance_to_v2]
-                    wall_index=np.where(wall_distances==np.nanmin(wall_distances))
-                    if len(wall_index[0])>1:
-                        wall_index=wall_index[0][0]
-                    else:
-                        wall_index=wall_index[0]
-                    walls[int(wall_index)].append(b_pixel)
    
-            #calculate the distance of all map pixels to the closest border
-            for p,pixel in enumerate(border_map_indices):
-                distance=[np.sqrt((pixel[0]-b_pixel[0])**2+(pixel[1]-b_pixel[1])**2) for b_pixel in border_pixel]
-                distance_to_border[pixel]=np.nanmin(distance)
-
-            for number_of_fields,field in enumerate(field_pixel):
-                if arena_shape=="circle":
-                    # to find the field that shares most pixels with the borders, get the number of common field-border pixels for the field
-                    common_pixels=[b for b,f in itertools.product(border_pixel,field) if b==f]
-                    number_common_pixels[number_of_fields]=len(common_pixels)
-                else:
-                    number_common_pixels_per_wall=np.zeros(len(walls))
-                    for m,wall in enumerate(walls):
-                        # to find the field that shares most pixels with one border, get the number of common field-border pixels for the field for each border
-                        common_pixels=[b for b,f in itertools.product(wall,field) if b==f]
-                        number_common_pixels_per_wall[m]=len(common_pixels)
-                    #select the highest number
-                    highest_number_common_pixels_per_wall=np.nanmax(number_common_pixels_per_wall)
-                    best_wall_index=np.where(number_common_pixels_per_wall==highest_number_common_pixels_per_wall)[0][0]
-                    if type(highest_number_common_pixels_per_wall)=="list":
-                        highest_number_common_pixels_per_wall=highest_number_common_pixels_per_wall[0]
-
-                    number_common_pixels[number_of_fields]=highest_number_common_pixels_per_wall
-                    best_wall[number_of_fields]=len(walls[best_wall_index])
-
-
-            # DM calculation
-            DM=np.sum([distance_to_border[x,y]*self.firing_rate_map[x,y] for x,y in field_pixel_array])/len(field_pixel_array)
-            #normalize by dividing by the highest mean firing rate in a field pixel
-            DM=DM/np.nanmax([self.firing_rate_map[x,y] for (x,y) in field_pixel_array])
-            # normalize by dividing by the max distance of a pixel in the map to a border
-            DM=DM/np.nanmax(distance_to_border)
-
-            # CM is the maximal number of pixels common between border pixels and field pixel normalized by the number of border pixels
-            CM=np.nanmax(number_common_pixels)
-            if type(CM)=="list":
-                CM=CM[0]
-            if arena_shape=="circle":
-                #border cells usually don't take up more than half of the border
-                CM=CM/(len(border_pixel)/2)
-            else:
-                #get the wall which is most covered by a field
-                best_field_wall_index=np.where(number_common_pixels==CM)[0][0]
-                CM=CM/best_wall[best_field_wall_index]
-
-            border_score=(CM-DM)/(CM+DM)
-        else:
-            border_score=np.nan
-            
-        return border_score
-    
-    
-    def shuffle_border_score(self, xy_range, arena_shape, iterations=500, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, percentile=95):
-        """
-        Get a distribution of border score that would be expected by chance for this neuron
-
-        Argument:
-        iterations: How many shufflings to perform
-        cm_per_bin: cm per bin in the firing rate map
-        smoothing_sigma_cm: smoothing in the firing rate map
-        smoothing: smoothing in the firing rate map
-        percentile: percentile of the distribution of shuffled border scores that is used to get the significance threshold
-
-        Return
-        tuple: 
-        0: 1D numpy array with the border scores obtained by chance for this neuron
-        1: significance threshold for border score
-        
-        Example
-        
-        # get a neuron and set intervals
-        n = cg.neuron_list[7]
-        n.set_spatial_properties(ap)
-        n.spike_train.set_intervals(aSes.intervalDict[cond])
-        n.spatial_properties.ap.set_intervals(aSes.intervalDict[cond])
-
-        # get the observed value for border score
-        # it is important to set the xy-range for the occupancy map so that there is some space between the arena borders and the map borders
-        # because otherwise the border detection will not work properly
-        BS = n.spatial_properties.border_score(xy_range=np.array([[0,0],[125,125]]))
-
-        # get the shuffled values for border score
-        shuBS,threshold = n.spatial_properties.shuffle_border_score(iterations=100, cm_per_bin=2,percentile=95, xy_range=np.array([[0,0],[125,125]]))
-
-        # plot the results for this neuron
-        res = plt.hist(shuBS,label="shuffled")
-        ymax=np.max(res[0])
-        plt.plot([threshold,threshold],[0,ymax],c="black",label="Threshold")
-        plt.plot([BS,BS],[0,ymax],c="red",label="Observed")
-        plt.xlabel("Border score")
-        plt.ylabel("Count")
-        plt.legend()
-        plt.show()
-        """
-        
-        # keep a copy of the pose that we started with
-        pose_at_start = self.ap.pose.copy()
-        
-        self.border_shuffle=np.empty(iterations)
-        for i in range(iterations):
-            self.ap.roll_pose_over_time() # shuffle the position data 
-            # no need to recalculate the firing rate map as it will be calculated in course of border score calculation
-            self.border_shuffle[i] = self.border_score(cm_per_bin=cm_per_bin, smoothing=smoothing, smoothing_sigma_cm=smoothing_sigma_cm, xy_range=xy_range, arena_shape=arena_shape) # calculate the border score from the new map
-            self.ap.pose=pose_at_start
-
-        # calculate the threshold
-        if not np.isnan(self.border_shuffle).all():
-            shuffled = self.border_shuffle[~np.isnan(self.border_shuffle)]
-        else:
-            shuffled = np.nan
-
-            
-        self.border_score_threshold =  np.percentile(shuffled,percentile)
-        
-        
-        return self.border_shuffle, self.border_score_threshold
-    
+   
     
 
     def speed_score(self, bin_size_sec=0.02, sigma_ifr=12.5, sigma_speed=5):

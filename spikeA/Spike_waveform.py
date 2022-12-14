@@ -5,7 +5,7 @@ from scipy.interpolate import interp1d
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Session import Session
 from spikeA.Session import Kilosort_session
-from spikeA.Cell_group import Cell_group
+#from spikeA.Cell_group import Cell_group
 from spikeA.Spike_train_loader import Spike_train_loader
 from spikeA.Intervals import Intervals
 import os
