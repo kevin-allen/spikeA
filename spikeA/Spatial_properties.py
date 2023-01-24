@@ -637,6 +637,8 @@ class Spatial_properties:
         
         If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
         
+        The values in the autocorrelation ranges from -1 to 1. They are Pearson correlation coefficient between firing rate values at a given spatial offset
+        
         Arguments
         
         Return
@@ -664,7 +666,46 @@ class Spatial_properties:
         spikeA.spatial_properties.map_autocorrelation_func(frm,auto_array)
         self.spatial_autocorrelation_map = auto_array
 
+    
+    def spatial_crosscorrelation_map_2d(self, firing_rate_map1, firing_rate_map2):
+        """
+        Method of the Spatial_properties class to calculate a spatial crosscorrelation between two firing rate maps of the same dimensions.
         
+        Arguments:
+        firing_rate_map1: 2D Numpy array containing a firing rate map
+        firing_rate_map2: 2D Numpy array containing a firing rate map
+        
+        Return
+        The spatial crosscorrelation of the 2 firing rate maps. Invalid values are set to np.nan
+        """
+        
+        if firing_rate_map1.ndim != firing_rate_map2.ndim:
+            raise ValueError("The dimensions of firing_rate_map1 is the the same as those of firing_rate_map2")
+            
+        if not np.array_equal(firing_rate_map1.shape,firing_rate_map2.shape):
+            raise ValueError("The shape of firing_rate_map1 is the the same as that of firing_rate_map2")
+        
+        frm1 = firing_rate_map1.copy()
+        frm2 = firing_rate_map2.copy()
+        
+        ## convert nan values to -1 for C function
+        frm1[np.isnan(frm1)]=-1.0
+        frm2[np.isnan(frm2)]=-1.0
+        
+        ## create an empty array of the appropriate dimensions to store the autocorrelation data
+        auto_array = np.zeros((2*frm1.shape[0]+1,2*frm1.shape[1]+1))
+        
+        ## call the c function
+        spikeA.spatial_properties.map_crosscorrelation_func(frm1,frm2,auto_array)
+        
+        
+        auto_array[auto_array==-2.0]=np.nan
+        return auto_array
+
+        
+        
+    
+    
         
     def spatial_autocorrelation_field_detection(self, threshold = 0.1, neighborhood_size = 5):
         """
@@ -1048,9 +1089,21 @@ class Spatial_properties:
     def map_crosscorrelation(self, trial1=None, trial2=None, map1=None, map2=None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
         
         """
-        Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers or by providing 2 maps. 
+        Method of the Spatial_properties class to calculate a Pearson correlation coefficient between 2 firing rate values of 2 firing rate maps. 
+        The maps can be passed as parameters or generated within the function.
+        
+        Arguments:
+        trial1:
+        trial2:
+        map1:
+        map2:
+        cm_per_bin:
+        smoothing_sigma_cm:
+        smoothing:
+        xy_range:
+        
         Return
-        correlation
+        Pearson correlation coefficient between two firing rate maps
         """
         if (trial1==None or trial2==None) and (map1.all()==None or map2.all()==None):
             raise TypeError("You have to specify 2 maps or 2 trials")
