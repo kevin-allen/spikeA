@@ -631,7 +631,7 @@ class Spatial_properties:
         
    
     
-    def spatial_autocorrelation_map_2d(self):
+    def spatial_autocorrelation_map_2d(self,min_n_for_correlation=10,invalid_to_nan=False):
         """
         Method of the Spatial_properties class to calculate a spatial autocorrelation map of a single neuron.
         
@@ -640,6 +640,8 @@ class Spatial_properties:
         The values in the autocorrelation ranges from -1 to 1. They are Pearson correlation coefficient between firing rate values at a given spatial offset
         
         Arguments
+        min_n_for_correlation: Minimal number of paired firing rates at a given offset that is needed to calculate a correlation coefficient. Adjust to prevent high variability towards the edges to the autocorrelation map.
+        invalid_to_nan: Set the invalid data point in the spatial autocorrelation to np.nan instead of -2.0. The c function returns invalid values as -2.0.
         
         Return
         The Spatial_properties.spatial_autocorrelation_map is set. It is a 2D numpy array.
@@ -663,17 +665,24 @@ class Spatial_properties:
         auto_array = np.zeros((2*frm.shape[0]+1,2*frm.shape[1]+1))
 
         ## create the spatial autocorrelation calling a C function
-        spikeA.spatial_properties.map_autocorrelation_func(frm,auto_array)
+        spikeA.spatial_properties.map_autocorrelation_func(frm,auto_array,min_n_for_correlation)
+        
+        if invalid_to_nan:
+            auto_array[auto_array==-2.0]=np.nan
         self.spatial_autocorrelation_map = auto_array
 
     
-    def spatial_crosscorrelation_map_2d(self, firing_rate_map1, firing_rate_map2):
+    def spatial_crosscorrelation_map_2d(self, firing_rate_map1, firing_rate_map2,min_n_for_correlation=10):
         """
         Method of the Spatial_properties class to calculate a spatial crosscorrelation between two firing rate maps of the same dimensions.
+        
+        This finds the offsets in the x and y axis at which the firing rate values of map2 are correlated with map1.
+        
         
         Arguments:
         firing_rate_map1: 2D Numpy array containing a firing rate map
         firing_rate_map2: 2D Numpy array containing a firing rate map
+        min_n_for_correlation: Minimal number of paired firing rates at a given offset that is needed to calculate a correlation coefficient. Adjust to prevent high variability towards the edges to the crosscorrelation map.
         
         Return
         The spatial crosscorrelation of the 2 firing rate maps. Invalid values are set to np.nan
@@ -693,14 +702,14 @@ class Spatial_properties:
         frm2[np.isnan(frm2)]=-1.0
         
         ## create an empty array of the appropriate dimensions to store the autocorrelation data
-        auto_array = np.zeros((2*frm1.shape[0]+1,2*frm1.shape[1]+1))
+        cross_array = np.zeros((2*frm1.shape[0]+1,2*frm1.shape[1]+1))
         
         ## call the c function
-        spikeA.spatial_properties.map_crosscorrelation_func(frm1,frm2,auto_array)
+        spikeA.spatial_properties.map_crosscorrelation_func(frm1,frm2,cross_array,min_n_for_correlation)
         
         
-        auto_array[auto_array==-2.0]=np.nan
-        return auto_array
+        cross_array[cross_array==-2.0]=np.nan
+        return cross_array
 
         
         

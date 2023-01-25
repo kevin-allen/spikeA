@@ -27,21 +27,23 @@ cdef extern from "spatial_properties.h":
 
 # create the wrapper code, with numpy type annotations
 def map_autocorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not None,
-				             np.ndarray[double, ndim=2, mode="c"] one_auto not None):
+				             np.ndarray[double, ndim=2, mode="c"] one_auto not None,
+                             min_n_for_correlation):
     map_autocorrelation(<double*> np.PyArray_DATA(one_place),
 				<double*> np.PyArray_DATA(one_auto),
 				one_place.shape[0], one_place.shape[1],
-				one_auto.shape[0], one_auto.shape[1], 5)
+				one_auto.shape[0], one_auto.shape[1], min_n_for_correlation)
 
 # create the wrapper code, with numpy type annotations
 def map_crosscorrelation_func(np.ndarray[double, ndim=2, mode="c"] one_place not None,
                               np.ndarray[double, ndim=2, mode="c"] two_place not None,
-				             np.ndarray[double, ndim=2, mode="c"] one_auto not None):
+				             np.ndarray[double, ndim=2, mode="c"] one_auto not None,
+                             min_n_for_correlation):
     map_crosscorrelation(<double*> np.PyArray_DATA(one_place),
                          <double*> np.PyArray_DATA(two_place),
 				<double*> np.PyArray_DATA(one_auto),
 				one_place.shape[0], one_place.shape[1],
-				one_auto.shape[0], one_auto.shape[1], 5)
+				one_auto.shape[0], one_auto.shape[1], min_n_for_correlation)
 
     
     
