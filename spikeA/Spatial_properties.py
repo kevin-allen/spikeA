@@ -377,7 +377,7 @@ class Spatial_properties:
     
         
     
-    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True):
+    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True,remove_spike_in_occupancy_gaps = False):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -388,6 +388,8 @@ class Spatial_properties:
         smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the firing rate map
         smoothing: boolean indicating whether or not smoothing should be applied to the firing rate map
         xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map. This can be used to set the firing rate map to a specific size. The default value is None, which means that the size of the occupancy map (and firing rate map) will be determined from the range of values in the Animal_pose object.
+        recalculate_occupancy_map: boolean indicating whether the occpuancy map should be recalculated
+        remove_spike_in_occupancy_gaps: boolean indicating whether we should remove spikes from 2D histogram spike count when they fall into a non-visited location in the occupancy map
         
         Return
         The Spatial_properties.firing_rate_map is set. It is a 2D numpy array containing the firing rate in Hz in a set of bins covering the environment.
@@ -411,6 +413,12 @@ class Spatial_properties:
         spike_count,x_edges,y_edges = np.histogram2d(x = spike_posi[:,0], 
                                                      y= spike_posi[:,1],
                                                      bins= self.ap.occupancy_bins)
+        
+        # remove spikes that fell into a bin that the animal was not seen in.
+        # usually not required but was needed when calculating control firing rate maps.
+        if remove_spike_in_occupancy_gaps: 
+            spike_count[np.isnan(self.ap.occupancy_map)] = 0
+        
         
         # save this for later (e.g., in information_score())
         self.spike_count = spike_count
