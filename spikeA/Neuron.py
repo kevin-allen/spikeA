@@ -283,7 +283,7 @@ class Simulated_grid_cell(Neuron):
         if pose.ndim == 1:
             pose = np.expand_dims(pose,1)
     
-        p = pose+offset
+        p = pose-offset # I change this from + to -
 
         # we want to get the x value of the position vector, after rotating the position vector by different amount 
         # these are like rotation matrices, but we remove the terms that would give us the y component. 

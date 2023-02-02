@@ -550,6 +550,11 @@ class Animal_pose:
             xy_min= xy_range[0,:]
         print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
 
+        # we need an occupancy map that can in theory takes all the combination of values within range.
+        # this means twice the range
+        occupancy_range_bins = (xy_max - xy_min)*2/cm_per_bin
+        
+        
         
 #         # create two arrays that will be our bin edges in the histogram function
 #         self.occupancy_bins = [np.arange(xy_min[0],xy_max[0]+cm_per_bin,cm_per_bin), # we add cm_per_bin so that it extend to the max and does not cut before

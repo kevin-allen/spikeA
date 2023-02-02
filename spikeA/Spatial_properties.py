@@ -3,6 +3,7 @@ import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
 import spikeA.spatial_properties # this has no capital letter, so refers to the c code
+import spikeA.animal_pose # this has no capital letter, so refers to the c code
 from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.ndimage import sum as ndi_sum
@@ -728,7 +729,7 @@ class Spatial_properties:
         return cross_array
 
         
-    def spike_triggered_short_term_cross_firing_rate_map(self, spatial_properties_neuron_2, cm_per_bin=2, time_window_sec=1, xy_range = None, smoothing_sigma_cm=2, smoothing=True,):
+    def spike_triggered_short_term_cross_firing_rate_map(self, spatial_properties_neuron_2, cm_per_bin=2, time_window_sec=2, xy_range = None, smoothing_sigma_cm=2, smoothing=True,):
         """
         Method of the Spatial_properties class that calculate a spike-triggered short-term cross-firing rate map.
         
@@ -739,10 +740,13 @@ class Spatial_properties:
         Arguments:
         spatial_properties_neuron_2: spatial properties of a different neuron 
         cm_per_bin: bin size for the map
-        smoothing_sigma_cm: size of smoothing kernel
-        smoothing: boolean determining whether smoothing is applied.
         time_window_sec: size of the time window following the trigger spike that will be included in the map.
         xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map. This is used to set the size of the firing rate map. The default value is None, which means that the size of the occupancy map (and firing rate map) will be determined from the range of values in the Animal_pose object (will be double a normal firing rate maps)
+        smoothing_sigma_cm: size of smoothing kernel
+        smoothing: boolean determining whether smoothing is applied.
+        
+        Returns:
+        2D np.array with the spike-triggered short-time cross-firing rate map
         """
         
         self.map_cm_per_bin = cm_per_bin
@@ -750,25 +754,59 @@ class Spatial_properties:
         self.map_smoothing = smoothing
         
         
-        # create a new occupancy map (if needed or desired)
-        self.ap.spike_triggered_occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
-                                                 spike_train = self.st,
-                                                 smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
-                                                 smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
-        
-               
-        
-        ## get the position of every spike
-        #spike_posi = self.spike_position()
-        
-        ## calculate the number of spikes per bin in the map
-        ## we use the bins of the occupancy map to make sure that the spike count maps and occupancy map have the same dimension
-        #spike_count,x_edges,y_edges = np.histogram2d(x = spike_posi[:,0], 
-        #                                             y= spike_posi[:,1],
-        #                                             bins= self.ap.occupancy_bins)
+        invalid = np.isnan(self.ap.pose[:,1:3]).any(axis=1)
+        val = self.ap.pose[~invalid,1:3]
+
+        if xy_range is None:
+                xy_max = np.ceil(val.max(axis=0))+self.map_cm_per_bin
+                xy_min = np.floor(val.min(axis=0))-self.map_cm_per_bin
+        else :
+            xy_max= xy_range[1,:]
+            xy_min= xy_range[0,:]
+        print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
         
         
-    
+        occupancy_range_bins = (xy_max - xy_min)*2/cm_per_bin
+        occ = np.zeros((int(occupancy_range_bins[0]),int(occupancy_range_bins[1])))
+        
+        
+        spike_posi_n1 = self.spike_position() 
+        spike_posi_n2 = spatial_properties_neuron_2.spike_position() 
+              
+        # create an occupancy map of the mouse around the spikes of self
+        spikeA.animal_pose.spike_triggered_occupancy_map_2d_func(self.st.st,
+                                                                 spike_posi_n1[:,0].copy(order="C"),
+                                                                 spike_posi_n1[:,1].copy(order="C"),
+                                                                 self.ap.pose[:,0].copy(order="C"),
+                                                                 self.ap.pose[:,1].copy(order="C"),
+                                                                 self.ap.pose[:,2].copy(order="C"),
+                                                                 time_window_sec,
+                                                                 occ,
+                                                                 cm_per_bin)
+
+        # create a spike count map around the spikes of self
+        spike_map = np.zeros((int(occupancy_range_bins[0]),int(occupancy_range_bins[1])))
+        spikeA.spatial_properties.spike_triggered_spike_count_2d_func(self.st.st,
+                                                                      spike_posi_n1[:,0].copy(order="C"),
+                                                                      spike_posi_n1[:,1].copy(order="C"),
+                                                                      spatial_properties_neuron_2.st.st,
+                                                                      spike_posi_n2[:,0].copy(order="C"),
+                                                                      spike_posi_n2[:,1].copy(order="C"),
+                                                                      time_window_sec,
+                                                                      spike_map,
+                                                                      cm_per_bin)
+        
+        
+        occs = occ.copy()
+        
+        if self.map_smoothing:
+            occs = ndimage.filters.gaussian_filter(occs,sigma=self.map_smoothing_sigma_cm/self.map_cm_per_bin)
+            spike_map = ndimage.filters.gaussian_filter(spike_map,sigma=self.map_smoothing_sigma_cm/self.map_cm_per_bin)
+        
+        occs[occ==0.0] = np.nan
+        rate_map = spike_map/occs
+        
+        return rate_map
     
         
     def spatial_autocorrelation_field_detection(self, threshold = 0.1, neighborhood_size = 5):

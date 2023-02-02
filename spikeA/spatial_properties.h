@@ -1,5 +1,20 @@
 double correlation (double* x, double* y, int size, double invalid);
 
+void spike_triggered_spike_count_2d(double* spike_time_n1,
+                                    double* spike_x_n1,
+                                    double* spike_y_n1,
+                                    int spike_length_n1,
+                                    double* spike_time_n2,
+                                    double* spike_x_n2,
+                                    double* spike_y_n2,
+                                    int spike_length_n2,
+                                    double window_sec, // time to considered after each spike
+                                    double *map, // spike count map
+                                    int x_bins_map,
+                                    int y_bins_map,
+                                    double cm_per_bin);
+
+
 void map_autocorrelation(double *one_place, // pointer to one place field map
 			 double *one_auto, // pointer to one spatial autocorrelation map
 			 int x_bins_place_map, // x size of the place field map (num bins)

@@ -57,6 +57,74 @@ double correlation (double* x, double* y, int size, double invalid)
   return r;
 }
 
+void spike_triggered_spike_count_2d(double* spike_time_n1,
+                                    double* spike_x_n1,
+                                    double* spike_y_n1,
+                                    int spike_length_n1,
+                                    double* spike_time_n2,
+                                    double* spike_x_n2,
+                                    double* spike_y_n2,
+                                    int spike_length_n2,
+                                    double window_sec, // time to considered after each spike
+                                    double *map, // spike count map
+                                    int x_bins_map,
+                                    int y_bins_map,
+                                    double cm_per_bin){
+    
+    /*
+    Function to do spike-triggered short-time spike count map
+    
+    */
+    int mid_x = x_bins_map/2; // mid point of the occupancy map
+    int mid_y = y_bins_map/2; // mid point of the occupancy map
+    
+    double diff_x;
+    double diff_y;
+    
+    int index_x;
+    int index_y;
+    
+    
+    for(int x = 0; x < x_bins_map; x++){
+        for(int y = 0; y < y_bins_map; y++){
+            map[y+x*y_bins_map] = 0.0;
+        }
+    }
+    
+    
+     // loop for each spike of n1
+    for (int i = 0; i < spike_length_n1; i++){
+        // loop the each spike of n2
+        for (int j = 0; j < spike_length_n2;j++){
+            
+            // check if this position is within the time window after the spike
+            if(spike_time_n2[j] >= spike_time_n1[i] && spike_time_n2[j] <= spike_time_n1[i]+window_sec){
+                diff_x = (int)(spike_x_n2[j]-spike_x_n1[i])/cm_per_bin;
+                diff_y = (int)(spike_y_n2[j]-spike_y_n1[i])/cm_per_bin;
+                index_x = mid_x + diff_x;
+                index_y = mid_y + diff_y;
+                if(index_x > 0 && index_x < x_bins_map && index_y > 0 && index_y < y_bins_map){
+                    map[index_y+ index_x*y_bins_map]++; // I reversed the indices.....????
+                }
+            } 
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void map_autocorrelation(double *one_place, // pointer to one place field map
 			 double *one_auto, // pointer to one spatial autocorrelation map
 			 int x_bins_place_map, // x size of the place field map (num bins)

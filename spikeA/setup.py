@@ -17,3 +17,11 @@ setup(
                  include_dirs=[numpy.get_include()])]
 ,
 )
+
+setup(
+    cmdclass={'build_ext': build_ext},
+    ext_modules=[Extension("animal_pose",
+                 sources=["_animal_pose.pyx", "animal_pose.c"],
+                 include_dirs=[numpy.get_include()])]
+,
+)
