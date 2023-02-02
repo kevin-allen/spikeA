@@ -687,6 +687,7 @@ class Spatial_properties:
         firing_rate_map2: 2D Numpy array containing a firing rate map
         min_n_for_correlation: Minimal number of paired firing rates at a given offset that is needed to calculate a correlation coefficient. Adjust to prevent high variability towards the edges to the crosscorrelation map.
         valid_radius: If set, only bins within the valid_radius from the center of the crosscorrelation map will be kept and the rest set to np.nan. Useful if you only want to keep the center of the crosscorrelation map.
+        cm_per_bin: If you set valid_radius, you need to specify the cm_per_bin in the maps.
         
         Return
         The spatial crosscorrelation of the 2 firing rate maps. Invalid values are set to np.nan
