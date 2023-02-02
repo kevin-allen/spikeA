@@ -729,7 +729,7 @@ class Spatial_properties:
         return cross_array
 
         
-    def spike_triggered_short_term_cross_firing_rate_map(self, spatial_properties_neuron_2, cm_per_bin=2, time_window_sec=2, xy_range = None, smoothing_sigma_cm=2, smoothing=True,):
+    def spike_triggered_short_term_cross_firing_rate_map(self, spatial_properties_neuron_2, cm_per_bin=2, time_window_sec=2, xy_range = None, smoothing_sigma_cm=2, smoothing=True, valid_radius_cm=None):
         """
         Method of the Spatial_properties class that calculate a spike-triggered short-term cross-firing rate map.
         
@@ -744,6 +744,7 @@ class Spatial_properties:
         xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map. This is used to set the size of the firing rate map. The default value is None, which means that the size of the occupancy map (and firing rate map) will be determined from the range of values in the Animal_pose object (will be double a normal firing rate maps)
         smoothing_sigma_cm: size of smoothing kernel
         smoothing: boolean determining whether smoothing is applied.
+        valid_radius: If set, only bins within the valid_radius from the center of the crosscorrelation map will be kept and the rest set to np.nan. Useful if you only want to keep the center of the crosscorrelation map.
         
         Returns:
         2D np.array with the spike-triggered short-time cross-firing rate map
@@ -805,6 +806,16 @@ class Spatial_properties:
         
         occs[occ==0.0] = np.nan
         rate_map = spike_map/occs
+        
+        
+        if valid_radius_cm is not None:
+            
+            xs,ys = np.meshgrid(np.arange(0,rate_map.shape[0]),np.arange(0,rate_map.shape[1]))
+            midPoint=(int(rate_map.shape[0]/2),int(rate_map.shape[1]/2))
+            distance = np.sqrt((xs.T-midPoint[0])**2 + (ys.T-midPoint[1])**2) * cm_per_bin
+            
+            rate_map[distance>valid_radius_cm]=np.nan
+        
         
         return rate_map
     
