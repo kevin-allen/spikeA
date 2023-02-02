@@ -371,11 +371,6 @@ class Spatial_properties:
             
         return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)
     
-
-
-
-    
-        
     
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True,remove_spike_in_occupancy_gaps = False):
         """
@@ -680,7 +675,7 @@ class Spatial_properties:
         self.spatial_autocorrelation_map = auto_array
 
     
-    def spatial_crosscorrelation_map_2d(self, firing_rate_map1, firing_rate_map2,min_n_for_correlation=10):
+    def spatial_crosscorrelation_map_2d(self, firing_rate_map1, firing_rate_map2, min_n_for_correlation=10, valid_radius_cm=None, cm_per_bin = None):
         """
         Method of the Spatial_properties class to calculate a spatial crosscorrelation between two firing rate maps of the same dimensions.
         
@@ -691,6 +686,7 @@ class Spatial_properties:
         firing_rate_map1: 2D Numpy array containing a firing rate map
         firing_rate_map2: 2D Numpy array containing a firing rate map
         min_n_for_correlation: Minimal number of paired firing rates at a given offset that is needed to calculate a correlation coefficient. Adjust to prevent high variability towards the edges to the crosscorrelation map.
+        valid_radius: If set, only bins within the valid_radius from the center of the crosscorrelation map will be kept and the rest set to np.nan. Useful if you only want to keep the center of the crosscorrelation map.
         
         Return
         The spatial crosscorrelation of the 2 firing rate maps. Invalid values are set to np.nan
@@ -702,10 +698,10 @@ class Spatial_properties:
         if not np.array_equal(firing_rate_map1.shape,firing_rate_map2.shape):
             raise ValueError("The shape of firing_rate_map1 is the the same as that of firing_rate_map2")
         
-        frm1 = firing_rate_map1.copy()
+        frm1 = firing_rate_map1.copy() # to avoid modifying the input maps
         frm2 = firing_rate_map2.copy()
         
-        ## convert nan values to -1 for C function
+        ## convert nan values to -1.0 for the C function
         frm1[np.isnan(frm1)]=-1.0
         frm2[np.isnan(frm2)]=-1.0
         
@@ -717,8 +713,58 @@ class Spatial_properties:
         
         
         cross_array[cross_array==-2.0]=np.nan
+        
+        if valid_radius_cm is not None:
+            if cm_per_bin is None:
+                raise ValueError("set cm_per_bin when calling spatial_crosscorrelation_map_2d() if using the argument valid_radius_cm")
+            
+            xs,ys = np.meshgrid(np.arange(0,cross_array.shape[0]),np.arange(0,cross_array.shape[1]))
+            midPoint=(cross_array.shape[0]/2,cross_array.shape[1]/2)
+            distance = np.sqrt((xs.T-midPoint[0])**2 + (ys.T-midPoint[1])**2) * cm_per_bin
+            
+            cross_array[distance>valid_radius_cm]=np.nan
+
         return cross_array
 
+        
+    def spike_triggered_short_term_cross_firing_rate_map(self, spatial_properties_neuron_2, cm_per_bin=2, time_window_sec=1, xy_range = None, smoothing_sigma_cm=2, smoothing=True,):
+        """
+        Method of the Spatial_properties class that calculate a spike-triggered short-term cross-firing rate map.
+        
+        This involves two the Spatial_properties objects of 2 neurons. 
+        We calculate the a firing rate map for the spikes of neuron2 relative to the spikes of neuron1.
+        For each spike of neuron1, we look in a short time period after the spike, where the spikes of neuron2 occurred relative the the position of the trigger spike of neuron1.
+        
+        Arguments:
+        spatial_properties_neuron_2: spatial properties of a different neuron 
+        cm_per_bin: bin size for the map
+        smoothing_sigma_cm: size of smoothing kernel
+        smoothing: boolean determining whether smoothing is applied.
+        time_window_sec: size of the time window following the trigger spike that will be included in the map.
+        xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map. This is used to set the size of the firing rate map. The default value is None, which means that the size of the occupancy map (and firing rate map) will be determined from the range of values in the Animal_pose object (will be double a normal firing rate maps)
+        """
+        
+        self.map_cm_per_bin = cm_per_bin
+        self.map_smoothing_sigma_cm = smoothing_sigma_cm
+        self.map_smoothing = smoothing
+        
+        
+        # create a new occupancy map (if needed or desired)
+        self.ap.spike_triggered_occupancy_map_2d(cm_per_bin =self.map_cm_per_bin, 
+                                                 spike_train = self.st,
+                                                 smoothing_sigma_cm = self.map_smoothing_sigma_cm, 
+                                                 smoothing = smoothing, zero_to_nan = True,xy_range=xy_range)
+        
+               
+        
+        ## get the position of every spike
+        #spike_posi = self.spike_position()
+        
+        ## calculate the number of spikes per bin in the map
+        ## we use the bins of the occupancy map to make sure that the spike count maps and occupancy map have the same dimension
+        #spike_count,x_edges,y_edges = np.histogram2d(x = spike_posi[:,0], 
+        #                                             y= spike_posi[:,1],
+        #                                             bins= self.ap.occupancy_bins)
         
         
     
@@ -1107,6 +1153,9 @@ class Spatial_properties:
         
         """
         Method of the Spatial_properties class to calculate a Pearson correlation coefficient between 2 firing rate values of 2 firing rate maps. 
+        
+        This should be called map_correlation as it is not a map crosscorrelation.
+        
         The maps can be passed as parameters or generated within the function.
         
         Arguments:
