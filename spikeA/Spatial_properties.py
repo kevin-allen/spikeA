@@ -666,6 +666,7 @@ class Spatial_properties:
         frm[np.isnan(frm)]=-1.0
         
         ## create an empty array of the appropriate dimensions to store the autocorrelation data
+        ## size of autocorrelation is 2*map + 1, always an odd number.
         auto_array = np.zeros((2*frm.shape[0]+1,2*frm.shape[1]+1))
 
         ## create the spatial autocorrelation calling a C function
@@ -764,10 +765,14 @@ class Spatial_properties:
         else :
             xy_max= xy_range[1,:]
             xy_min= xy_range[0,:]
-        print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
+        #print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
         
-        
+        # We need odd number size to have the center at the center of the map
+        # for example a 3x3 map in which bin indexed 1,1 is the center
         occupancy_range_bins = (xy_max - xy_min)*2/cm_per_bin
+        occupancy_range_bins[occupancy_range_bins%2==0]+=1 # make sure it is odd number of bins in each dimension
+        
+        print("occupancy_range_bins:", occupancy_range_bins)
         occ = np.zeros((int(occupancy_range_bins[0]),int(occupancy_range_bins[1])))
         
         
@@ -1200,12 +1205,10 @@ class Spatial_properties:
         
     
     
-    def map_crosscorrelation(self, trial1=None, trial2=None, map1=None, map2=None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
+    def map_correlation(self, trial1=None, trial2=None, map1=None, map2=None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
         
         """
         Method of the Spatial_properties class to calculate a Pearson correlation coefficient between 2 firing rate values of 2 firing rate maps. 
-        
-        This should be called map_correlation as it is not a map crosscorrelation.
         
         The maps can be passed as parameters or generated within the function.
         

@@ -241,8 +241,8 @@ void map_crosscorrelation(double *one_place, // pointer to a first firing rate m
   int max_x_offset = x_bins_place_map;
   int min_y_offset = 0 - y_bins_place_map;
   int max_y_offset = y_bins_place_map;
-  int mid_x = x_bins_place_map; // mid x value in autocorrelation
-  int mid_y = y_bins_place_map; // min y value in autocorrelation
+  int mid_x = x_bins_place_map; // index of the central bin in the x axis of the autocorrelation
+  int mid_y = y_bins_place_map; // index of the central bin in the y axis of the autocorrelation
   int auto_x;
   int auto_y;
   int index_1;
@@ -265,6 +265,7 @@ void map_crosscorrelation(double *one_place, // pointer to a first firing rate m
     {
       one_cross[i] = -2;
     }
+  
   // loop for all possible lags in the x axis
   for (int x_off = min_x_offset; x_off <= max_x_offset; x_off++)
     {

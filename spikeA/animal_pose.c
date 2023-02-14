@@ -15,6 +15,8 @@ void spike_triggered_occupancy_map_2d(double *spike_time, // spike times
     Function to calculate spike-triggered occupancy maps.
     */
     
+    // occupancy map will have an odd size
+    // for example 3x3, index of the center bin is 1,1
     int mid_x = x_bins_occ_map/2; // mid point of the occupancy map
     int mid_y = y_bins_occ_map/2; // mid point of the occupancy map
     
@@ -39,10 +41,11 @@ void spike_triggered_occupancy_map_2d(double *spike_time, // spike times
         for (int j = 0; j < pose_length;j++){
             // check if this position is within the time window after the spike
             if(time[j] >= spike_time[i] && time[j] <= spike_time[i]+window_sec){
+                # 
                 diff_x = (int)(x[j]-spike_x[i])/cm_per_bin;
                 diff_y = (int)(y[j]-spike_y[i])/cm_per_bin;
-                index_x = mid_x + diff_x;
-                index_y = mid_y + diff_y;
+                index_x = mid_x + diff_x  ;
+                index_y = mid_y + diff_y ;
                 if(index_x > 0 && index_x < x_bins_occ_map && index_y > 0 && index_y < y_bins_occ_map){
                     occ[index_y+ index_x*y_bins_occ_map]+= delta_time; // I reversed the indices.....????
                 }
@@ -51,7 +54,4 @@ void spike_triggered_occupancy_map_2d(double *spike_time, // spike times
         
         
     }
-    
-    
-    
 }
