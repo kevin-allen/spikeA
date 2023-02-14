@@ -1142,8 +1142,9 @@ class Spatial_properties:
         """
         Method to get additional information about the hexagonal grid of the autocorrelation
         
-        Returns: Orientation and Spacing of grid (= rotation, radius of hexagon) , error of closest hexagon found, the rotated hexagon
-        False if there was an invalid doughnut (not 6 points found using the field detection)
+        Returns: 
+        grid spacing in cm, orientation, error of closest hexagon found, the rotated hexagon
+        The function returns False if 6 fields were not detected in the spatial autocorrelation doughnut.
         """
         
         # print(self.points_inside_dougnut)
@@ -1195,7 +1196,7 @@ class Spatial_properties:
         #ax.plot(hexagon_rotated_[:,0], hexagon_rotated_[:,1] , color="blue")
         #-#for [from_x,from_y],[to_x,to_y] in zip(hexagon_rotated[:-1],hexagon_rotated[1:]): #ax.plot()
             
-        return self.hexagon_radius, rotations[dist_sum_min_index], dist_sum, hexagon_rotated_
+        return self.hexagon_radius/self.map_cm_per_bin, rotations[dist_sum_min_index], dist_sum, hexagon_rotated_
         
     
     
