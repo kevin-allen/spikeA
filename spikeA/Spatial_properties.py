@@ -1196,7 +1196,7 @@ class Spatial_properties:
         #ax.plot(hexagon_rotated_[:,0], hexagon_rotated_[:,1] , color="blue")
         #-#for [from_x,from_y],[to_x,to_y] in zip(hexagon_rotated[:-1],hexagon_rotated[1:]): #ax.plot()
             
-        return self.hexagon_radius/self.map_cm_per_bin, rotations[dist_sum_min_index], dist_sum, hexagon_rotated_
+        return self.hexagon_radius*self.map_cm_per_bin, rotations[dist_sum_min_index], dist_sum, hexagon_rotated_
         
     
     
