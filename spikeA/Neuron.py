@@ -254,7 +254,7 @@ class Simulated_grid_cell(Neuron):
         # we get the rate for all position
         poses = np.stack([self.ap.pose[:,1],self.ap.pose[:,2]]).T
         
-        deltas = [self.orientation, self.orientation+np.pi/3, self.orientation+np.pi/3*2]
+        deltas = [self.orientation, self.orientation+np.pi/3, self.orientation+np.pi/3*2] # orientation,orientation+60deg, orientation+120deg 
         
         rates = np.apply_along_axis(self.grid_firing_rate_at_p,1,
                                    poses, self.offset,deltas,self.spacing,self.peak_rate)
@@ -274,26 +274,51 @@ class Simulated_grid_cell(Neuron):
     def grid_firing_rate_at_p(self,pose,offset,deltas,spacing,peak_rate):
         """
         Function to calculate the firing rate of a grid cell at any 2D position
+        
+        The firing rate as a grid pattern is constructed by calculating the position of the mouse relative to 3 axes.
+        These axes should be at 60 deg of each other if you want a regular grid pattern. 
+        
+        We use the cos function to generate the oscillation along the 3 axes.
+        
+        To estimate how far the animal has run along one of the 3 axes, we use the position as a vector from 0,0 to the position.
+        We then rotate this vector so that the axes goes from 0,0 to 1,0. 
+        After rotation, the x component represent the animal's position along that axis.
+        Instead of a rotation matrix, we only use a vector that gives the only the x component instead of the x and y.
+        
+        The underlying oscillation of the cos function has a different spacing than the grid spacing.
+        If the first component is a series of vertical bands, the two fields to the right will be at 30 degrees and -30 relative to a vector 1,0.
+        We can find the relationship between the grid spacing and the spacing of individual components with simple trigonometry. 
+        Treat this as a triangle with angles 30, 60, and 90. (https://math.stackexchange.com/questions/483931/length-of-hypotenuse-using-one-side-length-and-angle (edited))
+        The side c is your spacing of the grid.
+        The side a (adjacent) is the spacing for the vertical component (but also all other components).
+        cos(30) = adjacent/hypothenuse
+        Grid spacing * cos(np.pi/6) = pattern spacing
+        
 
         Arguments
         pose: np.array of shape (2,1)
         offset: np.array of shape (2,1)
+        deltas: list of 3 angle in radians
+        spacing: grid spacing
+        peak_rate: peak rate in the center of each field
 
         """
         if pose.ndim == 1:
             pose = np.expand_dims(pose,1)
     
-        p = pose-offset # I change this from + to -
-
+        p = pose-offset # All position values are relative to the offset. If pose is at offset we get 0,0.
+        cos_spacing = spacing* np.cos(np.pi/6)
+        
         # we want to get the x value of the position vector, after rotating the position vector by different amount 
         # these are like rotation matrices, but we remove the terms that would give us the y component. 
         Rx0 = np.array([[np.cos(deltas[0]),-np.sin(deltas[0])]])
         Rx1 = np.array([[np.cos(deltas[1]),-np.sin(deltas[1])]])
         Rx2 = np.array([[np.cos(deltas[2]),-np.sin(deltas[2])]])
 
-        c0 = np.cos(Rx0@p * (np.pi*2) / spacing) # we rotate the position vector and only get the x value of the rotated vector, than we normalize so that there is one cycle per spacing, cos function gives the oscillation
-        c1 = np.cos(Rx1@p * (np.pi*2) / spacing)
-        c2 = np.cos(Rx2@p * (np.pi*2) / spacing)
+        c0 = np.cos(Rx0@p * (np.pi*2) / cos_spacing) # we rotate the position vector and only get the x value of the rotated vector
+                                                 #, than we normalize so that there is one cycle per spacing, cos function gives the oscillation
+        c1 = np.cos(Rx1@p * (np.pi*2) / cos_spacing)
+        c2 = np.cos(Rx2@p * (np.pi*2) / cos_spacing)
 
 
         return (((c0+c1+c2)+1.5)/(3.0+1.5) * peak_rate)[0,0] # we sum the 3 components,  normalize so that the range is from 0 to 1, then multiply by the value that we want as peak rate
