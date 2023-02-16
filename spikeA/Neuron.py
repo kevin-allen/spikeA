@@ -204,7 +204,7 @@ class Simulated_grid_cell(Neuron):
     
     Arguments
     name: name of the simulated grid cell
-    offset: np.array of shape 2,1 or 2,
+    offset: np.array of shape 2,1 or 2. The offset is not relative to the first axis of the grid, and not to the x-axis
     orientation: in radian
     spacing: distance between closest firing fields
     peak_rate: firing field peak firing rate in Hz
@@ -256,8 +256,20 @@ class Simulated_grid_cell(Neuron):
         
         deltas = [self.orientation, self.orientation+np.pi/3, self.orientation+np.pi/3*2] # orientation,orientation+60deg, orientation+120deg 
         
+        # rotate the offset so that is is rotated with the first axis of the grid
+        # this will keep a constant but rotated offset between cells when changing the orientation
+        a = self.orientation
+        Rx0 = np.array([[np.cos(a),-np.sin(a)],
+                        [np.sin(a), np.cos(a)]])
+        rOffset = Rx0@self.offset 
+        
+        print("calculate rates")
+       
+        # The offset is relative to the first axis of the grid. We need to go from carthesian coordinate to axis one       
+        # All position values are relative to the offset. If pose is at offset we get 0,0.
+       
         rates = np.apply_along_axis(self.grid_firing_rate_at_p,1,
-                                   poses, self.offset,deltas,self.spacing,self.peak_rate)
+                                   poses-rOffset.T,deltas,self.spacing,self.peak_rate)
         
         # higher sampling rate
         newTime = np.arange(start=self.ap.pose[0,0], stop = self.inter[0,1]-1,step=1/self.sampling_rate)
@@ -267,11 +279,11 @@ class Simulated_grid_cell(Neuron):
         
 
         mu = fx(newTime) # interpolate the rate 
-        
+        print("generate spike train")
         self.spike_train.generate_poisson_spike_train_from_rate_vector(mu ,sampling_rate=self.sampling_rate)
     
     
-    def grid_firing_rate_at_p(self,pose,offset,deltas,spacing,peak_rate):
+    def grid_firing_rate_at_p(self,pose,deltas,spacing,peak_rate):
         """
         Function to calculate the firing rate of a grid cell at any 2D position
         
@@ -297,7 +309,6 @@ class Simulated_grid_cell(Neuron):
 
         Arguments
         pose: np.array of shape (2,1)
-        offset: np.array of shape (2,1)
         deltas: list of 3 angle in radians
         spacing: grid spacing
         peak_rate: peak rate in the center of each field
@@ -306,7 +317,6 @@ class Simulated_grid_cell(Neuron):
         if pose.ndim == 1:
             pose = np.expand_dims(pose,1)
     
-        p = pose-offset # All position values are relative to the offset. If pose is at offset we get 0,0.
         cos_spacing = spacing* np.cos(np.pi/6)
         
         # we want to get the x value of the position vector, after rotating the position vector by different amount 
@@ -315,10 +325,10 @@ class Simulated_grid_cell(Neuron):
         Rx1 = np.array([[np.cos(deltas[1]),-np.sin(deltas[1])]])
         Rx2 = np.array([[np.cos(deltas[2]),-np.sin(deltas[2])]])
 
-        c0 = np.cos(Rx0@p * (np.pi*2) / cos_spacing) # we rotate the position vector and only get the x value of the rotated vector
-                                                 #, than we normalize so that there is one cycle per spacing, cos function gives the oscillation
-        c1 = np.cos(Rx1@p * (np.pi*2) / cos_spacing)
-        c2 = np.cos(Rx2@p * (np.pi*2) / cos_spacing)
+        c0 = np.cos(Rx0@pose * (np.pi*2) / cos_spacing) # we rotate the position vector and only get the x value of the rotated vector
+                                                     #, than we normalize so that there is one cycle per spacing, cos function gives the oscillation
+        c1 = np.cos(Rx1@pose * (np.pi*2) / cos_spacing)
+        c2 = np.cos(Rx2@pose * (np.pi*2) / cos_spacing)
 
 
         return (((c0+c1+c2)+1.5)/(3.0+1.5) * peak_rate)[0,0] # we sum the 3 components,  normalize so that the range is from 0 to 1, then multiply by the value that we want as peak rate
