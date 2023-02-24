@@ -64,15 +64,18 @@ void spike_triggered_spike_count_2d(double* spike_time_n1,
                                     double* spike_time_n2,
                                     double* spike_x_n2,
                                     double* spike_y_n2,
+                                    double* spike_used_n2,// array, element sets to 1 if the spikes are used in calculation
                                     int spike_length_n2,
-                                    double window_sec, // time to considered after each spike
+                                    double window_sec, // time to considered before and after each spike
                                     double *map, // spike count map
                                     int x_bins_map,
                                     int y_bins_map,
-                                    double cm_per_bin){
+                                    double cm_per_bin,
+                                    double valid_radius){
     
     /*
     Function to do spike-triggered short-time spike count map
+    Assumes the spikes are chronologically organized
     
     */
     int mid_x = x_bins_map/2; // mid point of the occupancy map
@@ -91,22 +94,41 @@ void spike_triggered_spike_count_2d(double* spike_time_n1,
         }
     }
     
+    int within_count=0; // whether we have seen a pose within the time window
+    int first_within_index = 0; // index of the first pose that was within the time windown
+    
+    double distance = 0 ; // distance between spikes
     
      // loop for each spike of n1
     for (int i = 0; i < spike_length_n1; i++){
         // loop the each spike of n2
-        for (int j = 0; j < spike_length_n2;j++){
+        within_count=0;
+        for (int j = first_within_index; j < spike_length_n2;j++){
             
             // check if this position is within the time window after the spike
-            if(spike_time_n2[j] >= spike_time_n1[i] && spike_time_n2[j] <= spike_time_n1[i]+window_sec){
+            if(spike_time_n2[j] >= spike_time_n1[i]-window_sec && spike_time_n2[j] <= spike_time_n1[i]+window_sec){
                 diff_x = (int)(spike_x_n2[j]-spike_x_n1[i])/cm_per_bin;
                 diff_y = (int)(spike_y_n2[j]-spike_y_n1[i])/cm_per_bin;
                 index_x = mid_x + diff_x;
                 index_y = mid_y + diff_y;
-                if(index_x > 0 && index_x < x_bins_map && index_y > 0 && index_y < y_bins_map){
-                    map[index_y+ index_x*y_bins_map]++; // I reversed the indices.....????
+                distance = sqrt( pow(spike_x_n2[j]-spike_x_n1[i],2)+pow(spike_y_n2[j]-spike_y_n1[i],2));
+                if (distance < valid_radius){
+                    if(index_x > 0 && index_x < x_bins_map && index_y > 0 && index_y < y_bins_map){
+                        map[index_y+ index_x*y_bins_map]++; // I reversed the indices.....????
+                        spike_used_n2[j]=1; // set a flag if the spike is used
+                    }
                 }
-            } 
+                
+            if(within_count==0){
+                first_within_index=j;
+                within_count++;
+            }  
+                
+            }
+            // assumes that the spike data are chronologically organized
+            if (spike_time_n2[j] > (spike_time_n1[i]+window_sec)){
+                j = spike_length_n2; // will end the loop through the pose data for this spike
+            }
         }
     }
 }

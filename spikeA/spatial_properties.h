@@ -7,12 +7,14 @@ void spike_triggered_spike_count_2d(double* spike_time_n1,
                                     double* spike_time_n2,
                                     double* spike_x_n2,
                                     double* spike_y_n2,
+                                    double* spike_used_n2,
                                     int spike_length_n2,
-                                    double window_sec, // time to considered after each spike
+                                    double window_sec, // time to considered before and after each spike
                                     double *map, // spike count map
                                     int x_bins_map,
                                     int y_bins_map,
-                                    double cm_per_bin);
+                                    double cm_per_bin,
+                                    double valid_radius);
 
 
 void map_autocorrelation(double *one_place, // pointer to one place field map

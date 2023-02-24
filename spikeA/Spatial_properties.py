@@ -738,6 +738,9 @@ class Spatial_properties:
         We calculate the a firing rate map for the spikes of neuron2 relative to the spikes of neuron1.
         For each spike of neuron1, we look in a short time period after the spike, where the spikes of neuron2 occurred relative the the position of the trigger spike of neuron1.
         
+        The c code assumes that the pose data and the spike times are chronologically sorted. This assumption allowed me to speed up the code.
+        
+        
         Arguments:
         spatial_properties_neuron_2: spatial properties of a different neuron 
         cm_per_bin: bin size for the map
@@ -749,6 +752,11 @@ class Spatial_properties:
         
         Returns:
         2D np.array with the spike-triggered short-time cross-firing rate map
+        Number of spikes from n1 that were used
+        Number of spikes from n2 that were used
+        Sum of spikes in the spike count map
+        Total time in the occupancy map
+        
         """
         
         self.map_cm_per_bin = cm_per_bin
@@ -763,21 +771,24 @@ class Spatial_properties:
                 xy_max = np.ceil(val.max(axis=0))+self.map_cm_per_bin
                 xy_min = np.floor(val.min(axis=0))-self.map_cm_per_bin
         else :
-            xy_max= xy_range[1,:]
-            xy_min= xy_range[0,:]
+            xy_max= np.array(xy_range[1,:])
+            xy_min= np.array(xy_range[0,:])
         #print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
         
         # We need odd number size to have the center at the center of the map
         # for example a 3x3 map in which bin indexed 1,1 is the center
-        occupancy_range_bins = (xy_max - xy_min)*2/cm_per_bin
+        occupancy_range_bins = np.ceil((xy_max - xy_min)*2/cm_per_bin).astype(int)
+        #print("occupancy_range_bins:", occupancy_range_bins)
+        
         occupancy_range_bins[occupancy_range_bins%2==0]+=1 # make sure it is odd number of bins in each dimension
         
-        print("occupancy_range_bins:", occupancy_range_bins)
+        #print("occupancy_range_bins:", occupancy_range_bins)
         occ = np.zeros((int(occupancy_range_bins[0]),int(occupancy_range_bins[1])))
         
         
         spike_posi_n1 = self.spike_position() 
         spike_posi_n2 = spatial_properties_neuron_2.spike_position() 
+        spike_used_n2 = np.zeros_like(spike_posi_n2[:,0])
               
         # create an occupancy map of the mouse around the spikes of self
         spikeA.animal_pose.spike_triggered_occupancy_map_2d_func(self.st.st,
@@ -788,7 +799,8 @@ class Spatial_properties:
                                                                  self.ap.pose[:,2].copy(order="C"),
                                                                  time_window_sec,
                                                                  occ,
-                                                                 cm_per_bin)
+                                                                 cm_per_bin,
+                                                                 valid_radius_cm)
 
         # create a spike count map around the spikes of self
         spike_map = np.zeros((int(occupancy_range_bins[0]),int(occupancy_range_bins[1])))
@@ -798,13 +810,22 @@ class Spatial_properties:
                                                                       spatial_properties_neuron_2.st.st,
                                                                       spike_posi_n2[:,0].copy(order="C"),
                                                                       spike_posi_n2[:,1].copy(order="C"),
+                                                                      spike_used_n2,
                                                                       time_window_sec,
                                                                       spike_map,
-                                                                      cm_per_bin)
+                                                                      cm_per_bin,
+                                                                      valid_radius_cm)
         
+        # calculate how many spikes of neuron 2 were used in the calculation
+        spike_used_n2 = spike_used_n2.sum()
+        # calculate how many spikes of neuron 1 were used in the calculation
+        spike_used_n1 = spike_posi_n1.shape[0]
+        # number of spikes in the spike count map
+        spike_count = np.nansum(spike_map)
+        # calculate the time in the occupancy map
+        occupancy_time = np.nansum(occ)
         
         occs = occ.copy()
-        
         if self.map_smoothing:
             occs = ndimage.filters.gaussian_filter(occs,sigma=self.map_smoothing_sigma_cm/self.map_cm_per_bin)
             spike_map = ndimage.filters.gaussian_filter(spike_map,sigma=self.map_smoothing_sigma_cm/self.map_cm_per_bin)
@@ -812,7 +833,7 @@ class Spatial_properties:
         occs[occ==0.0] = np.nan
         rate_map = spike_map/occs
         
-        
+        ## this should be implemented in the c functions so that data past the radius can't influence within the radius via smoothing.
         if valid_radius_cm is not None:
             
             xs,ys = np.meshgrid(np.arange(0,rate_map.shape[0]),np.arange(0,rate_map.shape[1]))
@@ -821,8 +842,7 @@ class Spatial_properties:
             
             rate_map[distance>valid_radius_cm]=np.nan
         
-        
-        return rate_map
+        return rate_map, spike_used_n1, spike_used_n2, spike_count, occupancy_time
     
         
     def spatial_autocorrelation_field_detection(self, threshold = 0.1, neighborhood_size = 5):
@@ -1149,7 +1169,7 @@ class Spatial_properties:
         
         Returns: 
         grid spacing in cm, orientation, error of closest hexagon found, the rotated hexagon
-        The function returns False if 6 fields were not detected in the spatial autocorrelation doughnut.
+        The function returns np.nan values if 6 fields were not detected in the spatial autocorrelation doughnut.
         """
         
         # print(self.points_inside_dougnut)
@@ -1158,7 +1178,7 @@ class Spatial_properties:
             raise TypeError('You need to call calculate_doughnut() or grid_score() before calling this function')
     
         if len(self.points_inside_dougnut) != 7:
-            return False
+            return np.nan, np.nan, np.nan
     
         # get distance of all points to midpoint
         dists = [ math.dist(self.autocorr_midpoint, point) for point in self.points_inside_dougnut]

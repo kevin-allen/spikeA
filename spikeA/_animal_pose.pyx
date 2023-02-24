@@ -20,7 +20,8 @@ cdef extern from "animal_pose.h":
                                       double *occ, 
                                       int x_bins_occ_map,
                                       int y_bins_occ_map,
-                                      double cm_per_bin)
+                                      double cm_per_bin,
+                                      double valid_radius)
     
     
 # create the wrapper code, with numpy type annotations
@@ -32,7 +33,8 @@ def spike_triggered_occupancy_map_2d_func(np.ndarray[double, ndim=1, mode="c"] s
                                           np.ndarray[double, ndim=1, mode="c"] y not None,
                                           window_sec,
                                           np.ndarray[double, ndim=2, mode="c"] occ not None,
-                                          cm_per_bin):
+                                          cm_per_bin,
+                                          valid_radius):
         
     spike_triggered_occupancy_map_2d(<double*> np.PyArray_DATA(spike_time),
                                      <double*> np.PyArray_DATA(spike_x),
@@ -44,5 +46,5 @@ def spike_triggered_occupancy_map_2d_func(np.ndarray[double, ndim=1, mode="c"] s
                                       time.shape[0],
                                       window_sec,
                                       <double*> np.PyArray_DATA(occ),
-                                      occ.shape[0],occ.shape[1],cm_per_bin)
+                                      occ.shape[0],occ.shape[1],cm_per_bin,valid_radius)
                                      
