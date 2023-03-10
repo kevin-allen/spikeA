@@ -1178,7 +1178,7 @@ class Spatial_properties:
             raise TypeError('You need to call calculate_doughnut() or grid_score() before calling this function')
     
         if len(self.points_inside_dougnut) != 7:
-            return np.nan, np.nan, np.nan
+            return np.nan, np.nan, np.nan, np.nan
     
         # get distance of all points to midpoint
         dists = [ math.dist(self.autocorr_midpoint, point) for point in self.points_inside_dougnut]
