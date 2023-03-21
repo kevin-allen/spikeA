@@ -867,7 +867,7 @@ class Spatial_properties:
         labeled, num_objects = ndimage.label(maxima)
         slices = ndimage.find_objects(labeled)
         x, y = [], []
-        for dy,dx in slices:
+        for dx,dy in slices:
             x_center = (dx.start + dx.stop - 1)/2
             x.append(round(x_center))
             y_center = (dy.start + dy.stop - 1)/2    
