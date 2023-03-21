@@ -890,7 +890,7 @@ class Spatial_properties:
         labeled, num_objects = ndimage.label(maxima)
         slices = ndimage.find_objects(labeled)
         x, y = [], []
-        for dy,dx in slices:
+        for dx,dy in slices:
             x_center = (dx.start + dx.stop - 1)/2
             x.append(round(x_center))
             y_center = (dy.start + dy.stop - 1)/2    
@@ -935,7 +935,7 @@ class Spatial_properties:
         maxradius = np.min(np.array(self.spatial_autocorrelation_map.shape))/2
 
         # get midpoint
-        midpoint = np.array(self.spatial_autocorrelation_map.T.shape)/2
+        midpoint = np.array(self.spatial_autocorrelation_map.shape)/2
         
         # find proper dimensions for doughnut
         self.points_inside_dougnut = []
@@ -1193,6 +1193,12 @@ class Spatial_properties:
         Returns: 
         grid spacing in cm, orientation, error of closest hexagon found, the rotated hexagon
         The function returns np.nan values if 6 fields were not detected in the spatial autocorrelation doughnut.
+        
+        Possible usage:
+        grid_info = n.spatial_properties.grid_info()
+        if grid_info and np.isfinite(grid_info[0]):
+            # valid grid info obtained
+        
         """
         
         # print(self.points_inside_dougnut)
@@ -1231,7 +1237,7 @@ class Spatial_properties:
         ##     #print("dist_sum",dist_sum)
             
         # find distance from hexagon points to doughnut points and find best match
-        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ] # metric dist(X,Y) = sqrt(dist(x1,x2)**2 + dist(y1,y2)**2)
+        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ])**2 for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ] # metric dist(X,Y) = sqrt(dist(x1,x2)**2 + dist(y1,y2)**2)
         dist_sum_min_index = np.argmin(dist_sums)
         dist_sum = dist_sums[dist_sum_min_index]
         # print("best rotation at ",rotations[dist_sum_min_index], "using index",dist_sum_min_index, "with error",dist_sum)
