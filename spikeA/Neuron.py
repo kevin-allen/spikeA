@@ -195,7 +195,6 @@ class Simulated_place_cell(Neuron):
         self.ap.pose[:,0] = np.arange(start=tStepSize,stop = maxT,step=tStepSize)
         self.ap.pose_ori = self.ap.pose
 
-        
 class Simulated_grid_cell(Neuron):
     """
     Class to simulate the spike train of a grid cell.
@@ -204,9 +203,9 @@ class Simulated_grid_cell(Neuron):
     
     Arguments
     name: name of the simulated grid cell
-    offset: np.array of shape 2,1 or 2,
-    orientation: in radian
-    spacing: distance between closest firing fields
+    offset: np.array of shape (2,). Offset from 0,0 where the 3 component meets.
+    orientation: np.array of shape (3,). Orientation in radian of the 3 components
+    period: np.array of shape (3,). Period in cm for the 3 components. This is not the grid spacing.   period = grid spacing * np.cos(np.pi/6)
     peak_rate: firing field peak firing rate in Hz
     
     sampling_rate: sampling rate of the spike train
@@ -214,30 +213,40 @@ class Simulated_grid_cell(Neuron):
     
     """
     def __init__(self, name, 
-                 offset=np.array([[0],[0]]),
-                 orientation = 0.0,
-                 spacing = 30,
+                 offset=np.array([0,0]),
+                 orientation = np.array([0.0,np.pi/3,np.pi/3*2]),
+                 period = np.array([30,30,30]),
                  peak_rate=20, 
                  sampling_rate=20000, 
                  ap=None):
         super(Simulated_grid_cell,self).__init__(name=name)
     
         # variable defining a grid cell
-        if offset.ndim ==1:
-            offset = np.expand_dims(offset,1)
-        
-        
+        if offset.shape[0] != 2:
+            raise ValueError("offset should be of shape (2,)")
+        if orientation.shape[0] != 3:
+            raise ValueError("orientation should be of shape (3,)")
+        if period.shape[0] != 3:
+            raise ValueError("period should be of shape (3,)")
+            
         self.offset=offset
         self.orientation=orientation
-        self.spacing = spacing
-        self.peak_rate = peak_rate
+        self.period = period        
+        self.peak_rate = peak_rate        
+        
+        #print("offset:",offset)
+        #print("orientation:",orientation)
         
         
         self.sampling_rate = sampling_rate      
         self.ap = ap
+        
         self.spike_train = Spike_train(name=self.name,sampling_rate=self.sampling_rate)
         
         self.remove_nan_from_ap()
+        
+        self.grid_cell_firing_rate()
+        
         self.simulate_spike_train()
         
         self.spatial_properties = Spatial_properties(animal_pose=self.ap,spike_train=self.spike_train)
@@ -245,60 +254,60 @@ class Simulated_grid_cell(Neuron):
         self.spike_train.set_intervals(self.inter)
         self.ap.set_intervals(self.inter)
         
+    def approxMolulo(self, x,maxValue):
+        y = np.arctan(-1.0 / (np.tan(x/maxValue*np.pi))) + (0.5 * np.pi)
+        y = y * maxValue/np.pi
+        return 
 
+   
+    def pose_to_grid_cell_coordinate(self):
+        """
+        Function to transfrom the x,y position of the mouse to 
+        a position within the internal representation of grid cells. 
+    
+        The internal representation is 3 angles (x,y,z) which represents the distance along 3 axes
+        The 3 axes should be at approximately 60 degrees of each other.
+        
+        To get from distance to angle, we get the modulo of the distance and the underlying spacing.
+        
+        Set the angle in c0, c1, and c2. The range is -np.pi to pi. 
+        
+        """
+                
+        
+        Rx0 = np.array([[np.cos(-self.orientation[0])],[-np.sin(-self.orientation[0])]]) # minus sign because we want to rotate the inverse of the angle to bring it back to 1,0 
+        Rx1 = np.array([[np.cos(-self.orientation[1])],[-np.sin(-self.orientation[1])]])
+        Rx2 = np.array([[np.cos(-self.orientation[2])],[-np.sin(-self.orientation[2])]])
+                
+        d0 = self.pose @ Rx0
+        d1 = self.pose @ Rx1
+        d2 = self.pose @ Rx2
+
+        self.c0 = (d0 % self.period[0])/self.period[0] * np.pi*2 
+        self.c1 = (d1 % self.period[1])/self.period[1] * np.pi*2 
+        self.c2 = (d2 % self.period[2])/self.period[2] * np.pi*2 
+
+        # set range to -np.pi to np.pi
+        self.c0 = np.arctan2(np.sin(self.c0),np.cos(self.c0))
+        self.c1 = np.arctan2(np.sin(self.c1),np.cos(self.c1))
+        self.c2 = np.arctan2(np.sin(self.c2),np.cos(self.c2))
+        
+      
+        
     def simulate_spike_train(self):
         """
         Get a spike train that is based on the spatial selectivity of the neuron
         """
         
-        # we get the rate for all position
-        poses = np.stack([self.ap.pose[:,1],self.ap.pose[:,2]]).T
-        
-        deltas = [self.orientation, self.orientation+np.pi/3, self.orientation+np.pi/3*2]
-        
-        rates = np.apply_along_axis(self.grid_firing_rate_at_p,1,
-                                   poses, self.offset,deltas,self.spacing,self.peak_rate)
-        
         # higher sampling rate
         newTime = np.arange(start=self.ap.pose[0,0], stop = self.inter[0,1]-1,step=1/self.sampling_rate)
         
         # to interpolate the rate at a higher sampling rate
-        fx = interp1d(self.ap.pose[:,0], rates) 
+        fx = interp1d(self.ap.pose[:,0], self.rate) 
         
-
         mu = fx(newTime) # interpolate the rate 
         
         self.spike_train.generate_poisson_spike_train_from_rate_vector(mu ,sampling_rate=self.sampling_rate)
-    
-    
-    def grid_firing_rate_at_p(self,pose,offset,deltas,spacing,peak_rate):
-        """
-        Function to calculate the firing rate of a grid cell at any 2D position
-
-        Arguments
-        pose: np.array of shape (2,1)
-        offset: np.array of shape (2,1)
-
-        """
-        if pose.ndim == 1:
-            pose = np.expand_dims(pose,1)
-    
-        p = pose+offset
-
-        # we want to get the x value of the position vector, after rotating the position vector by different amount 
-        # these are like rotation matrices, but we remove the terms that would give us the y component. 
-        Rx0 = np.array([[np.cos(deltas[0]),-np.sin(deltas[0])]])
-        Rx1 = np.array([[np.cos(deltas[1]),-np.sin(deltas[1])]])
-        Rx2 = np.array([[np.cos(deltas[2]),-np.sin(deltas[2])]])
-
-        c0 = np.cos(Rx0@p * (np.pi*2) / spacing) # we rotate the position vector and only get the x value of the rotated vector, than we normalize so that there is one cycle per spacing, cos function gives the oscillation
-        c1 = np.cos(Rx1@p * (np.pi*2) / spacing)
-        c2 = np.cos(Rx2@p * (np.pi*2) / spacing)
-
-
-        return (((c0+c1+c2)+1.5)/(3.0+1.5) * peak_rate)[0,0] # we sum the 3 components,  normalize so that the range is from 0 to 1, then multiply by the value that we want as peak rate
-
-    
     
     
     def remove_nan_from_ap(self):
@@ -310,7 +319,7 @@ class Simulated_grid_cell(Neuron):
         If ap does not have np.nan value, this should not have any effect.
         """
         
-        
+        #print("Removing invalid values from ap")
         tStepSize = self.ap.pose[1,0]-self.ap.pose[0,0]
         pose = np.stack([self.ap.pose[:,0],self.ap.pose[:,1],self.ap.pose[:,2],self.ap.pose[:,4]]).T # only consider the data that we will be using
         keepIndices = ~np.isnan(pose).any(axis=1)
@@ -322,4 +331,38 @@ class Simulated_grid_cell(Neuron):
         
         self.ap.pose[:,0] = np.arange(start=tStepSize,stop = maxT,step=tStepSize)
         self.ap.pose_ori = self.ap.pose
+        
+        
+        
+        
+    def grid_cell_firing_rate(self):
+        """
+        Get the firing rate of grid cells
+        """
+        
+        # we get the rate for all position
+        self.pose = np.stack([self.ap.pose[:,1],self.ap.pose[:,2]]).T
+        self.pose_to_grid_cell_coordinate() # now have self.c0, self.c1, self.c2
+         
+
+        self.offset = np.expand_dims(self.offset,0) # shift in cm
+        # now we need to know the projection of the vector onto the 3 components
+        Rx0 = np.array([[np.cos(-self.orientation[0])],[-np.sin(-self.orientation[0])]]) # minus sign because we want to rotate the inverse of the angle to bring it back to 1,0 
+        Rx1 = np.array([[np.cos(-self.orientation[1])],[-np.sin(-self.orientation[1])]])
+        Rx2 = np.array([[np.cos(-self.orientation[2])],[-np.sin(-self.orientation[2])]])
+        d0 = self.offset @ Rx0
+        d1 = self.offset @ Rx1
+        d2 = self.offset @ Rx2
+        self.phase = np.squeeze(np.array([(d0 % self.period[0])/self.period[0] * np.pi*2,
+                               (d1 % self.period[1])/self.period[1] * np.pi*2,
+                               (d2 % self.period[2])/self.period[2] * np.pi*2]))
+        # from -np.pi to np.pi
+        self.phase = np.arctan2(np.sin(self.phase),np.cos(self.phase))
+            
+        self.rateC0 = np.cos(self.c0-self.phase[0])
+        self.rateC1 = np.cos(self.c1-self.phase[1])
+        self.rateC2 = np.cos(self.c2-self.phase[2])
+        
+        # the sum of 3 components ranges from -1.5 to 3.0
+        self.rate =  np.squeeze(((self.rateC0+self.rateC1+self.rateC2+1.5)/4.5*self.peak_rate))
         

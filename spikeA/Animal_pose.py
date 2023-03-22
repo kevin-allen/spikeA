@@ -502,6 +502,9 @@ class Animal_pose:
         # save the occupancy map for later use
         self.occupancy_map = occ_sm
      
+    
+    
+    
     def occupancy_histogram_1d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True,
                         x_range=None,linspace=False,n_bins=None):
         """
@@ -689,7 +692,7 @@ class Animal_pose:
         interpolation_frequency_hz: frequency at which with do the interpolation of the animal position
         extension: file extension of the file with position data (positrack or positrack2)
         use_previous_up_detection: if True, it will look for a file containing the time of ttl pulses instead of detecting the ttl pulses from the dat file (slow)
-        transform_to_cm: if True, the data will be assumed to enter as pixels and will be transformed into cm.
+        transform_to_cm: if True, the data will be assumed to enter as pixels and will be transformed into cm based on px_per_cm array or float as by the config.
                 
         Return
         No value is returned but self.time and self.pose are set

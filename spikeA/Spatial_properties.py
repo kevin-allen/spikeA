@@ -3,6 +3,7 @@ import numpy as np
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Spike_train import Spike_train
 import spikeA.spatial_properties # this has no capital letter, so refers to the c code
+import spikeA.animal_pose # this has no capital letter, so refers to the c code
 from scipy.interpolate import interp1d
 from scipy import ndimage
 from scipy.ndimage import sum as ndi_sum
@@ -369,15 +370,10 @@ class Spatial_properties:
             
             mean_firing_rate_all.append(self.st.mean_firing_rate())
             
-        return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)
-    
-
-
-
-    
+        return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)   
+            
         
-    
-    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True):
+    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True,remove_spike_in_occupancy_gaps = False):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -388,6 +384,8 @@ class Spatial_properties:
         smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the firing rate map
         smoothing: boolean indicating whether or not smoothing should be applied to the firing rate map
         xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map. This can be used to set the firing rate map to a specific size. The default value is None, which means that the size of the occupancy map (and firing rate map) will be determined from the range of values in the Animal_pose object.
+        recalculate_occupancy_map: boolean indicating whether the occpuancy map should be recalculated
+        remove_spike_in_occupancy_gaps: boolean indicating whether we should remove spikes from 2D histogram spike count when they fall into a non-visited location in the occupancy map
         
         Return
         The Spatial_properties.firing_rate_map is set. It is a 2D numpy array containing the firing rate in Hz in a set of bins covering the environment.
@@ -412,6 +410,12 @@ class Spatial_properties:
                                                      y= spike_posi[:,1],
                                                      bins= self.ap.occupancy_bins)
         
+        # remove spikes that fell into a bin that the animal was not seen in.
+        # usually not required but was needed when calculating control firing rate maps.
+        if remove_spike_in_occupancy_gaps: 
+            spike_count[np.isnan(self.ap.occupancy_map)] = 0
+        
+        
         # save this for later (e.g., in information_score())
         self.spike_count = spike_count
         
@@ -422,7 +426,29 @@ class Spatial_properties:
     
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
-       
+    
+        self.map_xy_range = np.array([[self.ap.occupancy_bins[0][0],self.ap.occupancy_bins[1][0]],
+                                      [self.ap.occupancy_bins[0][-1],self.ap.occupancy_bins[1][-1]]])
+    
+    def firing_rate_map_peak_location(self):
+        """
+        Function to get the location of the peak rate within the firing rate map
+        
+        You need to call firing_rate_map_2d() before running this function.
+        
+        Return
+        Tuple with 2 elements: a numpy array with x and y indices of peak in the map, a numpy array with the x and y location of the peak in cm coordinates.
+        """
+        if not hasattr(self, 'firing_rate_map'):
+                raise ValueError('Call self.firing_rate_map_2d() before calling self.firing_rate_map_peak_location()')
+    
+        myMap = self.firing_rate_map.copy()
+        myMap[np.isnan(myMap)]=-1.0
+        xy = np.array(np.unravel_index(np.argmax(myMap), myMap.shape))
+        grid_peak_location = self.map_xy_range[0] + xy * self.map_cm_per_bin
+        return xy, grid_peak_location
+    
+    
     def firing_rate_histogram(self,cm_per_bin=2, smoothing_sigma_cm=2,smoothing=True,x_range=None,linspace=False,n_bins = None):
         """
         Method of the Spatial_properties class to calculate a firing rate histogram (1D) of a single neuron.
@@ -466,6 +492,7 @@ class Spatial_properties:
         self.firing_rate_histo = spike_count/self.ap.occupancy_histo
         self.firing_rate_histo_mid = self.mid_point_from_edges(x_edges)
 
+     
     
     def information_score_histogram(self):
         """
@@ -631,13 +658,17 @@ class Spatial_properties:
         
    
     
-    def spatial_autocorrelation_map_2d(self):
+    def spatial_autocorrelation_map_2d(self,min_n_for_correlation=10,invalid_to_nan=False):
         """
         Method of the Spatial_properties class to calculate a spatial autocorrelation map of a single neuron.
         
         If a compatible firing rate map is not already present in the spatial_properties object, an error will be given.
         
+        The values in the autocorrelation ranges from -1 to 1. They are Pearson correlation coefficient between firing rate values at a given spatial offset
+        
         Arguments
+        min_n_for_correlation: Minimal number of paired firing rates at a given offset that is needed to calculate a correlation coefficient. Adjust to prevent high variability towards the edges to the autocorrelation map.
+        invalid_to_nan: Set the invalid data point in the spatial autocorrelation to np.nan instead of -2.0. The c function returns invalid values as -2.0.
         
         Return
         The Spatial_properties.spatial_autocorrelation_map is set. It is a 2D numpy array.
@@ -658,13 +689,184 @@ class Spatial_properties:
         frm[np.isnan(frm)]=-1.0
         
         ## create an empty array of the appropriate dimensions to store the autocorrelation data
+        ## size of autocorrelation is 2*map + 1, always an odd number.
         auto_array = np.zeros((2*frm.shape[0]+1,2*frm.shape[1]+1))
 
         ## create the spatial autocorrelation calling a C function
-        spikeA.spatial_properties.map_autocorrelation_func(frm,auto_array)
+        spikeA.spatial_properties.map_autocorrelation_func(frm,auto_array,min_n_for_correlation)
+        
+        if invalid_to_nan:
+            auto_array[auto_array==-2.0]=np.nan
         self.spatial_autocorrelation_map = auto_array
 
+    
+    def spatial_crosscorrelation_map_2d(self, firing_rate_map1, firing_rate_map2, min_n_for_correlation=10, valid_radius_cm=None, cm_per_bin = None):
+        """
+        Method of the Spatial_properties class to calculate a spatial crosscorrelation between two firing rate maps of the same dimensions.
         
+        This finds the offsets in the x and y axis at which the firing rate values of map2 are correlated with map1.
+        
+        
+        Arguments:
+        firing_rate_map1: 2D Numpy array containing a firing rate map
+        firing_rate_map2: 2D Numpy array containing a firing rate map
+        min_n_for_correlation: Minimal number of paired firing rates at a given offset that is needed to calculate a correlation coefficient. Adjust to prevent high variability towards the edges to the crosscorrelation map.
+        valid_radius: If set, only bins within the valid_radius from the center of the crosscorrelation map will be kept and the rest set to np.nan. Useful if you only want to keep the center of the crosscorrelation map.
+        cm_per_bin: If you set valid_radius, you need to specify the cm_per_bin in the maps.
+        
+        Return
+        The spatial crosscorrelation of the 2 firing rate maps. Invalid values are set to np.nan
+        """
+        
+        if firing_rate_map1.ndim != firing_rate_map2.ndim:
+            raise ValueError("The dimensions of firing_rate_map1 is the the same as those of firing_rate_map2")
+            
+        if not np.array_equal(firing_rate_map1.shape,firing_rate_map2.shape):
+            raise ValueError("The shape of firing_rate_map1 is the the same as that of firing_rate_map2")
+        
+        frm1 = firing_rate_map1.copy() # to avoid modifying the input maps
+        frm2 = firing_rate_map2.copy()
+        
+        ## convert nan values to -1.0 for the C function
+        frm1[np.isnan(frm1)]=-1.0
+        frm2[np.isnan(frm2)]=-1.0
+        
+        ## create an empty array of the appropriate dimensions to store the autocorrelation data
+        cross_array = np.zeros((2*frm1.shape[0]+1,2*frm1.shape[1]+1))
+        
+        ## call the c function
+        spikeA.spatial_properties.map_crosscorrelation_func(frm1,frm2,cross_array,min_n_for_correlation)
+        
+        
+        cross_array[cross_array==-2.0]=np.nan
+        
+        if valid_radius_cm is not None:
+            if cm_per_bin is None:
+                raise ValueError("set cm_per_bin when calling spatial_crosscorrelation_map_2d() if using the argument valid_radius_cm")
+            
+            xs,ys = np.meshgrid(np.arange(0,cross_array.shape[0]),np.arange(0,cross_array.shape[1]))
+            midPoint=(cross_array.shape[0]/2,cross_array.shape[1]/2)
+            distance = np.sqrt((xs.T-midPoint[0])**2 + (ys.T-midPoint[1])**2) * cm_per_bin
+            
+            cross_array[distance>valid_radius_cm]=np.nan
+
+        return cross_array
+
+        
+    def spike_triggered_short_term_cross_firing_rate_map(self, spatial_properties_neuron_2, cm_per_bin=2, time_window_sec=2, xy_range = None, smoothing_sigma_cm=2, smoothing=True, valid_radius_cm=None):
+        """
+        Method of the Spatial_properties class that calculate a spike-triggered short-term cross-firing rate map.
+        
+        This involves two the Spatial_properties objects of 2 neurons. 
+        We calculate the a firing rate map for the spikes of neuron2 relative to the spikes of neuron1.
+        For each spike of neuron1, we look in a short time period after the spike, where the spikes of neuron2 occurred relative the the position of the trigger spike of neuron1.
+        
+        The c code assumes that the pose data and the spike times are chronologically sorted. This assumption allowed me to speed up the code.
+        
+        
+        Arguments:
+        spatial_properties_neuron_2: spatial properties of a different neuron 
+        cm_per_bin: bin size for the map
+        time_window_sec: size of the time window following the trigger spike that will be included in the map.
+        xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map. This is used to set the size of the firing rate map. The default value is None, which means that the size of the occupancy map (and firing rate map) will be determined from the range of values in the Animal_pose object (will be double a normal firing rate maps)
+        smoothing_sigma_cm: size of smoothing kernel
+        smoothing: boolean determining whether smoothing is applied.
+        valid_radius: If set, only bins within the valid_radius from the center of the crosscorrelation map will be kept and the rest set to np.nan. Useful if you only want to keep the center of the crosscorrelation map.
+        
+        Returns:
+        2D np.array with the spike-triggered short-time cross-firing rate map
+        Number of spikes from n1 that were used
+        Number of spikes from n2 that were used
+        Sum of spikes in the spike count map
+        Total time in the occupancy map
+        
+        """
+        
+        self.map_cm_per_bin = cm_per_bin
+        self.map_smoothing_sigma_cm = smoothing_sigma_cm
+        self.map_smoothing = smoothing
+        
+        
+        invalid = np.isnan(self.ap.pose[:,1:3]).any(axis=1)
+        val = self.ap.pose[~invalid,1:3]
+
+        if xy_range is None:
+                xy_max = np.ceil(val.max(axis=0))+self.map_cm_per_bin
+                xy_min = np.floor(val.min(axis=0))-self.map_cm_per_bin
+        else :
+            xy_max= np.array(xy_range[1,:])
+            xy_min= np.array(xy_range[0,:])
+        #print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
+        
+        # We need odd number size to have the center at the center of the map
+        # for example a 3x3 map in which bin indexed 1,1 is the center
+        occupancy_range_bins = np.ceil((xy_max - xy_min)*2/cm_per_bin).astype(int)
+        #print("occupancy_range_bins:", occupancy_range_bins)
+        
+        occupancy_range_bins[occupancy_range_bins%2==0]+=1 # make sure it is odd number of bins in each dimension
+        
+        #print("occupancy_range_bins:", occupancy_range_bins)
+        occ = np.zeros((int(occupancy_range_bins[0]),int(occupancy_range_bins[1])))
+        
+        
+        spike_posi_n1 = self.spike_position() 
+        spike_posi_n2 = spatial_properties_neuron_2.spike_position() 
+        spike_used_n2 = np.zeros_like(spike_posi_n2[:,0])
+              
+        # create an occupancy map of the mouse around the spikes of self
+        spikeA.animal_pose.spike_triggered_occupancy_map_2d_func(self.st.st,
+                                                                 spike_posi_n1[:,0].copy(order="C"),
+                                                                 spike_posi_n1[:,1].copy(order="C"),
+                                                                 self.ap.pose[:,0].copy(order="C"),
+                                                                 self.ap.pose[:,1].copy(order="C"),
+                                                                 self.ap.pose[:,2].copy(order="C"),
+                                                                 time_window_sec,
+                                                                 occ,
+                                                                 cm_per_bin,
+                                                                 valid_radius_cm)
+
+        # create a spike count map around the spikes of self
+        spike_map = np.zeros((int(occupancy_range_bins[0]),int(occupancy_range_bins[1])))
+        spikeA.spatial_properties.spike_triggered_spike_count_2d_func(self.st.st,
+                                                                      spike_posi_n1[:,0].copy(order="C"),
+                                                                      spike_posi_n1[:,1].copy(order="C"),
+                                                                      spatial_properties_neuron_2.st.st,
+                                                                      spike_posi_n2[:,0].copy(order="C"),
+                                                                      spike_posi_n2[:,1].copy(order="C"),
+                                                                      spike_used_n2,
+                                                                      time_window_sec,
+                                                                      spike_map,
+                                                                      cm_per_bin,
+                                                                      valid_radius_cm)
+        
+        # calculate how many spikes of neuron 2 were used in the calculation
+        spike_used_n2 = spike_used_n2.sum()
+        # calculate how many spikes of neuron 1 were used in the calculation
+        spike_used_n1 = spike_posi_n1.shape[0]
+        # number of spikes in the spike count map
+        spike_count = np.nansum(spike_map)
+        # calculate the time in the occupancy map
+        occupancy_time = np.nansum(occ)
+        
+        occs = occ.copy()
+        if self.map_smoothing:
+            occs = ndimage.filters.gaussian_filter(occs,sigma=self.map_smoothing_sigma_cm/self.map_cm_per_bin)
+            spike_map = ndimage.filters.gaussian_filter(spike_map,sigma=self.map_smoothing_sigma_cm/self.map_cm_per_bin)
+        
+        occs[occ==0.0] = np.nan
+        rate_map = spike_map/occs
+        
+        ## this should be implemented in the c functions so that data past the radius can't influence within the radius via smoothing.
+        if valid_radius_cm is not None:
+            
+            xs,ys = np.meshgrid(np.arange(0,rate_map.shape[0]),np.arange(0,rate_map.shape[1]))
+            midPoint=(int(rate_map.shape[0]/2),int(rate_map.shape[1]/2))
+            distance = np.sqrt((xs.T-midPoint[0])**2 + (ys.T-midPoint[1])**2) * cm_per_bin
+            
+            rate_map[distance>valid_radius_cm]=np.nan
+        
+        return rate_map, spike_used_n1, spike_used_n2, spike_count, occupancy_time
+    
         
     def spatial_autocorrelation_field_detection(self, threshold = 0.1, neighborhood_size = 5):
         """
@@ -688,7 +890,7 @@ class Spatial_properties:
         labeled, num_objects = ndimage.label(maxima)
         slices = ndimage.find_objects(labeled)
         x, y = [], []
-        for dy,dx in slices:
+        for dx,dy in slices:
             x_center = (dx.start + dx.stop - 1)/2
             x.append(round(x_center))
             y_center = (dy.start + dy.stop - 1)/2    
@@ -733,7 +935,7 @@ class Spatial_properties:
         maxradius = np.min(np.array(self.spatial_autocorrelation_map.shape))/2
 
         # get midpoint
-        midpoint = np.array(self.spatial_autocorrelation_map.T.shape)/2
+        midpoint = np.array(self.spatial_autocorrelation_map.shape)/2
         
         # find proper dimensions for doughnut
         self.points_inside_dougnut = []
@@ -988,8 +1190,15 @@ class Spatial_properties:
         """
         Method to get additional information about the hexagonal grid of the autocorrelation
         
-        Returns: Orientation and Spacing of grid (= rotation, radius of hexagon) , error of closest hexagon found, the rotated hexagon
-        False if there was an invalid doughnut (not 6 points found using the field detection)
+        Returns: 
+        grid spacing in cm, orientation, error of closest hexagon found, the rotated hexagon
+        The function returns np.nan values if 6 fields were not detected in the spatial autocorrelation doughnut.
+        
+        Possible usage:
+        grid_info = n.spatial_properties.grid_info()
+        if grid_info and np.isfinite(grid_info[0]):
+            # valid grid info obtained
+        
         """
         
         # print(self.points_inside_dougnut)
@@ -998,7 +1207,7 @@ class Spatial_properties:
             raise TypeError('You need to call calculate_doughnut() or grid_score() before calling this function')
     
         if len(self.points_inside_dougnut) != 7:
-            return False
+            return np.nan, np.nan, np.nan, np.nan
     
         # get distance of all points to midpoint
         dists = [ math.dist(self.autocorr_midpoint, point) for point in self.points_inside_dougnut]
@@ -1028,7 +1237,7 @@ class Spatial_properties:
         ##     #print("dist_sum",dist_sum)
             
         # find distance from hexagon points to doughnut points and find best match
-        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ]) for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ] # metric dist(X,Y) = sqrt(dist(x1,x2)**2 + dist(y1,y2)**2)
+        dist_sums = [ np.sum([ np.min([ math.dist(hexagon_poi, doughnut_poi) for doughnut_poi in self.points_inside_dougnut ])**2 for hexagon_poi in hexagon ]) for hexagon in hexagons_rotated ] # metric dist(X,Y) = sqrt(dist(x1,x2)**2 + dist(y1,y2)**2)
         dist_sum_min_index = np.argmin(dist_sums)
         dist_sum = dist_sums[dist_sum_min_index]
         # print("best rotation at ",rotations[dist_sum_min_index], "using index",dist_sum_min_index, "with error",dist_sum)
@@ -1041,16 +1250,29 @@ class Spatial_properties:
         #ax.plot(hexagon_rotated_[:,0], hexagon_rotated_[:,1] , color="blue")
         #-#for [from_x,from_y],[to_x,to_y] in zip(hexagon_rotated[:-1],hexagon_rotated[1:]): #ax.plot()
             
-        return self.hexagon_radius, rotations[dist_sum_min_index], dist_sum, hexagon_rotated_
+        return self.hexagon_radius*self.map_cm_per_bin, rotations[dist_sum_min_index], dist_sum, hexagon_rotated_
         
     
     
-    def map_crosscorrelation(self, trial1=None, trial2=None, map1=None, map2=None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
+    def map_pearson_correlation(self, trial1=None, trial2=None, map1=None, map2=None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True, xy_range=None):
         
         """
-        Method of the Spatial_properties class to calculate the crosscorrelation between 2 firing rate maps which can be specified by giving the trial numbers or by providing 2 maps. 
+        Method of the Spatial_properties class to calculate a Pearson correlation coefficient between 2 firing rate values of 2 firing rate maps. 
+        
+        The maps can be passed as parameters or generated within the function.
+        
+        Arguments:
+        trial1:
+        trial2:
+        map1:
+        map2:
+        cm_per_bin:
+        smoothing_sigma_cm:
+        smoothing:
+        xy_range:
+        
         Return
-        correlation
+        Pearson correlation coefficient between two firing rate maps
         """
         if (trial1==None or trial2==None) and (map1.all()==None or map2.all()==None):
             raise TypeError("You have to specify 2 maps or 2 trials")
