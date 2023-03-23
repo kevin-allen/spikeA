@@ -57,6 +57,96 @@ double correlation (double* x, double* y, int size, double invalid)
   return r;
 }
 
+void spike_triggered_spike_count_2d(double* spike_time_n1,
+                                    double* spike_x_n1,
+                                    double* spike_y_n1,
+                                    int spike_length_n1,
+                                    double* spike_time_n2,
+                                    double* spike_x_n2,
+                                    double* spike_y_n2,
+                                    double* spike_used_n2,// array, element sets to 1 if the spikes are used in calculation
+                                    int spike_length_n2,
+                                    double window_sec, // time to considered before and after each spike
+                                    double *map, // spike count map
+                                    int x_bins_map,
+                                    int y_bins_map,
+                                    double cm_per_bin,
+                                    double valid_radius){
+    
+    /*
+    Function to do spike-triggered short-time spike count map
+    Assumes the spikes are chronologically organized
+    
+    */
+    int mid_x = x_bins_map/2; // mid point of the occupancy map
+    int mid_y = y_bins_map/2; // mid point of the occupancy map
+    
+    double diff_x;
+    double diff_y;
+    
+    int index_x;
+    int index_y;
+    
+    
+    for(int x = 0; x < x_bins_map; x++){
+        for(int y = 0; y < y_bins_map; y++){
+            map[y+x*y_bins_map] = 0.0;
+        }
+    }
+    
+    int within_count=0; // whether we have seen a pose within the time window
+    int first_within_index = 0; // index of the first pose that was within the time windown
+    
+    double distance = 0 ; // distance between spikes
+    
+     // loop for each spike of n1
+    for (int i = 0; i < spike_length_n1; i++){
+        // loop the each spike of n2
+        within_count=0;
+        for (int j = first_within_index; j < spike_length_n2;j++){
+            
+            // check if this position is within the time window after the spike
+            if(spike_time_n2[j] >= spike_time_n1[i]-window_sec && spike_time_n2[j] <= spike_time_n1[i]+window_sec){
+                diff_x = (int)(spike_x_n2[j]-spike_x_n1[i])/cm_per_bin;
+                diff_y = (int)(spike_y_n2[j]-spike_y_n1[i])/cm_per_bin;
+                index_x = mid_x + diff_x;
+                index_y = mid_y + diff_y;
+                distance = sqrt( pow(spike_x_n2[j]-spike_x_n1[i],2)+pow(spike_y_n2[j]-spike_y_n1[i],2));
+                if (distance < valid_radius){
+                    if(index_x > 0 && index_x < x_bins_map && index_y > 0 && index_y < y_bins_map){
+                        map[index_y+ index_x*y_bins_map]++; // I reversed the indices.....????
+                        spike_used_n2[j]=1; // set a flag if the spike is used
+                    }
+                }
+                
+            if(within_count==0){
+                first_within_index=j;
+                within_count++;
+            }  
+                
+            }
+            // assumes that the spike data are chronologically organized
+            if (spike_time_n2[j] > (spike_time_n1[i]+window_sec)){
+                j = spike_length_n2; // will end the loop through the pose data for this spike
+            }
+        }
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void map_autocorrelation(double *one_place, // pointer to one place field map
 			 double *one_auto, // pointer to one spatial autocorrelation map
 			 int x_bins_place_map, // x size of the place field map (num bins)
@@ -146,6 +236,105 @@ map.
   free(value_1_correlation);
   free(value_2_correlation);
 }
+
+
+void map_crosscorrelation(double *one_place, // pointer to a first firing rate map
+                          double *two_place, // pointer to a second firing rate map
+			 double *one_cross, // pointer to one spatial autocorrelation map
+			 int x_bins_place_map, // x size of the place field map (num bins)
+			 int y_bins_place_map, // y size of the place field map
+			 int x_bins_auto_map, // x size of the autocorrelation map
+			 int y_bins_auto_map, // y size of the autocorreltion map
+			 int min_for_correlation) // minimum of valid values to do the correlation
+{
+/*************************************************************
+ funciton to do the spatial crosscorrelation between 2 firing rate maps
+ 
+ The invalid values are expected to be set at -1.0
+ 
+ one_place should have a size = x_bins_place_map*y_bins_place_map
+ two_place should have a size = x_bins_place_map*y_bins_place_map
+ 
+ x_bins_auto_map should = (x_bins_place_map*2)+1
+ y_bins_auto_map should = (y_bins_place_map*2)+1
+ one_cross should have a size =  x_bins_auto_map * y_bins_auto_map
+*************************************************************/
+  int min_x_offset = 0 - x_bins_place_map;
+  int max_x_offset = x_bins_place_map;
+  int min_y_offset = 0 - y_bins_place_map;
+  int max_y_offset = y_bins_place_map;
+  int mid_x = x_bins_place_map; // index of the central bin in the x axis of the autocorrelation
+  int mid_y = y_bins_place_map; // index of the central bin in the y axis of the autocorrelation
+  int auto_x;
+  int auto_y;
+  int index_1;
+  int index_2;
+  int index_auto;
+  int total_bins_place_map = x_bins_place_map * y_bins_place_map;
+  int total_bins_auto_map = x_bins_auto_map * y_bins_auto_map;
+  int offset_x;
+  int offset_y;
+ 
+  int n;
+  double r;
+
+  double* value_1_correlation;
+  double* value_2_correlation;
+  value_1_correlation = (double*)malloc(total_bins_place_map*sizeof(double));
+  value_2_correlation = (double*)malloc(total_bins_place_map*sizeof(double));
+  // set the auto_place map to -2, this is the invalid value, correlation range from -1 to 1
+  for (int i = 0; i < total_bins_auto_map ; i++)
+    {
+      one_cross[i] = -2;
+    }
+  
+  // loop for all possible lags in the x axis
+  for (int x_off = min_x_offset; x_off <= max_x_offset; x_off++)
+    {
+      // loop for all possible lags in the y axis
+      for (int y_off = min_y_offset; y_off <= max_y_offset; y_off++ )
+	{
+	  // for all the possible lags, calculate the following values
+	  n = 0;  // number of valid lags to do the correlation for this offset
+	  r = 0;  // r value of the correlation
+	  // loop for all bins in the place map
+	  for(int x = 0; x < x_bins_place_map; x++)
+	    {
+	      for(int y = 0; y < y_bins_place_map; y++)
+		{
+		  offset_x = x+x_off;
+		  offset_y = y+y_off;
+		  if ((offset_x >=0 && offset_x < x_bins_place_map) && (offset_y >= 0 && offset_y < y_bins_place_map))
+		    {
+		      index_1 = (x*y_bins_place_map) + y; // that is the index for the current bin in the place firing rate map
+		      index_2 = ((offset_x)*y_bins_place_map)+(offset_y); // that is the index in the offset bin relative to the current bin
+		      if (one_place[index_1]!=-1.0 &&two_place[index_2]!=-1.0) // -1 is the invalid value in the place firing rate map, only take into account the data if not invalid value 
+			{
+			  // copy the value into 2 vectors for the correlation
+			  value_1_correlation[n]=one_place[index_1];
+			  value_2_correlation[n]=two_place[index_2];
+			  n++; 
+			}
+		    }
+		}   
+	    }
+	  // if enough valid data to calculate the r value, if not the value for this lag will stay -2 
+	  if ( n > min_for_correlation)
+	    {
+	      // calculate a correlation
+	      r = correlation(value_1_correlation,value_2_correlation,n,-1.0);
+	      auto_x = mid_x + x_off;
+	      auto_y = mid_y + y_off;
+	      index_auto= (auto_x*y_bins_auto_map)+auto_y;
+	      one_cross[index_auto]=r;
+	    }
+	}
+    }
+  free(value_1_correlation);
+  free(value_2_correlation);
+}
+
+
 
 
 

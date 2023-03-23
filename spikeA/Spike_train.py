@@ -113,6 +113,11 @@ class Spike_train:
         """
         Function to limit the analysis to spikes within a set of set specific time intervals
         
+        Note on memory use:
+        When intervals are not set, self.st points to self.st_ori (numpy array with all spikes)
+        When you use set_intervals(), a new numpy array is stored in self.st which contains only the spikes within the intervals. self.st_ori is kept as a backup of the complete spike train.
+        A side effect of calling set_intervals() is that the memory size of the Spike_train object will increase. You can return the size to the original size by calling unset_intervals()
+        
         Arguments:
         inter: 2D numpy array, one interval per row, time in seconds
         
@@ -173,7 +178,28 @@ class Spike_train:
         st = st/sampling_rate # to get the time in seconds
        
         self.set_spike_train(st = st)
+    
+    def generate_poisson_spike_train_from_rate_vector(self,mu, sampling_rate=20000):
+        """
+        Generate a spike train from a random poisson distribution.
         
+        Arguments
+        mu: Firing rate vector in Hz
+        sampling_Rate: sampling rate for the poisson process
+                
+        Results are stored in self.st
+        """
+        # check that sampling_rate value makes sense
+        if sampling_rate <= 0 or sampling_rate > 100000:
+            raise ValueError("sampling_rate arguemnt of the Spike_time constructor should be larger than 0 and smaller than 100000 but was {}".format(sampling_rate))
+        
+        # variables to sample the poisson distribution
+        mu = mu/sampling_rate # rate for each sample from the poisson distribution
+        mu[mu<0.0] = 0.0
+        st = np.nonzero(poisson.rvs(mu))[0] # np.nonzero returns a tuple of arrays, we get the first element of the tuple
+        st = st/sampling_rate # to get the time in seconds
+       
+        self.set_spike_train(st = st)
         
     def generate_modulated_poisson_spike_train(self,rate_hz=50, sampling_rate=20000, length_sec=2,modulation_hz = 10, modulation_depth = 1,min_rate_bins_per_cycle=10,phase_shift=0):
         """
@@ -340,7 +366,8 @@ class Spike_train:
         
         return timestamp
     
-    def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1, outside_interval_solution="remove"):
+    def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1, 
+                                  shift_start_time=0, outside_interval_solution="remove"):
         """
         Calculates the instantaneous firing rate. This is the firing rate of the neuron over time.
         The spikes are counted in equal sized time windows. (histogram)
@@ -349,6 +376,7 @@ class Spike_train:
         Arguments:
         bin_size_sec: Bin size in sec
         sigma: Standard deviation of the gaussian filter smoothing, values are in bins
+        shift_start_time: amount to add to the starting time for the calculation of IFR, for example if the IFR was to be calculated from 0 to 1000, then it will be calculated from 0+shift_start_time to 1000.
         outside_interval_solution: What to do with time windows that are outside the set intervals. "remove" or "nan" are accepted.
         
         Returns:
@@ -356,13 +384,15 @@ class Spike_train:
         self.ifr is a tupple containing the ifr, the count, and mid point of the bin.
         """    
         
-        bins =  np.arange(np.min(self.intervals.inter), np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
+        bins =  np.arange(np.min(self.intervals.inter)+shift_start_time, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
         
+        #print("bins[0]:",bins[0])
         #plt.hist(np.append(np.diff(bins),bin_size_sec+0.1),bins=50)
         #plt.title("bins in spike_train")
         #plt.show()
         
         count, edges = np.histogram(self.st, bins = bins)
+        #print("edges[0]:", edges[0])
         
         # from spike count to rate 
         hz = count / (bin_size_sec)
@@ -371,8 +401,10 @@ class Spike_train:
         
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
-        keep=self.intervals.is_within_intervals(mid)
-                
+        #print("mid[0:10]:",mid[0:10])
+        keep=self.intervals.is_within_intervals(mid,include_ties=True) # I changed to true
+        
+        
         if outside_interval_solution == "remove":    
             self.ifr = ifr[keep],count[keep],mid[keep]    
         elif outside_interval_solution == "nan":
@@ -382,7 +414,9 @@ class Spike_train:
         else:
             print("invalid value for argument outside_interval_solution")
             raise ValueError("set outside_interval_solution to remove or nan")
-            
+        
+        #print("First mid value of ifr: ", self.ifr[2])
+        
         self.ifr_rate = 1/bin_size_sec
         self.ifr_bin_size_sec= bin_size_sec
                 

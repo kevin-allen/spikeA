@@ -6,6 +6,10 @@ from spikeA.Spatial_properties import Spatial_properties
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Spike_waveform import Spike_waveform
 
+from scipy.stats import multivariate_normal
+from scipy.stats import poisson
+from scipy.interpolate import interp1d
+
 class Neuron:
     """
     Class containing information about a single neuron.
@@ -114,4 +118,251 @@ class Neuron:
             
         self.spike_waveform = Spike_waveform(session = session, dat_file_reader=dat_file_reader, spike_train=self.spike_train)
         
+
+class Simulated_place_cell(Neuron):
+    """
+    Class to simulate the spike train of a place cell.
+    
+    The firing rate in 2D space is simulated with a 2D gaussian kernel
+    The neuron has 1 firing field
+    
+    Arguments
+    name: name of the simulated place cell
+    peak_lock: location of the firing field peak
+    standard_deviation: std of the firing field
+    peak_rate: firing field peak firing rate in Hz
+    sampling_rate: sampling rate of the spike train
+    ap: Animal_pose object used to build the spike train
+    
+    """
+    def __init__(self, name, peak_loc=[0,0], standard_deviation=10, peak_rate=20, sampling_rate=20000, ap=None):
+        super(Simulated_place_cell,self).__init__(name=name)
+        
+        self.peak_loc=peak_loc
+        self.standard_deviation=standard_deviation
+        self.peak_rate = peak_rate
+        self.sampling_rate = sampling_rate      
+        self.ap = ap
+        self.spike_train = Spike_train(name=self.name,sampling_rate=self.sampling_rate)
+        
+        self.remove_nan_from_ap()
+        self.simulate_spike_train()
+        
+        self.spatial_properties = Spatial_properties(animal_pose=self.ap,spike_train=self.spike_train)
+        
+        self.spike_train.set_intervals(self.inter)
+        self.ap.set_intervals(self.inter)
+        
+
+    def simulate_spike_train(self):
+        """
+        Get a spike train that is based on the spatial selectivity of the neuron
+        """
+        newTime = np.arange(start=self.ap.pose[0,0], stop = self.inter[0,1]-1,step=1/self.sampling_rate)
+        
+        fx = interp1d(self.ap.pose[:,0], self.ap.pose[:,1]) # create function that will interpolate
+        fy = interp1d(self.ap.pose[:,0], self.ap.pose[:,2]) # create function that will interpolate
+
+        xNew = fx(newTime) # interpolate
+        yNew = fy(newTime) # interpolate
+        
+        xy = np.stack([xNew,yNew]).T
+        
+        # get the rate at each sampling data point
+        mu = multivariate_normal.pdf(x=xy,mean = self.peak_loc, cov = [[self.standard_deviation**2, 0], [0, self.standard_deviation**2]])* (2*np.pi *self.standard_deviation**2) * self.peak_rate
+        
+        self.spike_train.generate_poisson_spike_train_from_rate_vector(mu ,sampling_rate=self.sampling_rate)
+        
+    def remove_nan_from_ap(self):
+        """
+        Remove the nan from the ap.pose.
+        Only x,y and hd values are considered
+        
+        The ap object will be permenantly modified.
+        If ap does not have np.nan value, this should not have any effect.
+        """
+        
+        
+        tStepSize = self.ap.pose[1,0]-self.ap.pose[0,0]
+        pose = np.stack([self.ap.pose[:,0],self.ap.pose[:,1],self.ap.pose[:,2],self.ap.pose[:,4]]).T # only consider the data that we will be using
+        keepIndices = ~np.isnan(pose).any(axis=1)
+        maxT = np.sum(keepIndices)*tStepSize+tStepSize/2
+        
+        self.ap.pose = self.ap.pose[keepIndices]
+        
+        self.inter = np.array([[0,maxT]])
+        
+        self.ap.pose[:,0] = np.arange(start=tStepSize,stop = maxT,step=tStepSize)
+        self.ap.pose_ori = self.ap.pose
+
+class Simulated_grid_cell(Neuron):
+    """
+    Class to simulate the spike train of a grid cell.
+    
+    The firing rate in 2D space is simulated with cos function
+    
+    Arguments
+    name: name of the simulated grid cell
+    offset: np.array of shape (2,). Offset from 0,0 where the 3 component meets.
+    orientation: np.array of shape (3,). Orientation in radian of the 3 components
+    period: np.array of shape (3,). Period in cm for the 3 components. This is not the grid spacing.   period = grid spacing * np.cos(np.pi/6)
+    peak_rate: firing field peak firing rate in Hz
+    
+    sampling_rate: sampling rate of the spike train
+    ap: Animal_pose object used to build the spike train
+    
+    """
+    def __init__(self, name, 
+                 offset=np.array([0,0]),
+                 orientation = np.array([0.0,np.pi/3,np.pi/3*2]),
+                 period = np.array([30,30,30]),
+                 peak_rate=20, 
+                 sampling_rate=20000, 
+                 ap=None):
+        super(Simulated_grid_cell,self).__init__(name=name)
+    
+        # variable defining a grid cell
+        if offset.shape[0] != 2:
+            raise ValueError("offset should be of shape (2,)")
+        if orientation.shape[0] != 3:
+            raise ValueError("orientation should be of shape (3,)")
+        if period.shape[0] != 3:
+            raise ValueError("period should be of shape (3,)")
+            
+        self.offset=offset
+        self.orientation=orientation
+        self.period = period        
+        self.peak_rate = peak_rate        
+        
+        #print("offset:",offset)
+        #print("orientation:",orientation)
+        
+        
+        self.sampling_rate = sampling_rate      
+        self.ap = ap
+        
+        self.spike_train = Spike_train(name=self.name,sampling_rate=self.sampling_rate)
+        
+        self.remove_nan_from_ap()
+        
+        self.grid_cell_firing_rate()
+        
+        self.simulate_spike_train()
+        
+        self.spatial_properties = Spatial_properties(animal_pose=self.ap,spike_train=self.spike_train)
+        
+        self.spike_train.set_intervals(self.inter)
+        self.ap.set_intervals(self.inter)
+        
+    def approxMolulo(self, x,maxValue):
+        y = np.arctan(-1.0 / (np.tan(x/maxValue*np.pi))) + (0.5 * np.pi)
+        y = y * maxValue/np.pi
+        return 
+
+   
+    def pose_to_grid_cell_coordinate(self):
+        """
+        Function to transfrom the x,y position of the mouse to 
+        a position within the internal representation of grid cells. 
+    
+        The internal representation is 3 angles (x,y,z) which represents the distance along 3 axes
+        The 3 axes should be at approximately 60 degrees of each other.
+        
+        To get from distance to angle, we get the modulo of the distance and the underlying spacing.
+        
+        Set the angle in c0, c1, and c2. The range is -np.pi to pi. 
+        
+        """
+                
+        
+        Rx0 = np.array([[np.cos(-self.orientation[0])],[-np.sin(-self.orientation[0])]]) # minus sign because we want to rotate the inverse of the angle to bring it back to 1,0 
+        Rx1 = np.array([[np.cos(-self.orientation[1])],[-np.sin(-self.orientation[1])]])
+        Rx2 = np.array([[np.cos(-self.orientation[2])],[-np.sin(-self.orientation[2])]])
+                
+        d0 = self.pose @ Rx0
+        d1 = self.pose @ Rx1
+        d2 = self.pose @ Rx2
+
+        self.c0 = (d0 % self.period[0])/self.period[0] * np.pi*2 
+        self.c1 = (d1 % self.period[1])/self.period[1] * np.pi*2 
+        self.c2 = (d2 % self.period[2])/self.period[2] * np.pi*2 
+
+        # set range to -np.pi to np.pi
+        self.c0 = np.arctan2(np.sin(self.c0),np.cos(self.c0))
+        self.c1 = np.arctan2(np.sin(self.c1),np.cos(self.c1))
+        self.c2 = np.arctan2(np.sin(self.c2),np.cos(self.c2))
+        
+      
+        
+    def simulate_spike_train(self):
+        """
+        Get a spike train that is based on the spatial selectivity of the neuron
+        """
+        
+        # higher sampling rate
+        newTime = np.arange(start=self.ap.pose[0,0], stop = self.inter[0,1]-1,step=1/self.sampling_rate)
+        
+        # to interpolate the rate at a higher sampling rate
+        fx = interp1d(self.ap.pose[:,0], self.rate) 
+        
+        mu = fx(newTime) # interpolate the rate 
+        
+        self.spike_train.generate_poisson_spike_train_from_rate_vector(mu ,sampling_rate=self.sampling_rate)
+    
+    
+    def remove_nan_from_ap(self):
+        """
+        Remove the nan from the ap.pose.
+        Only x,y and hd values are considered
+        
+        The ap object will be permenantly modified.
+        If ap does not have np.nan value, this should not have any effect.
+        """
+        
+        #print("Removing invalid values from ap")
+        tStepSize = self.ap.pose[1,0]-self.ap.pose[0,0]
+        pose = np.stack([self.ap.pose[:,0],self.ap.pose[:,1],self.ap.pose[:,2],self.ap.pose[:,4]]).T # only consider the data that we will be using
+        keepIndices = ~np.isnan(pose).any(axis=1)
+        maxT = np.sum(keepIndices)*tStepSize+tStepSize/2
+        
+        self.ap.pose = self.ap.pose[keepIndices]
+        
+        self.inter = np.array([[0,maxT]])
+        
+        self.ap.pose[:,0] = np.arange(start=tStepSize,stop = maxT,step=tStepSize)
+        self.ap.pose_ori = self.ap.pose
+        
+        
+        
+        
+    def grid_cell_firing_rate(self):
+        """
+        Get the firing rate of grid cells
+        """
+        
+        # we get the rate for all position
+        self.pose = np.stack([self.ap.pose[:,1],self.ap.pose[:,2]]).T
+        self.pose_to_grid_cell_coordinate() # now have self.c0, self.c1, self.c2
+         
+
+        self.offset = np.expand_dims(self.offset,0) # shift in cm
+        # now we need to know the projection of the vector onto the 3 components
+        Rx0 = np.array([[np.cos(-self.orientation[0])],[-np.sin(-self.orientation[0])]]) # minus sign because we want to rotate the inverse of the angle to bring it back to 1,0 
+        Rx1 = np.array([[np.cos(-self.orientation[1])],[-np.sin(-self.orientation[1])]])
+        Rx2 = np.array([[np.cos(-self.orientation[2])],[-np.sin(-self.orientation[2])]])
+        d0 = self.offset @ Rx0
+        d1 = self.offset @ Rx1
+        d2 = self.offset @ Rx2
+        self.phase = np.squeeze(np.array([(d0 % self.period[0])/self.period[0] * np.pi*2,
+                               (d1 % self.period[1])/self.period[1] * np.pi*2,
+                               (d2 % self.period[2])/self.period[2] * np.pi*2]))
+        # from -np.pi to np.pi
+        self.phase = np.arctan2(np.sin(self.phase),np.cos(self.phase))
+            
+        self.rateC0 = np.cos(self.c0-self.phase[0])
+        self.rateC1 = np.cos(self.c1-self.phase[1])
+        self.rateC2 = np.cos(self.c2-self.phase[2])
+        
+        # the sum of 3 components ranges from -1.5 to 3.0
+        self.rate =  np.squeeze(((self.rateC0+self.rateC1+self.rateC2+1.5)/4.5*self.peak_rate))
         

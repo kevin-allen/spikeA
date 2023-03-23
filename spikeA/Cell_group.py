@@ -223,4 +223,4 @@ class Cell_group:
                 n.spike_train.ifr=None # remove the reference to the numpy array, which can be deleted by garbage collector
             
                 
-        self.ifr = (np.stack(ifrList,axis=0),time)
+        self.ifr = (np.stack(ifrList,axis=0),time.round(4)) # added the round so that the numbers are not 0.019999999 but 0.02

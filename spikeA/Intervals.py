@@ -97,9 +97,11 @@ class Intervals:
         
         
 
-    def is_within_intervals(self,time):
+    def is_within_intervals(self,time,include_ties = True):
         """
         Return a 1D numpy array containing True or False indicating whether the values in time are within the intervals
+        
+        The time point
         
         Artument
         time: 1D numpy array containing times
@@ -112,7 +114,10 @@ class Intervals:
         for i in range(self.inter.shape[0]):
             s=self.inter[i,0]
             e=self.inter[i,1]
-            within[:,i]=np.logical_and(time>=s, time<=e)
+            if include_ties :
+                within[:,i]=np.logical_and(time>=s, time<=e)
+            else:
+                within[:,i]=np.logical_and(time>s, time<e)
         
         
         return np.sum(within,axis=1)>0
