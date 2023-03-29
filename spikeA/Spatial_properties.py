@@ -370,9 +370,9 @@ class Spatial_properties:
             
             mean_firing_rate_all.append(self.st.mean_firing_rate())
             
-        return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)
-    
-    
+        return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)   
+            
+        
     def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True,remove_spike_in_occupancy_gaps = False):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
@@ -426,7 +426,29 @@ class Spatial_properties:
     
         ## get the firing rate in Hz (spike count/ time in sec)
         self.firing_rate_map = spike_count/self.ap.occupancy_map
-       
+    
+        self.map_xy_range = np.array([[self.ap.occupancy_bins[0][0],self.ap.occupancy_bins[1][0]],
+                                      [self.ap.occupancy_bins[0][-1],self.ap.occupancy_bins[1][-1]]])
+    
+    def firing_rate_map_peak_location(self):
+        """
+        Function to get the location of the peak rate within the firing rate map
+        
+        You need to call firing_rate_map_2d() before running this function.
+        
+        Return
+        Tuple with 2 elements: a numpy array with x and y indices of peak in the map, a numpy array with the x and y location of the peak in cm coordinates.
+        """
+        if not hasattr(self, 'firing_rate_map'):
+                raise ValueError('Call self.firing_rate_map_2d() before calling self.firing_rate_map_peak_location()')
+    
+        myMap = self.firing_rate_map.copy()
+        myMap[np.isnan(myMap)]=-1.0
+        xy = np.array(np.unravel_index(np.argmax(myMap), myMap.shape))
+        grid_peak_location = self.map_xy_range[0] + xy * self.map_cm_per_bin
+        return xy, grid_peak_location
+    
+    
     def firing_rate_histogram(self,cm_per_bin=2, smoothing_sigma_cm=2,smoothing=True,x_range=None,linspace=False,n_bins = None):
         """
         Method of the Spatial_properties class to calculate a firing rate histogram (1D) of a single neuron.
@@ -470,6 +492,7 @@ class Spatial_properties:
         self.firing_rate_histo = spike_count/self.ap.occupancy_histo
         self.firing_rate_histo_mid = self.mid_point_from_edges(x_edges)
 
+     
     
     def information_score_histogram(self):
         """
