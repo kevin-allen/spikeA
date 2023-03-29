@@ -28,7 +28,7 @@ class Neuron:
         set_spike_train()
         
     """
-    def __init__(self, name, cluster_number=None, subject=None, brain_area=None, channels=None, electrode_id=None):
+    def __init__(self, name, cluster_number=None, subject=None, brain_area=None, channels=None, shanks=None, electrode_id=None):
         """
         Constructor of the Neuron Class
         """
@@ -36,6 +36,7 @@ class Neuron:
         self.subject = subject
         self.brain_area = brain_area
         self.channels = channels
+        self.shanks = shanks
         self.electrode_id = electrode_id
         
         self.cluster_number = cluster_number
