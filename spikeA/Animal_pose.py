@@ -15,6 +15,12 @@ from spikeA.Intervals import Intervals
 from spikeA.Session import Session
 import matplotlib.pyplot as plt
 
+
+# helper functions
+def range_pi(x):
+    # wrap on interval [-pi,pi)
+    return (x + np.pi) % (2*np.pi) - np.pi
+
 class Animal_pose:
     """
     Class containing information about the pose (position and orientation) of an animal in time
@@ -285,7 +291,7 @@ class Animal_pose:
         Arguments
         file_name: If you want to save to a specific file name, set this argument. Otherwise, the self.ses object will be used to determine the file name.
         verbose: print a lot of information
-        pose_file_extension: the extension of the file you want to load. If not set, self.pose_file_extension is used. If set, it will modify the value of self.pose_extension and load the appropriate pose file. If you give file_name, setting pose_file_extension will have no effect.
+        pose_file_extension: the extension of the file you want to load. If not set, self.pose_file_extension is used. If set, it will modify the value of self.pose_file_extension and load the appropriate pose file. If you give file_name, setting pose_file_extension will have no effect.
         """
         if file_name is None and self.ses is None:
             raise ValueError("self.ses is not set and no file name is given")
@@ -1120,6 +1126,10 @@ class Animal_pose:
         
         
     def filter_pose(self, windowlen_sec = .25):
+        """
+        apply median filter on x,y pose (useful for filtering outliers)
+        windowlen_sec : median window in seconds (will be transformed to discrete time steps using dt)
+        """
         time = self.pose[:,0]
         dtime = np.diff(time)[0]
         xvals,yvals = self.pose[:,1],self.pose[:,2]
@@ -1130,11 +1140,81 @@ class Animal_pose:
         self.pose[:,2] = yvals_
         
     def hd_use_speedvector(self):
+        """
+        use movement direction as HD (experimental)
+        """
         distance = np.diff(self.pose[:,1:3], axis=0, append=np.nan)
         movement_direction = np.arctan2(distance[:,1],distance[:,0])
         self.pose[:,4] = movement_direction
 
+    def correct_hd_flip(self, min_speed = 7, max_speed = 100, plot=False):
+        """
+        correct HD if it is flipping (deviates more than 90° from movement direction), make sure it is always closer to movement direction than the opposite direction (180°)
 
+        min_speed, max_speed: only apply to these values
+        plot: show plot
+
+        Returns:
+        number of indices flipped
+        """
+
+        t= self.pose[:,0]
+        x= self.pose[:,1]
+        y= self.pose[:,2]
+        hd= self.pose[:,4]
+
+        xd = np.diff(x,append=np.nan)
+        yd = np.diff(y,append=np.nan)
+        td = np.diff(t,append=np.nan)
+        heading = np.arctan2(yd,xd)
+        speed= np.sqrt(xd**2+yd**2)/td
+
+        indices = (speed <= max_speed) & (speed >= min_speed)
+        #~ sum(indices), len(indices)
+
+        # signed angle difference
+        delta = range_pi(hd-heading)
+
+        # delta more than 90° (=pi/2) means HD is closer to opposite movement direction, so flip HD to match movement direction better.
+        hd_ = hd.copy()
+        #~ indices_correct = (np.abs(delta) > np.pi/2)
+        indices_correct = (np.abs(delta) > np.pi/2) & indices # these indices should be corrected
+        hd_[indices_correct] -= np.pi # flip
+        hd_ = range_pi(hd_)
+        
+        delta_ = range_pi(hd_-heading) # new delta (now absolute value <= pi/2)
+
+        medDelta = np.nanmedian(np.abs(delta))
+        medDelta_ = np.nanmedian(np.abs(delta_))
+
+        if plot:
+            fig, axes = plt.subplots(nrows=1, ncols=4,figsize=(12,3), constrained_layout=True)
+
+            axes[0].scatter(heading[indices],hd[indices],s=1,alpha=0.1)
+            #~ axes[0].scatter(heading[~indices],hd[~indices],s=.5,alpha=0.05,c='grey')
+            axes[0].set_xlabel("Movement heading")
+            axes[0].set_ylabel("Head direction")
+            axes[0].set_title("before")
+
+            axes[1].hist(np.abs(delta),bins=30)
+            axes[1].axvline(x=medDelta, c='blue')
+            axes[1].set_xlabel("Delta HD-heading")
+            axes[1].set_title("Median delta {:.3f} = {:.1f}°".format(medDelta,np.rad2deg(medDelta)))
+
+            axes[2].scatter(heading[indices],hd_[indices],s=1,alpha=0.1)
+            axes[2].set_xlabel("Movement heading")
+            axes[2].set_ylabel("Head direction")
+            axes[2].set_title("after")
+
+            axes[3].hist(np.abs(delta_),bins=30)
+            axes[3].axvline(x=medDelta_, c='blue')
+            axes[3].set_xlabel("Delta HD-heading")
+            axes[3].set_title("Median delta {:.3f} = {:.1f}°".format(medDelta_,np.rad2deg(medDelta_)))
+
+            plt.show()
+
+        self.pose[:,4] = hd_ # update
+        return indices_correct
         
             
     def speed_from_pose(self, sigma=1):
@@ -1304,6 +1384,41 @@ class Animal_pose:
         return xy_range # useful to have this for restricting the area later
 
 
+    
+    def pose_inside_spatial_area(self, environment_shape=None, radius=None, length=None, center=None):
+        """
+        similar as invalid_outside_spatial_area, but leaves pose unchanged (does not set pose to nan)
+        
+        Returns: indices of pose where spatial condition is satisfied
+        """
+
+        valid_shapes = ["circle","square","rectangle"]
+
+        if not environment_shape in valid_shapes:
+            raise ValueError("environment_shape should be part of the list {}".format(valid_shapes))
+
+        if environment_shape == "circle":
+            if radius is None:
+                raise ValueError("set the radius argument")
+
+            # calculate distance to center
+            dist = np.sqrt((self.pose[:,1]-center[0])**2 + (self.pose[:,2]-center[1])**2)
+            
+            # return indices where distance is not greater than radius (dist <= radius)
+            return ~(dist>radius)
+
+        # deal with rectangle
+        if environment_shape == "rectangle" or environment_shape=="square":
+            if length is None:
+                raise ValueError("set the length argument")
+            if isinstance(length,int) or isinstance(length,float):
+                length=(length,length)
+
+            # return indicies where pose is in rectangle of length length (not one of the 4 conditions)
+            return ~(self.pose[:,1] > center[0]+length[0]/2 | self.pose[:,2] > center[1]+length[1]/2 | self.pose[:,1] < center[0]-length[0]/2 | self.pose[:,2] < center[1]-length[1]/2)
+
+
+    
     def invalid_outside_head_direction_range(self, loc = 0, sigma = np.pi/4):
         """
         Method that set the position data (self.pose[:,1:7]) outside a defined head direction range to to np.nan.
@@ -1386,6 +1501,26 @@ class Animal_pose:
         
         # return xy_min_, xy_max_
         return np.array([xy_min_, xy_max_])
+    
+    
+    def find_xy_range_2(self, diameter, chunks=1000):
+        """
+        method to find shape in pose by splitting into chunks and applying median on them
+        diameter: diameter or length of box
+        
+        Returns: center, xy_range of environment
+        """
+        pose_xy = self.pose[:,[1,2]]
+        #~ (xmin,ymin),(xmax,ymax) = np.nanmin(pose_xy, axis=0), np.nanmax(pose_xy, axis=0)
+        #~ np.nanmedian(pose_xy, axis=0)
+
+        pose_xy_split = np.array_split(pose_xy, chunks)
+        pose_xy_split_medians = np.array([np.nanmedian(p,axis=0) for p in pose_xy_split])
+        xy_min_max = np.nanmin(pose_xy_split_medians, axis=0), np.nanmax(pose_xy_split_medians, axis=0) # (xmin,ymin),(xmax,ymax)
+        center = np.nanmean(xy_min_max, axis=0)
+        xy_range = np.array([center-diameter/2, center+diameter/2])
+
+        return center, xy_range
         
         
     def invalid_ratio(self):
