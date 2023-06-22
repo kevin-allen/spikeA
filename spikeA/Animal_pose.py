@@ -1125,19 +1125,28 @@ class Animal_pose:
         
         
         
-    def filter_pose(self, windowlen_sec = .25):
+    def filter_pose(self, windowlen_sec = .25, filter_hd=True):
         """
         apply median filter on x,y pose (useful for filtering outliers)
         windowlen_sec : median window in seconds (will be transformed to discrete time steps using dt)
+        filter_hd: also filter HD
         """
         time = self.pose[:,0]
         dtime = np.diff(time)[0]
-        xvals,yvals = self.pose[:,1],self.pose[:,2]
+        xvals,yvals,hd = self.pose[:,1],self.pose[:,2],self.pose[:,4]
         windowlen_ind = (int(windowlen_sec/dtime) // 2) * 2  + 1 # odd number
         xvals_ = medfilt(xvals, windowlen_ind)
         yvals_ = medfilt(yvals, windowlen_ind)
         self.pose[:,1] = xvals_
         self.pose[:,2] = yvals_
+        
+        hd_cos = np.cos(hd)
+        hd_sin = np.sin(hd)
+        hd_cos_ = medfilt(hd_cos, windowlen_ind)
+        hd_sin_ = medfilt(hd_sin, windowlen_ind)
+        hd_ = np.arctan2(hd_sin_, hd_cos_)
+        if filter_hd:
+            self.pose[:,4] = hd_
         
     def hd_use_speedvector(self):
         """
