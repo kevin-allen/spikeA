@@ -450,7 +450,7 @@ class Kilosort_session(Session):
     # Template Waveforms
     # - there exists for each template waveforms for each channel (see shape of self.templates = templates,timepoints,channels)
         
-    def load_waveforms(self):
+    def load_waveforms(self,verbose=False):
         """
         load the template waveforms from kilosorted files in that session
         """
@@ -459,7 +459,8 @@ class Kilosort_session(Session):
         self.templates = np.load(self.file_names["templates"])
         #print("templates.shape",self.templates.shape)
         wv_templates, wv_timepoints, wv_channels = self.templates.shape
-        print("Templates:",wv_templates, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
+        if verbose:
+            print("Templates:",wv_templates, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
         self.wv_channels = wv_channels
         
         # load the channel mapping
@@ -504,7 +505,7 @@ class Kilosort_session(Session):
     # conversion: Template -> Cluster
     # - find the difference in templates & clusters after Phy post-processing
     
-    def load_templates_clusters(self):
+    def load_templates_clusters(self,verbose=False):
         # spike templates
         self.st = np.load(self.file_names["spike_templates"]).flatten() # np.load(data_prefix + "spike_templates.npy")[:,0]
         # spike clusters
@@ -514,7 +515,8 @@ class Kilosort_session(Session):
             raise ValueError("the length of spike_templates and spike_clusters should be the same but are {} / {}".format(len(self.st),len(self.sc)))
         # set list with all cluster ids
         self.clusterids = np.unique(self.sc).flatten()
-        print("Loaded templates-clusters-map, spikes:", len(self.st),", clusters:",len(self.clusterids))
+        if verbose:
+            print("Loaded templates-clusters-map, spikes:", len(self.st),", clusters:",len(self.clusterids))
 
     # decompose cluster into templates
     def decompose_cluster(self, c):
@@ -546,15 +548,16 @@ class Kilosort_session(Session):
     ##
     # Channel assignments
         
-    def init_shanks(self):
+    def init_shanks(self,verbose=False):
         """
         loads the shanks from the channel positions
         """
         # get shanks (assume x coordinate in channel_position) of channels
         self.shanks_all = np.unique(self.channel_positions[:,0])
         if len(self.shanks_all) != self.n_shanks:
-            raise ValueError("Error in number of shanks! Check par/desel file (found {}) and kilosort/phy channel config (found {}).".format(self.n_shanks, len(self.shanks_all)))
-        print("Init shanks:", len(self.shanks_all))
+            raise ValueError("Error in number of shanks for {}! Check par/desel file (found {}) and kilosort/phy channel config (found {}).".format(self.name,self.n_shanks, len(self.shanks_all)))
+        if verbose:
+            print("Init shanks:", len(self.shanks_all))
             
             
     def get_channels_from_waveforms(self, waveforms, cnt = 5, method="ptp"):
