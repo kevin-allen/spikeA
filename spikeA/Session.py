@@ -430,9 +430,14 @@ class Kilosort_session(Session):
         self.trial_intervals = Intervals(inter)
         
         # load times collected externally
-        times_fn = self.path + "/times.npy"
+        times_fn = self.fileBase + ".times.npy"
+        times_fn_alt = self.path + "/times.npy"
         if os.path.isfile(times_fn):
+            self.file_names["log_times"] = times_fn
             self.log_times = np.load(times_fn)
+        elif os.path.isfile(times_fn_alt):
+            self.file_names["log_times"] = times_fn_alt
+            self.log_times = np.load(times_fn_alt)
         else:
             self.log_times = np.array([])
 

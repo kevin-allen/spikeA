@@ -367,7 +367,7 @@ class Spike_train:
         return timestamp
     
     def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1, 
-                                  shift_start_time=0, outside_interval_solution="remove"):
+                                  shift_start_time=0, time_start=None, time_end=None, outside_interval_solution="remove"):
         """
         Calculates the instantaneous firing rate. This is the firing rate of the neuron over time.
         The spikes are counted in equal sized time windows. (histogram)
@@ -377,6 +377,7 @@ class Spike_train:
         bin_size_sec: Bin size in sec
         sigma: Standard deviation of the gaussian filter smoothing, values are in bins
         shift_start_time: amount to add to the starting time for the calculation of IFR, for example if the IFR was to be calculated from 0 to 1000, then it will be calculated from 0+shift_start_time to 1000.
+        time_start, time_end: manually define start/end to calculate IFR. useful to apply globally to several neurons so that a numpy array of regular shape holds the population IFR (use: outside_interval_solution='nan')
         outside_interval_solution: What to do with time windows that are outside the set intervals. "remove" or "nan" are accepted.
         
         Returns:
@@ -384,7 +385,10 @@ class Spike_train:
         self.ifr is a tupple containing the ifr, the count, and mid point of the bin.
         """    
         
-        bins =  np.arange(np.min(self.intervals.inter)+shift_start_time, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
+        if not(time_start is None or time_end is None):
+            bins = np.arange(time_start, time_end+bin_size_sec, bin_size_sec)
+        else:
+            bins = np.arange(np.min(self.intervals.inter)+shift_start_time, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
         
         #print("bins[0]:",bins[0])
         #plt.hist(np.append(np.diff(bins),bin_size_sec+0.1),bins=50)
