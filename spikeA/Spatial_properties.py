@@ -1459,10 +1459,10 @@ class Spatial_properties:
                                                                               min_peak_rate_proportion= 0.4)                                                                     
         for field in fieldList:
         fig, axes = plt.subplots(1,2)
-        axes[0].imshow(field["fieldMap"])
-        axes[0].set_title("{:.3f} Hz".format(field["peakRate"]))
-        axes[1].imshow(field["rateMap"])
-        axes[1].set_title("{:.3f} Hz".format(np.nanmax(field["rateMap"])))
+        axes[0].imshow(field["field_map"])
+        axes[0].set_title("{:.3f} Hz".format(field["peak_rate"]))
+        axes[1].imshow(field["rate_map"])
+        axes[1].set_title("{:.3f} Hz".format(np.nanmax(field["rate_map"])))
         plt.show()
 
         
