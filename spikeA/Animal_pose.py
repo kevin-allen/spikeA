@@ -671,7 +671,7 @@ class Animal_pose:
         return occupancy
     
     
-    def pose_entropy(self, environment_shape=None):
+    def pose_entropy(self, environment_shape=None, safe=True):
         """
         calculates the entropy of pose occupancy
         the higher the entropy, it means animal spent similar time in all spatial bins, lower entropy means animal decided to go to specific regions more
@@ -694,9 +694,22 @@ class Animal_pose:
 
         
         bins_expected = int(area)
-        occupancy_series = self.occupancy_map[~np.isnan(self.occupancy_map)]
+        valid_indx = ~np.isnan(self.occupancy_map)
+        occupancy_series = self.occupancy_map[valid_indx]
+        
+        if not safe:
+            bins_expected = max(np.sum(valid_indx), bins_expected)
         
         return relative_entropy(occupancy_series, bins_expected)
+    
+    def hd_entropy(self):
+        """
+        similar as pose_entropy is for x,y  , this is for HD
+        Returns: relative entropy for head direction occupancy
+        
+        interpretation: high value = equal occupancy across directions, low value = preferred some directions more than others
+        """
+        return relative_entropy(self.hd_occupancy_histogram)
     
     
     
