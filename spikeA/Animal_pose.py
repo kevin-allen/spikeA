@@ -21,6 +21,10 @@ def range_pi(x):
     # wrap on interval [-pi,pi)
     return (x + np.pi) % (2*np.pi) - np.pi
 
+def parts_pos_neg(x):
+    # return positive parts and negative parts
+    return np.sum(x[x>0]), -np.sum(x[x<0])
+
 def arange_inc(a,b,step):
     # similar as np.arange(a,b,step) but ensures that b is in the resulting sequence
     d=b-a
@@ -42,6 +46,26 @@ def gaussian_filter1d_nans(U, sigma, mode='nearest', truncate=3.):
     Z=VV/WW
     return Z
 
+def relative_entropy(s, N=None):
+    """
+    calculate entropy of series
+    s: The series of weigths
+    N: (optional) if passed, fix p=1/N for more zero values
+    """
+    
+    if N is None:
+        N = len(s)
+    else:
+        if N < len(s):
+            raise IOError("N must be at least length of series")
+            
+    p = s/np.sum(s)
+    
+    S = np.nansum(p*np.log(p)) # entropy (this is not affected by more or fewer zeros)
+    S_max = -np.log(N) # maximal possible entropy (but this is affected)
+    
+    return S/S_max
+    
 
 
 class Animal_pose:
@@ -645,6 +669,34 @@ class Animal_pose:
         occupancy = self.occupancy_map[~np.isnan(self.occupancy_map)].shape[0]/area
         
         return occupancy
+    
+    
+    def pose_entropy(self, environment_shape=None):
+        """
+        calculates the entropy of pose occupancy
+        the higher the entropy, it means animal spent similar time in all spatial bins, lower entropy means animal decided to go to specific regions more
+        
+        Returns: relative entropy 0<= S_rel <= 1
+        """
+        
+        if not hasattr(self, 'occupancy_map'):
+            raise TypeError('You have to call ap.occupancy_map_2d() before calling this function')
+        
+        if environment_shape == 'rectangle' or environment_shape=='square':
+            area = self.occupancy_map.shape[0]*self.occupancy_map.shape[1] # area of a rectangle
+
+        elif environment_shape == 'circle':
+            # use the smaller dimension as diameter of the circle as there might be reflections outside the arena
+            area = ((np.min(self.occupancy_map.shape)/2)**2)*np.pi # area of a circle
+
+        else:
+            raise TypeError("This arena shape is not supported. Only square, rectangle or circle can be used.")
+
+        
+        bins_expected = int(area)
+        occupancy_series = self.occupancy_map[~np.isnan(self.occupancy_map)]
+        
+        return relative_entropy(occupancy_series, bins_expected)
     
     
     
@@ -1279,8 +1331,34 @@ class Animal_pose:
 
         self.pose[:,4] = hd_ # update
         return indices_correct
+
+    
+    def head_movements(self, max_angular_velocity_deg_per_sample = 5):
+        """
+        get clockwise/counter-clockwise head movements
+
+        max_angular_velocity_deg_per_sec: filter head direction movement by threshold angular velocity (deg/sample)
+        N.B. : deg/sec = deg/sample * sampling rate
+
+        based on teh positrack left-handed coord system, the positive angle is clockwise(!) unlike mathematical positive angle = counter clockwise
         
-            
+        calculate winding: np.array(ap.head_movements()) / (2*np.pi)
+        
+        Returns: positive, negative cumulated head turns
+        """
+
+        hd = self.pose[:,4]
+        hd_diff = range_pi(np.diff(hd)) # wrap to -pi,+pi
+
+        hd_diff_valid = np.abs(hd_diff) < np.deg2rad(max_angular_velocity_deg_per_sample) # filter invalid skips
+        #~ sum(hd_diff_valid), len(hd_diff_valid)
+
+        hd_diff_pos, hd_diff_neg = parts_pos_neg(hd_diff[hd_diff_valid])
+        #~return (hd_diff_pos, hd_diff_neg, hd_diff_neg/hd_diff_pos) # this fraction is >1 based on experience ;)
+        return hd_diff_pos, hd_diff_neg
+    
+    
+    
     def speed_from_pose(self, sigma=1):
         """
         Method to calculute the speed (in cm/s) of the animal from the position data
