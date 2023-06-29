@@ -39,6 +39,12 @@ class Session:
         self.fileBase = self.path+"/"+name
         return
     
+    def get_name(self):
+        """
+        Method to get the folder name in which session is stored (can deviate from the 'name' prefix when several sessions exist for the same date)
+        """
+        return self.path.strip('/').split('/')[-1]
+    
     def find_session_data_type(self):
         """
         Method to determine the data type of recording session
