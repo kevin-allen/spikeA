@@ -666,7 +666,9 @@ class Animal_pose:
         else:
             raise TypeError("This arena shape is not supported. Only square, rectangle or circle can be used.")
 
-        occupancy = self.occupancy_map[~np.isnan(self.occupancy_map)].shape[0]/area
+        #~ bins_indx = ~np.isnan(self.occupancy_map) & (self.occupancy_map>0)
+        bins_indx = (self.occupancy_map>0) # handles both not nan and >0 ( if zero_to_nan was used )
+        occupancy = np.sum(bins_indx)/area
         
         return occupancy
     
@@ -1391,6 +1393,7 @@ class Animal_pose:
         # create empty speed array
         self.speed = np.empty((len(self.pose[:,0]),1),float)
         
+        # This will be created using self.pose in its current state as template. Later changes by set_interval will NOT affect speed and needs recalculation or slicing of appropriate interval (one could pass "is within interval" to speed if speed is calculated once on pose_ori)
         
         # calculate the time per sample
         sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
@@ -1674,6 +1677,9 @@ class Animal_pose:
         xy_min_max = np.nanmin(pose_xy_split_medians, axis=0), np.nanmax(pose_xy_split_medians, axis=0) # (xmin,ymin),(xmax,ymax)  # get min,max range of chunks' medians
         center = np.nanmean(xy_min_max, axis=0) # center is the mean of these
         xy_range = np.array([center-diameter/2, center+diameter/2]) # extent by diameter (not used for calculating center)
+        
+        self.center = center
+        self.xy_range = xy_range
 
         return center, xy_range
         

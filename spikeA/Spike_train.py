@@ -145,7 +145,7 @@ class Spike_train:
         if self.st is None:
             raise ValueError("the spike train should be set before setting the intervals")
         
-        self.st = self.st_ori
+        self.st = self.st_ori.copy() # create a copy of our st_ori, not a pointer
         # set default time intervals from 0 to just after the last spike
         self.intervals.set_inter(inter=np.array([[0,self.st.max()+1]]))
         #print("Number of spikes: {}".format(self.st.shape[0]))
