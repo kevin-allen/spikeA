@@ -15,6 +15,59 @@ from spikeA.Intervals import Intervals
 from spikeA.Session import Session
 import matplotlib.pyplot as plt
 
+
+# helper functions
+def range_pi(x):
+    # wrap on interval [-pi,pi)
+    return (x + np.pi) % (2*np.pi) - np.pi
+
+def parts_pos_neg(x):
+    # return positive parts and negative parts
+    return np.sum(x[x>0]), -np.sum(x[x<0])
+
+def arange_inc(a,b,step):
+    # similar as np.arange(a,b,step) but ensures that b is in the resulting sequence
+    d=b-a
+    c=int(np.ceil(d/step))
+    l=c*step+a # go till l which might be more than b, but it is b <= l <= b+step
+    return np.linspace(a,l,c+1)
+
+from scipy.ndimage import gaussian_filter1d
+
+def gaussian_filter1d_nans(U, sigma, mode='nearest', truncate=3.):
+    # https://stackoverflow.com/a/36307291/14776523
+    V=U.copy()
+    V[np.isnan(U)]=0
+    VV=gaussian_filter1d(V,sigma=sigma,mode=mode,truncate=truncate)
+    W=0*U.copy()+1
+    W[np.isnan(U)]=0
+    WW=gaussian_filter1d(W,sigma=sigma,mode=mode,truncate=truncate)
+    WW[WW==0]=np.nan
+    Z=VV/WW
+    return Z
+
+def relative_entropy(s, N=None):
+    """
+    calculate entropy of series
+    s: The series of weigths
+    N: (optional) if passed, fix p=1/N for more zero values
+    """
+    
+    if N is None:
+        N = len(s)
+    else:
+        if N < len(s):
+            raise IOError("N must be at least length of series")
+            
+    p = s/np.sum(s)
+    
+    S = np.nansum(p*np.log(p)) # entropy (this is not affected by more or fewer zeros)
+    S_max = -np.log(N) # maximal possible entropy (but this is affected)
+    
+    return S/S_max
+    
+
+
 class Animal_pose:
     """
     Class containing information about the pose (position and orientation) of an animal in time
@@ -286,7 +339,7 @@ class Animal_pose:
         Arguments
         file_name: If you want to save to a specific file name, set this argument. Otherwise, the self.ses object will be used to determine the file name.
         verbose: print a lot of information
-        pose_file_extension: the extension of the file you want to load. If not set, self.pose_file_extension is used. If set, it will modify the value of self.pose_extension and load the appropriate pose file. If you give file_name, setting pose_file_extension will have no effect.
+        pose_file_extension: the extension of the file you want to load. If not set, self.pose_file_extension is used. If set, it will modify the value of self.pose_file_extension and load the appropriate pose file. If you give file_name, setting pose_file_extension will have no effect.
         """
         if file_name is None and self.ses is None:
             raise ValueError("self.ses is not set and no file name is given")
@@ -431,7 +484,7 @@ class Animal_pose:
     
         
     def occupancy_map_2d(self, cm_per_bin =2, smoothing_sigma_cm = 2, smoothing = True, zero_to_nan = True,
-                        xy_range=None):
+                        xy_range=None, ensure_fixed_shape=False):
         """
         Function to calculate an occupancy map for x and y position data. 
         The occupancy map is a 2D array covering the entire environment explored by the animal.
@@ -445,7 +498,8 @@ class Animal_pose:
         smoothing_sigma_cm: standard deviation of the gaussian kernel used to smooth the occupancy map
         smoothing: boolean indicating whether or not smoothing should be applied to the occupancy map
         zero_to_nan: boolean indicating if occupancy bins with a time of zero should be set to np.nan
-        xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map, default is None and the values are calculated from the data.         
+        xy_range: 2D np.array of size 2x2 [[xmin,ymin],[xmax,ymax]] with the minimal and maximal x and y values that should be in the occupancy map, default is None and the values are calculated from the data.  
+        ensure_fixed_shape: when using xy_range from automatic calculation like find_xy_range which has fixed dimensions, ensure that all firing rate maps have same shape
         
         Return
         self.occupancy_map is set. It is a 2D numpy array containing the time spent in seconds in a set of bins covering the environment
@@ -469,14 +523,21 @@ class Animal_pose:
         if xy_range is None:
             xy_max = np.ceil(val.max(axis=0))+cm_per_bin
             xy_min = np.floor(val.min(axis=0))-cm_per_bin
-        else :
-            xy_max= xy_range[1,:]
-            xy_min= xy_range[0,:]
+        else:
+            xy_max = xy_range[1,:]
+            xy_min = xy_range[0,:]
         #print("min and max x and y for the np.arange function : {}, {}".format(xy_min,xy_max))
 
         # create two arrays that will be our bin edges in the histogram function
         self.occupancy_bins = [np.arange(xy_min[0],xy_max[0]+cm_per_bin,cm_per_bin), # we add cm_per_bin so that it extend to the max and does not cut before
                                np.arange(xy_min[1],xy_max[1]+cm_per_bin,cm_per_bin)]
+        
+        if ensure_fixed_shape:
+            self.occupancy_bins = [ arange_inc(xy_min[0],xy_max[0]-0.1,cm_per_bin),
+                                    arange_inc(xy_min[1],xy_max[1]-0.1,cm_per_bin) ]
+            
+        #~print("occ:",len(self.occupancy_bins[0]),len(self.occupancy_bins[1]),"\n",self.occupancy_bins)
+            
         
         
         # calculate the occupancy map
@@ -606,9 +667,52 @@ class Animal_pose:
         else:
             raise TypeError("This arena shape is not supported. Only square, rectangle or circle can be used.")
 
-        occupancy = self.occupancy_map[~np.isnan(self.occupancy_map)].shape[0]/area
+        #~ bins_indx = ~np.isnan(self.occupancy_map) & (self.occupancy_map>0)
+        bins_indx = (self.occupancy_map>0) # handles both not nan and >0 ( if zero_to_nan was used )
+        occupancy = np.sum(bins_indx)/area
         
         return occupancy
+    
+    
+    def pose_entropy(self, environment_shape=None, safe=True):
+        """
+        calculates the entropy of pose occupancy
+        the higher the entropy, it means animal spent similar time in all spatial bins, lower entropy means animal decided to go to specific regions more
+        
+        Returns: relative entropy 0<= S_rel <= 1
+        """
+        
+        if not hasattr(self, 'occupancy_map'):
+            raise TypeError('You have to call ap.occupancy_map_2d() before calling this function')
+        
+        if environment_shape == 'rectangle' or environment_shape=='square':
+            area = self.occupancy_map.shape[0]*self.occupancy_map.shape[1] # area of a rectangle
+
+        elif environment_shape == 'circle':
+            # use the smaller dimension as diameter of the circle as there might be reflections outside the arena
+            area = ((np.min(self.occupancy_map.shape)/2)**2)*np.pi # area of a circle
+
+        else:
+            raise TypeError("This arena shape is not supported. Only square, rectangle or circle can be used.")
+
+        
+        bins_expected = int(area)
+        valid_indx = ~np.isnan(self.occupancy_map)
+        occupancy_series = self.occupancy_map[valid_indx]
+        
+        if not safe:
+            bins_expected = max(np.sum(valid_indx), bins_expected)
+        
+        return relative_entropy(occupancy_series, bins_expected)
+    
+    def hd_entropy(self):
+        """
+        similar as pose_entropy is for x,y  , this is for HD
+        Returns: relative entropy for head direction occupancy
+        
+        interpretation: high value = equal occupancy across directions, low value = preferred some directions more than others
+        """
+        return relative_entropy(self.hd_occupancy_histogram)
     
     
     
@@ -1058,6 +1162,7 @@ class Animal_pose:
             self.intervals = Intervals(inter=np.array([[0,self.pose[:,0].max()+1]]))
             
     
+
     def pose_at_time(self, t_sec):
         
         """
@@ -1120,24 +1225,156 @@ class Animal_pose:
         
         
         
-    def filter_pose(self, windowlen_sec = .25):
+    def filter_pose(self, windowlen_sec = .25, filter_xy=True, filter_hd=True):
+        """
+        apply median filter on x,y pose (useful for filtering outliers)
+        windowlen_sec : median window in seconds (will be transformed to discrete time steps using dt)
+        filter_hd: also filter HD
+        """
         time = self.pose[:,0]
         dtime = np.diff(time)[0]
-        xvals,yvals = self.pose[:,1],self.pose[:,2]
+        xvals,yvals,hd = self.pose[:,1],self.pose[:,2],self.pose[:,4]
         windowlen_ind = (int(windowlen_sec/dtime) // 2) * 2  + 1 # odd number
         xvals_ = medfilt(xvals, windowlen_ind)
         yvals_ = medfilt(yvals, windowlen_ind)
-        self.pose[:,1] = xvals_
-        self.pose[:,2] = yvals_
+        if filter_xy:
+            self.pose[:,1] = xvals_
+            self.pose[:,2] = yvals_
+        
+        hd_cos = np.cos(hd)
+        hd_sin = np.sin(hd)
+        hd_cos_ = medfilt(hd_cos, windowlen_ind)
+        hd_sin_ = medfilt(hd_sin, windowlen_ind)
+        hd_ = np.arctan2(hd_sin_, hd_cos_)
+        if filter_hd:
+            self.pose[:,4] = hd_
+        
+    def hd_smooth(self, sigma_sec = 0.15):
+        """
+        apply gaussian filter on HD using sigma_sec seconds sigma intv
+        """
+        hd = self.pose[:,4]
+
+        hdc = np.cos(hd)
+        hds = np.sin(hd)
+
+        dt=np.diff(self.pose[:,0])[0]
+        sigma = int(sigma_sec/dt)
+
+        hdc_ = gaussian_filter1d_nans(hdc, sigma=sigma)
+        hds_ = gaussian_filter1d_nans(hds, sigma=sigma)
+        hd_ = np.arctan2(hds_, hdc_)
+
+        self.pose[:,4] = hd_
+        
         
     def hd_use_speedvector(self):
+        """
+        use movement direction as HD (experimental)
+        """
         distance = np.diff(self.pose[:,1:3], axis=0, append=np.nan)
         movement_direction = np.arctan2(distance[:,1],distance[:,0])
         self.pose[:,4] = movement_direction
 
+    def correct_hd_flip(self, min_speed = 7, max_speed = 100, plot=False):
+        """
+        correct HD if it is flipping (deviates more than 90° from movement direction), make sure it is always closer to movement direction than the opposite direction (180°)
 
+        min_speed, max_speed: only apply to these values
+        plot: show plot
+
+        Returns:
+        number of indices flipped
+        """
+
+        t= self.pose[:,0]
+        x= self.pose[:,1]
+        y= self.pose[:,2]
+        hd= self.pose[:,4]
+
+        xd = np.diff(x,append=np.nan)
+        yd = np.diff(y,append=np.nan)
+        td = np.diff(t,append=np.nan)
+        heading = np.arctan2(yd,xd)
+        speed= np.sqrt(xd**2+yd**2)/td
+
+        indices = (speed <= max_speed) & (speed >= min_speed) # valid speed, do not correct for immobile mouse and for abnormal speed
+        #~ sum(indices), len(indices)
+
+        # signed angle difference
+        delta = range_pi(hd-heading)
+
+        # delta more than 90° (=pi/2) means HD is closer to opposite movement direction, so flip HD to match movement direction better.
+        hd_ = hd.copy()
+        #~ indices_correct = (np.abs(delta) > np.pi/2)
+        indices_correct = (np.abs(delta) > np.pi/2) & indices # these indices should be corrected
+        hd_[indices_correct] -= np.pi # flip
+        hd_ = range_pi(hd_)
         
-            
+        delta_ = range_pi(hd_-heading) # new delta (now absolute value <= pi/2)
+
+        medDelta = np.nanmedian(np.abs(delta[indices]))   # median delta of indices with valid speed
+        medDelta_ = np.nanmedian(np.abs(delta_[indices])) # median delta of indices with valid speed, after correction
+
+        if plot:
+            fig, axes = plt.subplots(nrows=1, ncols=4,figsize=(12,3), constrained_layout=True)
+
+            axes[0].scatter(heading[indices],hd[indices],s=1,alpha=0.1,c='blue')
+            axes[0].scatter(heading[~indices],hd[~indices],s=.3,alpha=0.05,c='grey')
+            axes[0].set_xlabel("Movement heading")
+            axes[0].set_ylabel("Head direction")
+            axes[0].set_title("before")
+
+            #~axes[1].hist(np.abs(delta[indices]),bins=30)
+            axes[1].hist(np.abs(delta),bins=30)
+            axes[1].axvline(x=medDelta, c='blue')
+            axes[1].set_xlabel("Delta HD-heading")
+            axes[1].set_title("Median delta {:.3f} = {:.1f}°".format(medDelta,np.rad2deg(medDelta)))
+
+            axes[2].scatter(heading[indices],hd_[indices],s=1,alpha=0.1,c='blue')
+            axes[2].scatter(heading[~indices],hd_[~indices],s=.3,alpha=0.05,c='grey')
+            axes[2].set_xlabel("Movement heading")
+            axes[2].set_ylabel("Head direction")
+            axes[2].set_title("after")
+
+            #~axes[3].hist(np.abs(delta_[indices]),bins=30)
+            axes[3].hist(np.abs(delta_),bins=30)
+            axes[3].axvline(x=medDelta_, c='blue')
+            axes[3].set_xlabel("Delta HD-heading")
+            axes[3].set_title("Median delta {:.3f} = {:.1f}°".format(medDelta_,np.rad2deg(medDelta_)))
+
+            plt.show()
+
+        self.pose[:,4] = hd_ # update
+        return indices_correct
+
+    
+    def head_movements(self, max_angular_velocity_deg_per_sample = 5):
+        """
+        get clockwise/counter-clockwise head movements
+
+        max_angular_velocity_deg_per_sec: filter head direction movement by threshold angular velocity (deg/sample)
+        N.B. : deg/sec = deg/sample * sampling rate
+
+        based on teh positrack left-handed coord system, the positive angle is clockwise(!) unlike mathematical positive angle = counter clockwise
+        
+        calculate winding: np.array(ap.head_movements()) / (2*np.pi)
+        
+        Returns: positive, negative cumulated head turns
+        """
+
+        hd = self.pose[:,4]
+        hd_diff = range_pi(np.diff(hd)) # wrap to -pi,+pi
+
+        hd_diff_valid = np.abs(hd_diff) < np.deg2rad(max_angular_velocity_deg_per_sample) # filter invalid skips
+        #~ sum(hd_diff_valid), len(hd_diff_valid)
+
+        hd_diff_pos, hd_diff_neg = parts_pos_neg(hd_diff[hd_diff_valid])
+        #~return (hd_diff_pos, hd_diff_neg, hd_diff_neg/hd_diff_pos) # this fraction is >1 based on experience ;)
+        return hd_diff_pos, hd_diff_neg
+    
+    
+    
     def speed_from_pose(self, sigma=1):
         """
         Method to calculute the speed (in cm/s) of the animal from the position data
@@ -1157,6 +1394,7 @@ class Animal_pose:
         # create empty speed array
         self.speed = np.empty((len(self.pose[:,0]),1),float)
         
+        # This will be created using self.pose in its current state as template. Later changes by set_interval will NOT affect speed and needs recalculation or slicing of appropriate interval (one could pass "is within interval" to speed if speed is calculated once on pose_ori)
         
         # calculate the time per sample
         sec_per_sample = self.pose[1,0]-self.pose[0,0] # all rows have equal time intervals between them, we get the first one
@@ -1305,6 +1543,41 @@ class Animal_pose:
         return xy_range # useful to have this for restricting the area later
 
 
+    
+    def pose_inside_spatial_area(self, environment_shape=None, radius=None, length=None, center=None):
+        """
+        similar as invalid_outside_spatial_area, but leaves pose unchanged (does not set pose to nan)
+        
+        Returns: indices of pose where spatial condition is satisfied
+        """
+
+        valid_shapes = ["circle","square","rectangle"]
+
+        if not environment_shape in valid_shapes:
+            raise ValueError("environment_shape should be part of the list {}".format(valid_shapes))
+
+        if environment_shape == "circle":
+            if radius is None:
+                raise ValueError("set the radius argument")
+
+            # calculate distance to center
+            dist = np.sqrt((self.pose[:,1]-center[0])**2 + (self.pose[:,2]-center[1])**2)
+            
+            # return indices where distance is not greater than radius (dist <= radius)
+            return ~(dist>radius)
+
+        # deal with rectangle
+        if environment_shape == "rectangle" or environment_shape=="square":
+            if length is None:
+                raise ValueError("set the length argument")
+            if isinstance(length,int) or isinstance(length,float):
+                length=(length,length)
+
+            # return indicies where pose is in rectangle of length length (not one of the 4 conditions)
+            return ~(self.pose[:,1] > center[0]+length[0]/2 | self.pose[:,2] > center[1]+length[1]/2 | self.pose[:,1] < center[0]-length[0]/2 | self.pose[:,2] < center[1]-length[1]/2)
+
+
+    
     def invalid_outside_head_direction_range(self, loc = 0, sigma = np.pi/4):
         """
         Method that set the position data (self.pose[:,1:7]) outside a defined head direction range to to np.nan.
@@ -1387,6 +1660,29 @@ class Animal_pose:
         
         # return xy_min_, xy_max_
         return np.array([xy_min_, xy_max_])
+    
+    
+    def find_xy_range_2(self, diameter, chunks=1000):
+        """
+        method to find shape in pose by splitting into chunks and applying median on them
+        diameter: diameter or length of box
+        
+        Returns: center, xy_range of environment
+        """
+        pose_xy = self.pose[:,[1,2]]
+        #~ (xmin,ymin),(xmax,ymax) = np.nanmin(pose_xy, axis=0), np.nanmax(pose_xy, axis=0)
+        #~ np.nanmedian(pose_xy, axis=0)
+
+        pose_xy_split = np.array_split(pose_xy, chunks) # split into temporal chunks
+        pose_xy_split_medians = np.array([np.nanmedian(p,axis=0) for p in pose_xy_split]) # get median x,y of each chunk
+        xy_min_max = np.nanmin(pose_xy_split_medians, axis=0), np.nanmax(pose_xy_split_medians, axis=0) # (xmin,ymin),(xmax,ymax)  # get min,max range of chunks' medians
+        center = np.nanmean(xy_min_max, axis=0) # center is the mean of these
+        xy_range = np.array([center-diameter/2, center+diameter/2]) # extent by diameter (not used for calculating center)
+        
+        self.center = center
+        self.xy_range = xy_range
+
+        return center, xy_range
         
         
     def invalid_ratio(self):

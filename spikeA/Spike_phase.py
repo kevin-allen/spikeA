@@ -108,21 +108,29 @@ class Spike_phase:
         self.intervals = Intervals(inter=np.array([[0,self.cycles[-1,1].max()+1]]))
     
     
+        
     def spike_phase(self):
         """
-        Method to calculate the phase of spikes
+        Calculate the phase of spikes. You first need to optain the begining and end of each oscillation (self.cycles)
         
-        The c function set invalid to -1.0 and the valid phase from 0 to 2*np.pi
-        The python code then set invalid to np.nan and the range from -np.pi to np.pi
+        The phase is from -pi to pi
+
+        No value is returned but self.phase is set. The length of self.phase is the same as self.spike_train.st
+        
         """
+        cycle_start = self.cycles[:,0]; cycle_end = self.cycles[:,1]
         
-        # memory to store the results
-        self.phase = np.empty_like(self.spike_train.st)
+        # searchsorted: Find indices where elements should be inserted to maintain order
+        cycle_indices = np.searchsorted(cycle_start, self.spike_train.st, side='right') - 1
         
-        spikeA.spike_time.spike_phase_func(self.spike_train.st,self.cycles,self.phase)
+        # check if it is within the putative theta cycle at index cycle_indices
+        valid_spikes = np.logical_and(self.spike_train.st > cycle_start[cycle_indices], self.spike_train.st < cycle_end[cycle_indices])
         
-        self.phase[self.phase==-1.0] = np.nan
-        self.phase = self.phase-np.pi
+        cycle_duration = cycle_end[cycle_indices] - cycle_start[cycle_indices]
+        
+        self.phase = np.where(valid_spikes, (self.spike_train.st - cycle_start[cycle_indices]) / cycle_duration * (2 * np.pi), np.nan) - np.pi
+
+
     
     def spike_phase_histogram(self,n_bins=36, rate = True):
         """

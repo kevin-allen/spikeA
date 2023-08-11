@@ -9,6 +9,9 @@ from spikeA.Spike_waveform import Spike_waveform
 from scipy.stats import multivariate_normal
 from scipy.stats import poisson
 from scipy.interpolate import interp1d
+from scipy.stats import vonmises
+import math
+
 
 class Neuron:
     """
@@ -28,7 +31,7 @@ class Neuron:
         set_spike_train()
         
     """
-    def __init__(self, name, cluster_number=None, subject=None, brain_area=None, channels=None, electrode_id=None):
+    def __init__(self, name, cluster_number=None, subject=None, brain_area=None, channels=None, shanks=None, electrode_id=None):
         """
         Constructor of the Neuron Class
         """
@@ -36,6 +39,7 @@ class Neuron:
         self.subject = subject
         self.brain_area = brain_area
         self.channels = channels
+        self.shanks = shanks
         self.electrode_id = electrode_id
         
         self.cluster_number = cluster_number
@@ -65,6 +69,7 @@ class Neuron:
         #if not isinstance(animal_pose,Animal_pose): 
         #    raise TypeError("animal_pose should be a subclass of the Animal_pose class but is {}".format(type(animal_pose)))
         
+        self.ap = animal_pose
         self.spatial_properties = Spatial_properties(animal_pose=animal_pose,spike_train=self.spike_train)
     
     
@@ -117,6 +122,25 @@ class Neuron:
                 raise TypeError("dat_file is not an instance of Dat_file_reader class")
             
         self.spike_waveform = Spike_waveform(session = session, dat_file_reader=dat_file_reader, spike_train=self.spike_train)
+        
+    
+    def set_intervals(self, inter):
+        """
+        sets interval to both spike train of that neuron and to its spatial properties animal pose
+        
+        inter: Intervals
+        """
+        self.inter = inter
+        self.spike_train.set_intervals(self.inter)
+        self.ap.set_intervals(self.inter)
+    
+    def unset_intervals(self):
+        """
+        unsets interval of both spike train of that neuron and of its spatial properties animal pose
+        """
+        self.spike_train.unset_intervals()
+        self.ap.unset_intervals()
+
         
 
 class Simulated_place_cell(Neuron):
@@ -366,3 +390,79 @@ class Simulated_grid_cell(Neuron):
         # the sum of 3 components ranges from -1.5 to 3.0
         self.rate =  np.squeeze(((self.rateC0+self.rateC1+self.rateC2+1.5)/4.5*self.peak_rate))
         
+#Simulate a HD cell
+class Simulated_HD_Cell(Neuron):
+    '''
+    Simulate a HD cell based on the von Mises distribution. https://en.wikipedia.org/wiki/Von_Mises_distribution
+    
+    Arguments
+    name: Name of stimulated HD cell
+    peakAngle: Peak position of the HD cell in radian
+    sharpness: How sharply tunned the HD cell is, the larger the number the sharper
+    ap: Animal position used to build the spike train
+    peakRate: Peak firing rate
+    sampling_rate: sampling rate of the spike train, default 20000
+    
+    Usage:
+    Same as the Neuron class
+    
+    Examples:
+    testHDNeuron = Simulated_HD_Cell('testHD',ap = sSes.ap,peakAngle = 90,sharpness=5,peakRate=20)
+    
+    testHDNeuron.spatial_properties.firing_rate_head_direction_histogram(deg_per_bin=10, smoothing_sigma_deg=10,smoothing=True)  
+    
+    testNeuronHistos = testHDNeuron.spatial_properties.firing_rate_head_direction_histo
+    '''
+    
+    def __init__(self,name,peakAngle=0,sharpness=1,peakRate = 10,sampling_rate = 20000, ap=None):        
+        super().__init__(name=name)
+        
+        self.name = name
+        self.peakAngle = math.radians(peakAngle)
+        self.sharpness = sharpness
+        self.ap = ap
+        self.peakRate = peakRate
+        self.sampling_rate = sampling_rate
+        self.spike_train = Spike_train(name=self.name,sampling_rate=self.sampling_rate)
+        
+        self.remove_nan_from_ap()
+        self.simulate_spike_train()
+        
+        self.spatial_properties = Spatial_properties(animal_pose=self.ap,spike_train=self.spike_train)
+        
+        self.spike_train.set_intervals(self.inter)
+        self.ap.set_intervals(self.inter)
+        
+    def simulate_spike_train(self):
+        newTime = np.arange(start=self.ap.pose[0,0], stop = self.inter[0,1]-1,step=1/self.sampling_rate)
+        
+        fHD = interp1d(self.ap.pose[:,0], self.ap.pose[:,4]) # create function that will interpolate the Head Direction
+        
+        hdNew = fHD(newTime) # interpolate from new time
+        
+        #Get the rate at each sampling data point using the vonmises probability density function
+        mu = vonmises.pdf(x = hdNew, loc = self.peakAngle, kappa = self.sharpness,scale = 1) * self.peakRate 
+        
+        self.spike_train.generate_poisson_spike_train_from_rate_vector(mu ,sampling_rate=self.sampling_rate)
+    
+    def remove_nan_from_ap(self):
+        """
+        Remove the nan from the ap.pose.
+        Only x,y and hd values are considered
+        
+        The ap object will be permenantly modified.
+        If ap does not have np.nan value, this should not have any effect.
+        """
+        
+        
+        tStepSize = self.ap.pose[1,0]-self.ap.pose[0,0]
+        pose = np.stack([self.ap.pose[:,0],self.ap.pose[:,1],self.ap.pose[:,2],self.ap.pose[:,4]]).T # only consider the data that we will be using
+        keepIndices = ~np.isnan(pose).any(axis=1)
+        maxT = np.sum(keepIndices)*tStepSize+tStepSize/2
+        
+        self.ap.pose = self.ap.pose[keepIndices]
+        
+        self.inter = np.array([[0,maxT]])
+        
+        self.ap.pose[:,0] = np.arange(start=tStepSize,stop = maxT,step=tStepSize)
+        self.ap.pose_ori = self.ap.pose
