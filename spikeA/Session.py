@@ -5,6 +5,7 @@ import numpy as np
 from datetime import datetime
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Intervals import Intervals
+import pickle
 
 class Session:
     """
@@ -422,12 +423,26 @@ class Kilosort_session(Session):
         if len(self.desel) != self.n_shanks:
             raise ValueError("{}: Length of desel is not matching the number of shanks".format(self.name))
         
+        
         self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
         # self.dat_file_names is depreciated, use self.file_names["dat"] instead
         self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
         df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
         inter = df.get_file_intervals_in_seconds()
         self.trial_intervals = Intervals(inter)
+        
+        #####################################
+        ## save self.trial_intervals as sessionIntervals.npy 
+        ## for later use in the ses. directory
+        ####################################
+        
+        fn = os.path.join(self.path, "sessionIntervals.npy")
+        if not os.path.exists(fn):
+            with open(fn, 'wb') as f:
+                pickle.dump(self.trial_intervals, f)
+        else:
+            with open(fn, 'rb') as f:
+                self.trial_intervals = np.load(f,allow_pickle=True)
         
         # load times collected externally
         times_fn = self.path + "/times.npy"

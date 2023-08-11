@@ -366,8 +366,7 @@ class Spike_train:
         
         return timestamp
     
-    def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1, 
-                                  shift_start_time=0, outside_interval_solution="remove"):
+    def instantaneous_firing_rate(self,bin_size_sec = 0.001, sigma = 1, outside_interval_solution="remove"):
         """
         Calculates the instantaneous firing rate. This is the firing rate of the neuron over time.
         The spikes are counted in equal sized time windows. (histogram)
@@ -376,7 +375,6 @@ class Spike_train:
         Arguments:
         bin_size_sec: Bin size in sec
         sigma: Standard deviation of the gaussian filter smoothing, values are in bins
-        shift_start_time: amount to add to the starting time for the calculation of IFR, for example if the IFR was to be calculated from 0 to 1000, then it will be calculated from 0+shift_start_time to 1000.
         outside_interval_solution: What to do with time windows that are outside the set intervals. "remove" or "nan" are accepted.
         
         Returns:
@@ -384,15 +382,13 @@ class Spike_train:
         self.ifr is a tupple containing the ifr, the count, and mid point of the bin.
         """    
         
-        bins =  np.arange(np.min(self.intervals.inter)+shift_start_time, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
+        bins =  np.arange(np.min(self.intervals.inter), np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
         
-        #print("bins[0]:",bins[0])
         #plt.hist(np.append(np.diff(bins),bin_size_sec+0.1),bins=50)
         #plt.title("bins in spike_train")
         #plt.show()
         
         count, edges = np.histogram(self.st, bins = bins)
-        #print("edges[0]:", edges[0])
         
         # from spike count to rate 
         hz = count / (bin_size_sec)
@@ -401,10 +397,8 @@ class Spike_train:
         
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
-        #print("mid[0:10]:",mid[0:10])
-        keep=self.intervals.is_within_intervals(mid,include_ties=True) # I changed to true
-        
-        
+        keep=self.intervals.is_within_intervals(mid,include_ties=False)
+                
         if outside_interval_solution == "remove":    
             self.ifr = ifr[keep],count[keep],mid[keep]    
         elif outside_interval_solution == "nan":
@@ -414,9 +408,7 @@ class Spike_train:
         else:
             print("invalid value for argument outside_interval_solution")
             raise ValueError("set outside_interval_solution to remove or nan")
-        
-        #print("First mid value of ifr: ", self.ifr[2])
-        
+            
         self.ifr_rate = 1/bin_size_sec
         self.ifr_bin_size_sec= bin_size_sec
                 
@@ -547,7 +539,7 @@ class Spike_train:
         I moved the calculation to c to make it faster 
         
         Arguments
-        bin_size_ms: bin size of the histogram
+        bin_size_sec: bin size of the histogram
         min_sec: How far back from the reference spike are we considering
         max_sec: How far after from the reference spike are we considering
         

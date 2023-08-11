@@ -74,6 +74,7 @@ class Animal_pose:
         if ses is None:
             self.ses = None
         else :
+            #isinstance(session, Session) or isinstance(session, Kilosort_session)
             if not (issubclass(type(ses),Session)):   ### I needed to change Session to Tetrode_session here to make it run
                 raise TypeError("ses should be a subclass of the Session class but is {}".format(type(ses)))
             self.ses = ses # information regarding our session
