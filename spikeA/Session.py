@@ -430,25 +430,21 @@ class Kilosort_session(Session):
             raise ValueError("{}: Length of desel is not matching the number of shanks".format(self.name))
         
         
-        self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
-        # self.dat_file_names is depreciated, use self.file_names["dat"] instead
-        self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
-        df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
-        inter = df.get_file_intervals_in_seconds()
+        # we need to get the time offset of each trial of the session
+        # if we already have a file for it, use the file, otherwise get it from the .dat files.
+        fn = os.path.join(self.path, "sessionIntervals.npy")
+        if os.path.exists(fn): # the file is there
+            inter = np.load(fn)
+        else: # the file is not there
+            self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
+            # self.dat_file_names is depreciated, use self.file_names["dat"] instead
+            self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
+            df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
+            inter = df.get_file_intervals_in_seconds()
+            inter.save(fn) # save into a file for next time
+        # set the trial intervals    
         self.trial_intervals = Intervals(inter)
         
-        #####################################
-        ## save self.trial_intervals as sessionIntervals.npy 
-        ## for later use in the ses. directory
-        ####################################
-        
-        fn = os.path.join(self.path, "sessionIntervals.npy")
-        if not os.path.exists(fn):
-            with open(fn, 'wb') as f:
-                pickle.dump(self.trial_intervals, f)
-        else:
-            with open(fn, 'rb') as f:
-                self.trial_intervals = np.load(f,allow_pickle=True)
         
         # load times collected externally
         times_fn = self.fileBase + ".times.npy"
