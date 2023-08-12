@@ -1115,11 +1115,15 @@ class Spatial_properties:
         rotations60 = [60, 120]
         rotations30= [30, 90, 150]
 
+        
+        
         corr60 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations60]
         corr30 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations30]
 
         grid_score = np.mean(corr60)-np.mean(corr30)
-
+        
+      
+        
         return grid_score
     
     

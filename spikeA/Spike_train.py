@@ -386,13 +386,13 @@ class Spike_train:
         
         bins =  np.arange(np.min(self.intervals.inter)+shift_start_time, np.max(self.intervals.inter)+bin_size_sec, bin_size_sec)
         
-        #print("bins[0]:",bins[0])
+        #print("bins[0]:",bins[0], "bins[-1]:",bins[-1])
+        
         #plt.hist(np.append(np.diff(bins),bin_size_sec+0.1),bins=50)
         #plt.title("bins in spike_train")
         #plt.show()
         
         count, edges = np.histogram(self.st, bins = bins)
-        #print("edges[0]:", edges[0])
         
         # from spike count to rate 
         hz = count / (bin_size_sec)
@@ -401,9 +401,14 @@ class Spike_train:
         
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
-        #print("mid[0:10]:",mid[0:10])
+        #print("mid[0]: {:.4f}, mid[-1]: {:.4f}".format(mid[0],mid[-1]))
+        #print("self.intervals.inter", self.intervals.inter)
+        
+        #print("mid[0]>=self.intervals.inter[0,0]:",mid[0]>=self.intervals.inter[0,0])
+        
         keep=self.intervals.is_within_intervals(mid,include_ties=True) # I changed to true
         
+        #print("keep[0]:",keep[0])
         
         if outside_interval_solution == "remove":    
             self.ifr = ifr[keep],count[keep],mid[keep]    
@@ -415,7 +420,7 @@ class Spike_train:
             print("invalid value for argument outside_interval_solution")
             raise ValueError("set outside_interval_solution to remove or nan")
         
-        #print("First mid value of ifr: ", self.ifr[2])
+        #print("First mid value of ifr: ", self.ifr[2][0:10])
         
         self.ifr_rate = 1/bin_size_sec
         self.ifr_bin_size_sec= bin_size_sec
