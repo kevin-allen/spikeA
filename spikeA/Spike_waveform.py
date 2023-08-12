@@ -27,7 +27,7 @@ class Spike_waveform:
         """
         Constructor of the Spike_waveform class
         """
-        if not isinstance(session, Session):
+        if not (isinstance(session, Session) or isinstance(session, Kilosort_session)) :
             raise TypeError("session is not an instance of the Session class")
         if not isinstance(spike_train,Spike_train): 
             raise TypeError("spike_train is not an instance of Spike_train class")

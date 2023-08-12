@@ -80,6 +80,7 @@ class Cell_group:
             shanks_arr, active_shanks, electrodes = ses.get_active_shanks(channels)
             n.channels = channels
             n.brain_area = electrodes
+            n.shanks = active_shanks
             # n.electrode_id
 
             unique, weights = ses.decompose_cluster(clu_id)

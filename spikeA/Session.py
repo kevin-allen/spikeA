@@ -5,6 +5,7 @@ import numpy as np
 from datetime import datetime
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Intervals import Intervals
+import pickle
 
 class Session:
     """
@@ -38,6 +39,12 @@ class Session:
         self.session_dat_time = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
         self.fileBase = self.path+"/"+name
         return
+    
+    def get_name(self):
+        """
+        Method to get the folder name in which session is stored (can deviate from the 'name' prefix when several sessions exist for the same date)
+        """
+        return self.path.strip('/').split('/')[-1]
     
     def find_session_data_type(self):
         """
@@ -422,17 +429,32 @@ class Kilosort_session(Session):
         if len(self.desel) != self.n_shanks:
             raise ValueError("{}: Length of desel is not matching the number of shanks".format(self.name))
         
-        self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
-        # self.dat_file_names is depreciated, use self.file_names["dat"] instead
-        self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
-        df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
-        inter = df.get_file_intervals_in_seconds()
+        
+        # we need to get the time offset of each trial of the session
+        # if we already have a file for it, use the file, otherwise get it from the .dat files.
+        fn = os.path.join(self.path, "sessionIntervals.npy")
+        if os.path.exists(fn): # the file is there
+            inter = np.load(fn)
+        else: # the file is not there
+            self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
+            # self.dat_file_names is depreciated, use self.file_names["dat"] instead
+            self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
+            df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
+            inter = df.get_file_intervals_in_seconds()
+            inter.save(fn) # save into a file for next time
+        # set the trial intervals    
         self.trial_intervals = Intervals(inter)
         
+        
         # load times collected externally
-        times_fn = self.path + "/times.npy"
+        times_fn = self.fileBase + ".times.npy"
+        times_fn_alt = self.path + "/times.npy"
         if os.path.isfile(times_fn):
+            self.file_names["log_times"] = times_fn
             self.log_times = np.load(times_fn)
+        elif os.path.isfile(times_fn_alt):
+            self.file_names["log_times"] = times_fn_alt
+            self.log_times = np.load(times_fn_alt)
         else:
             self.log_times = np.array([])
 
@@ -445,7 +467,7 @@ class Kilosort_session(Session):
     # Template Waveforms
     # - there exists for each template waveforms for each channel (see shape of self.templates = templates,timepoints,channels)
         
-    def load_waveforms(self):
+    def load_waveforms(self,verbose=False):
         """
         load the template waveforms from kilosorted files in that session
         """
@@ -454,7 +476,8 @@ class Kilosort_session(Session):
         self.templates = np.load(self.file_names["templates"])
         #print("templates.shape",self.templates.shape)
         wv_templates, wv_timepoints, wv_channels = self.templates.shape
-        print("Templates:",wv_templates, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
+        if verbose:
+            print("Templates:",wv_templates, ", timepoints:",wv_timepoints, ", Channels:",wv_channels)
         self.wv_channels = wv_channels
         
         # load the channel mapping
@@ -499,7 +522,7 @@ class Kilosort_session(Session):
     # conversion: Template -> Cluster
     # - find the difference in templates & clusters after Phy post-processing
     
-    def load_templates_clusters(self):
+    def load_templates_clusters(self,verbose=False):
         # spike templates
         self.st = np.load(self.file_names["spike_templates"]).flatten() # np.load(data_prefix + "spike_templates.npy")[:,0]
         # spike clusters
@@ -509,7 +532,8 @@ class Kilosort_session(Session):
             raise ValueError("the length of spike_templates and spike_clusters should be the same but are {} / {}".format(len(self.st),len(self.sc)))
         # set list with all cluster ids
         self.clusterids = np.unique(self.sc).flatten()
-        print("Loaded templates-clusters-map, spikes:", len(self.st),", clusters:",len(self.clusterids))
+        if verbose:
+            print("Loaded templates-clusters-map, spikes:", len(self.st),", clusters:",len(self.clusterids))
 
     # decompose cluster into templates
     def decompose_cluster(self, c):
@@ -541,15 +565,16 @@ class Kilosort_session(Session):
     ##
     # Channel assignments
         
-    def init_shanks(self):
+    def init_shanks(self,verbose=False):
         """
         loads the shanks from the channel positions
         """
         # get shanks (assume x coordinate in channel_position) of channels
         self.shanks_all = np.unique(self.channel_positions[:,0])
         if len(self.shanks_all) != self.n_shanks:
-            raise ValueError("Error in number of shanks! Check par/desel file (found {}) and kilosort/phy channel config (found {}).".format(self.n_shanks, len(self.shanks_all)))
-        print("Init shanks:", len(self.shanks_all))
+            raise ValueError("Error in number of shanks for {}! Check par/desel file (found {}) and kilosort/phy channel config (found {}).".format(self.name,self.n_shanks, len(self.shanks_all)))
+        if verbose:
+            print("Init shanks:", len(self.shanks_all))
             
             
     def get_channels_from_waveforms(self, waveforms, cnt = 5, method="ptp"):
