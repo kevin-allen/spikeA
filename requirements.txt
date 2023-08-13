@@ -1,4 +1,4 @@
-numpy==1.19.5
+numpy
 scikit-build
 scikit-image
 opencv-python==4.5.1.48
