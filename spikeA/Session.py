@@ -434,14 +434,20 @@ class Kilosort_session(Session):
         # if we already have a file for it, use the file, otherwise get it from the .dat files.
         fn = os.path.join(self.path, "sessionIntervals.npy")
         if os.path.exists(fn): # the file is there
-            inter = np.load(fn)
+            inter = np.load(fn, allow_pickle=True)
+            #print(type(inter))
+            
         else: # the file is not there
             self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
             # self.dat_file_names is depreciated, use self.file_names["dat"] instead
             self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
             df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
             inter = df.get_file_intervals_in_seconds()
-            inter.save(fn) # save into a file for next time
+            #print(type(inter))
+            np.save(fn, inter) # save into a file for next time
+            self.trial_intervals = Intervals(inter)
+            #inter.save(fn) 
+     
         # set the trial intervals    
         self.trial_intervals = Intervals(inter)
         

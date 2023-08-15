@@ -6,6 +6,7 @@ from spikeA.Spike_train_loader import Spike_train_loader
 from spikeA.Spatial_properties import Spatial_properties
 from spikeA.Spike_train import Spike_train
 import matplotlib.pyplot as plt
+import spikeA
 
 class Cell_group:
     """
@@ -34,7 +35,7 @@ class Cell_group:
         
         # This function creates a list of Neurons and set the spike train object using the spike_train_loader object
         """
-        if not isinstance(stl,Spike_train_loader):
+        if not isinstance(stl,spikeA.Spike_train_loader.Spike_train_loader or Spike_train_loader):
             raise TypeError("stl should be a Spike_train_loader object but is {}".format(type(stl)))
         
         ## create a list of neurons

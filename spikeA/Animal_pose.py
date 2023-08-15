@@ -14,7 +14,7 @@ from spikeA.ttl import detectTTL
 from spikeA.Intervals import Intervals
 from spikeA.Session import Session
 import matplotlib.pyplot as plt
-
+import spikeA.Session
 
 # helper functions
 def range_pi(x):
@@ -128,7 +128,8 @@ class Animal_pose:
             self.ses = None
         else :
             #isinstance(session, Session) or isinstance(session, Kilosort_session)
-            if not (issubclass(type(ses),Session)):   ### I needed to change Session to Tetrode_session here to make it run
+            #if not (issubclass(type(ses), Session) or issubclass(type(ses), spikeA.Session)):
+            if not ((issubclass(type(ses),Session)) or (issubclass(type(ses),spikeA.Session)) ):   ### I needed to change Session to Tetrode_session here to make it run
                 raise TypeError("ses should be a subclass of the Session class but is {}".format(type(ses)))
             self.ses = ses # information regarding our session
             

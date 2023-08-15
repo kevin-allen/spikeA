@@ -8,6 +8,7 @@ import os.path
 from spikeA.Session import Kilosort_session
 from spikeA.Session import Klustakwik_session
 
+
 class Spike_train_loader:
     """
     Class use to load the spike train from files
@@ -47,7 +48,7 @@ class Spike_train_loader:
             if verbose:
                 print("load klustakwik spikes")
             self.load_spike_train_klustakwik(session, from_numpy_files = True)
-        elif isinstance(session,Kilosort_session):
+        elif isinstance(session,spikeA.Session.Kilosort_session) or isinstance(session,Kilosort_session):
             if verbose:
                 print("load kilosort spikes")
             self.load_spike_train_kilosort(session, only_good = True)
