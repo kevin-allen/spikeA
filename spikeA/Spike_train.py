@@ -405,8 +405,10 @@ class Spike_train:
         
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
-        keep=self.intervals.is_within_intervals(mid,include_ties=False)
+
+        keep=self.intervals.is_within_intervals(mid,include_ties=True)
                 
+
         if outside_interval_solution == "remove":    
             self.ifr = ifr[keep],count[keep],mid[keep]    
         elif outside_interval_solution == "nan":
@@ -416,7 +418,7 @@ class Spike_train:
         else:
             print("invalid value for argument outside_interval_solution")
             raise ValueError("set outside_interval_solution to remove or nan")
-            
+
         self.ifr_rate = 1/bin_size_sec
         self.ifr_bin_size_sec= bin_size_sec
                 

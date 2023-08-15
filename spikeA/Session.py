@@ -443,11 +443,15 @@ class Kilosort_session(Session):
             self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
             df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
             inter = df.get_file_intervals_in_seconds()
+<<<<<<< HEAD
             #print(type(inter))
             np.save(fn, inter) # save into a file for next time
             self.trial_intervals = Intervals(inter)
             #inter.save(fn) 
      
+=======
+            np.save(fn,inter) # save into a file for next time
+>>>>>>> 43edbc7ad91a7f9520e83a242047eaf9500c7c97
         # set the trial intervals    
         self.trial_intervals = Intervals(inter)
         
