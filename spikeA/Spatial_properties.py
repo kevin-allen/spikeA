@@ -416,7 +416,7 @@ class Spatial_properties:
             spike_count[np.isnan(self.ap.occupancy_map)] = 0
             
         # remove spikes with insufficient occupancy duration 
-        #spike_count[self.ap.occupancy_map < minimal_occupancy_sec] = 0
+        spike_count[self.ap.occupancy_map < minimal_occupancy_sec] = 0
         #spike_count[self.ap.occupancy_map < minimal_occupancy_sec] = np.nan
         
         
