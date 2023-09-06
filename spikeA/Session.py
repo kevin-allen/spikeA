@@ -318,7 +318,7 @@ class Kilosort_session(Session):
                             "channel_map": self.path +"/channel_map.npy",
                            "channel_positions": self.path +"/channel_positions.npy",
                            "pc_features": self.path +"/pc_features.npy",
-                           "pc_feature_ind": self.path +"/pc_feature_ind.npy",
+                           #"pc_feature_ind": self.path +"/pc_feature_ind.npy",
                            "spike_templates": self.path +"/spike_templates.npy",
                            "templates": self.path +"/templates.npy",
                            "spike_times": self.path +"/spike_times.npy",
