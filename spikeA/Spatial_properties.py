@@ -1669,7 +1669,7 @@ class Spatial_properties:
         leftWallIndex= np.argmax(border_map.sum(axis=0)[:midIndex])
         rightWallIndex = np.argmax(border_map.sum(axis=0)[midIndex:])+midIndex
 
-        xs, ys = np.meshgrid(np.arange(0,border_map.shape[0]),np.arange(0,border_map.shape[1])) # get 2 2D arrays with the x or y coordinate of the pixels
+        xs, ys = np.meshgrid(np.arange(0,border_map.shape[1]),np.arange(0,border_map.shape[0])) # get 2 2D arrays with the x or y coordinate of the pixels
 
         indexMaxTop = np.expand_dims(border_map[:midIndex].argmax(axis=0),0)
         topWallMap = np.logical_and(np.logical_and(xs>leftWallIndex,xs<rightWallIndex),ys==indexMaxTop)
