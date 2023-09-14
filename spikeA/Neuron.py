@@ -69,6 +69,7 @@ class Neuron:
         #if not isinstance(animal_pose,Animal_pose): 
         #    raise TypeError("animal_pose should be a subclass of the Animal_pose class but is {}".format(type(animal_pose)))
         
+        self.ap = animal_pose
         self.spatial_properties = Spatial_properties(animal_pose=animal_pose,spike_train=self.spike_train)
     
     
@@ -121,6 +122,25 @@ class Neuron:
                 raise TypeError("dat_file is not an instance of Dat_file_reader class")
             
         self.spike_waveform = Spike_waveform(session = session, dat_file_reader=dat_file_reader, spike_train=self.spike_train)
+        
+    
+    def set_intervals(self, inter):
+        """
+        sets interval to both spike train of that neuron and to its spatial properties animal pose
+        
+        inter: Intervals
+        """
+        self.inter = inter
+        self.spike_train.set_intervals(self.inter)
+        self.ap.set_intervals(self.inter)
+    
+    def unset_intervals(self):
+        """
+        unsets interval of both spike train of that neuron and of its spatial properties animal pose
+        """
+        self.spike_train.unset_intervals()
+        self.ap.unset_intervals()
+
         
 
 class Simulated_place_cell(Neuron):

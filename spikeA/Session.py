@@ -5,6 +5,7 @@ import numpy as np
 from datetime import datetime
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Intervals import Intervals
+import pickle
 
 class Session:
     """
@@ -38,6 +39,12 @@ class Session:
         self.session_dat_time = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
         self.fileBase = self.path+"/"+name
         return
+    
+    def get_name(self):
+        """
+        Method to get the folder name in which session is stored (can deviate from the 'name' prefix when several sessions exist for the same date)
+        """
+        return self.path.strip('/').split('/')[-1]
     
     def find_session_data_type(self):
         """
@@ -310,7 +317,7 @@ class Kilosort_session(Session):
                             "amplitudes": self.path +"/amplitudes.npy",
                             "channel_map": self.path +"/channel_map.npy",
                            "channel_positions": self.path +"/channel_positions.npy",
-                           "pc_features": self.path +"/pc_features.npy",
+                           #"pc_features": self.path +"/pc_features.npy",
                            "pc_feature_ind": self.path +"/pc_feature_ind.npy",
                            "spike_templates": self.path +"/spike_templates.npy",
                            "templates": self.path +"/templates.npy",
@@ -422,12 +429,25 @@ class Kilosort_session(Session):
         if len(self.desel) != self.n_shanks:
             raise ValueError("{}: Length of desel is not matching the number of shanks".format(self.name))
         
-        self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
-        # self.dat_file_names is depreciated, use self.file_names["dat"] instead
-        self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
-        df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
-        inter = df.get_file_intervals_in_seconds()
+        
+        # we need to get the time offset of each trial of the session
+        # if we already have a file for it, use the file, otherwise get it from the .dat files.
+        fn = os.path.join(self.path, "sessionIntervals.npy")
+        if os.path.exists(fn): # the file is there
+            inter = np.load(fn, allow_pickle=True)
+            #print(type(inter))
+            
+        else: # the file is not there
+            self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
+            # self.dat_file_names is depreciated, use self.file_names["dat"] instead
+            self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
+            df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
+            inter = df.get_file_intervals_in_seconds()
+            np.save(fn, inter) # save into a file for next time
+            self.trial_intervals = Intervals(inter)
+        # set the trial intervals    
         self.trial_intervals = Intervals(inter)
+        
         
         # load times collected externally
         times_fn = self.fileBase + ".times.npy"

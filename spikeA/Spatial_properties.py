@@ -373,7 +373,7 @@ class Spatial_properties:
         return np.array(hd_firing_all), np.array(hd_mvl_all), np.array(hd_mean_direction_rad_all), np.array(hd_peak_angle_rad_all), np.array(hd_peak_rate_all), np.array(mean_firing_rate_all)   
             
         
-    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True,remove_spike_in_occupancy_gaps = False):
+    def firing_rate_map_2d(self,cm_per_bin=2, smoothing_sigma_cm=2, smoothing = True, xy_range=None, recalculate_occupancy_map = True,remove_spike_in_occupancy_gaps = False, minimal_occupancy_sec=0.0):
         """
         Method of the Spatial_properties class to calculate a firing rate map of a single neuron.
         
@@ -414,6 +414,10 @@ class Spatial_properties:
         # usually not required but was needed when calculating control firing rate maps.
         if remove_spike_in_occupancy_gaps: 
             spike_count[np.isnan(self.ap.occupancy_map)] = 0
+            
+        # remove spikes with insufficient occupancy duration 
+        spike_count[self.ap.occupancy_map < minimal_occupancy_sec] = 0
+        #spike_count[self.ap.occupancy_map < minimal_occupancy_sec] = np.nan
         
         
         # save this for later (e.g., in information_score())
@@ -1115,11 +1119,15 @@ class Spatial_properties:
         rotations60 = [60, 120]
         rotations30= [30, 90, 150]
 
+        
+        
         corr60 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations60]
         corr30 = [self.correlation_from_doughnut_rotation(degree) for degree in rotations30]
 
         grid_score = np.mean(corr60)-np.mean(corr30)
-
+        
+      
+        
         return grid_score
     
     
