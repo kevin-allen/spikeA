@@ -1496,7 +1496,7 @@ class Spatial_properties:
         return fieldList
         
     
-    def shuffle_border_score(self, min_pixel_number_per_field=20, min_peak_rate=5, min_peak_rate_proportion= 0.30, iterations=500, environment_shape = None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
+    def shuffle_border_score(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, iterations=500, environment_shape = None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
         """
         Get a distribution of border scores that would be expected by chance for this neuron
 
