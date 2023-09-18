@@ -51,14 +51,14 @@ def spike_time_crosscorrelation_func(np.ndarray[double, ndim=1, mode="c"] st1 no
         
 
 # create the wrapper code, with numpy type annotations
-def spike_phase_func(np.ndarray[double, ndim=1, mode="c"] st not None,
-    				 np.ndarray[double, ndim=2, mode="c"] cycles not None,
-                     np.ndarray[double, ndim=1, mode="c"] out not None):
-    spike_phase(<double*> np.PyArray_DATA(st),
-                <double*> np.PyArray_DATA(cycles[:,0]),
-                <double*> np.PyArray_DATA(cycles[:,1]),
-				<double*> np.PyArray_DATA(out),
-				st.shape[0],
-				cycles.shape[0])
+#def spike_phase_func(np.ndarray[double, ndim=1, mode="c"] st not None,
+#    				 np.ndarray[double, ndim=2, mode="c"] cycles not None,
+#                     np.ndarray[double, ndim=1, mode="c"] out not None):
+#    spike_phase(<double*> np.PyArray_DATA(st),
+#                <double*> np.PyArray_DATA(cycles[:,0]),
+#                <double*> np.PyArray_DATA(cycles[:,1]),
+#				<double*> np.PyArray_DATA(out),
+#				st.shape[0],
+#				cycles.shape[0])
         
         
