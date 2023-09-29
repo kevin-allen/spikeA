@@ -317,7 +317,7 @@ class Kilosort_session(Session):
                             "amplitudes": self.path +"/amplitudes.npy",
                             "channel_map": self.path +"/channel_map.npy",
                            "channel_positions": self.path +"/channel_positions.npy",
-                           #"pc_features": self.path +"/pc_features.npy",
+                           "pc_features": self.path +"/pc_features.npy",
                            "pc_feature_ind": self.path +"/pc_feature_ind.npy",
                            "spike_templates": self.path +"/spike_templates.npy",
                            "templates": self.path +"/templates.npy",
@@ -447,7 +447,6 @@ class Kilosort_session(Session):
             self.trial_intervals = Intervals(inter)
         # set the trial intervals    
         self.trial_intervals = Intervals(inter)
-        
         
         # load times collected externally
         times_fn = self.fileBase + ".times.npy"
