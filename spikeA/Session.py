@@ -27,7 +27,7 @@ class Session:
     """
     def __init__(self,name, path):
         self.set_name_and_directories(name, path)
-        self.find_session_data_type()
+#        self.find_session_data_type()
         
     def set_name_and_directories(self,name,path):
         """
@@ -46,46 +46,7 @@ class Session:
         """
         return self.path.strip('/').split('/')[-1]
     
-    def find_session_data_type(self):
-        """
-        Method to determine the data type of recording session
-        Current possible data types are klustakwik or kilosort
-        """
-        
-        if os.path.isfile(self.fileBase + ".clu"):
-            self.data_type = "klustakwik"
-        elif os.path.isfile(self.path +"/params.py"):
-            self.data_type = "kilosort"
-        else:
-            raise ValueError("{}, unknown session data_type".format(self.name))
-    
-    def return_child_class(self):
-        """
-        Method that will return a Klustakwik_session or a Kilosort_session object depending on self.data_type
-        
-        This can be used to get the appropriate child object without having to figure it out during data analysis
-        
-        Example 1, single session
-                
-        from spikeA.Session import Session
-        # create a Session object
-        ses = Session(name="mn8578-30112021-0107",path="/adata/projects/autopi_mec/mn8578/mn8578-30112021-0107")
-        # get a Kilosort_session object in this case
-        ses = ses.return_child_class()
-        
-        Example 2, several sessions, here myProject.sessionList was an autopipy.Project object
-        from spikeA.Session import Session
-        # first create a list of spikeA.Sessions objects
-        sSessions = [ Session(ses.name,ses.path) for ses in myProject.sessionList ] # spikeA.Session object
-        # then get the right child object (Kilosort_session or Klustakwik_session) for each spikeA.Session object
-        sSessions = [ ses.return_child_class() for sSes in sSessions ] # spikeA session object
-        """
-        
-        if self.data_type == "klustakwik":
-            return Klustakwik_session(self.name,self.path)
-        elif self.data_type == "kilosort":
-            return Kilosort_session(self.name,self.path)
-    
+
     def session_environment_trial_data_frame(self):
         """
         Method to get the trial time as a pandas DataFrame. 
@@ -330,6 +291,9 @@ class Kilosort_session(Session):
         Function to read session parameters from configuration files.
         
         The names of the files are in the self.file_names dictionary.
+        
+        Arguments:
+        ignore_params: If True, it will not get information from the self.file_names["params"]. This can be used if the session is not clustered yet.
         """
         
         ## check that the directory exists
