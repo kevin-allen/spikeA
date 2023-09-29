@@ -6,6 +6,8 @@ from datetime import datetime
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Intervals import Intervals
 import pickle
+import warnings
+
 
 class Session:
     """
@@ -38,6 +40,10 @@ class Session:
         self.subject = self.name.split("-")[0]
         self.session_dat_time = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
         self.fileBase = self.path+"/"+name
+        
+        if not os.path.isdir(self.path):
+            raise IOError("{} is not a directory".format(self.path))
+        
         return
     
     def get_name(self):
