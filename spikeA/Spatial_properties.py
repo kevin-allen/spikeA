@@ -1504,7 +1504,7 @@ class Spatial_properties:
         return fieldList
         
     
-    def shuffle_border_score(self, min_pixel_number_per_field=20, min_peak_rate=5, min_peak_rate_proportion= 0.30, iterations=500, environment_shape = None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
+    def shuffle_border_score(self, min_pixel_number_per_field=20, min_peak_rate=4, min_peak_rate_proportion= 0.30, iterations=500, environment_shape = None, cm_per_bin=2, smoothing_sigma_cm=2, smoothing=True ,percentile=95):
         """
         Get a distribution of border scores that would be expected by chance for this neuron
 
@@ -1669,7 +1669,7 @@ class Spatial_properties:
         leftWallIndex= np.argmax(border_map.sum(axis=0)[:midIndex])
         rightWallIndex = np.argmax(border_map.sum(axis=0)[midIndex:])+midIndex
 
-        xs, ys = np.meshgrid(np.arange(0,border_map.shape[0]),np.arange(0,border_map.shape[1])) # get 2 2D arrays with the x or y coordinate of the pixels
+        xs, ys = np.meshgrid(np.arange(0,border_map.shape[1]),np.arange(0,border_map.shape[0])) # get 2 2D arrays with the x or y coordinate of the pixels
 
         indexMaxTop = np.expand_dims(border_map[:midIndex].argmax(axis=0),0)
         topWallMap = np.logical_and(np.logical_and(xs>leftWallIndex,xs<rightWallIndex),ys==indexMaxTop)
