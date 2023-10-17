@@ -515,7 +515,7 @@ class Kilosort_session(Session):
         Returns: templates with its weights (proportion of number of spikes)
         """
         if not c in self.clusterids:
-            raise ValueError("invalid cluster: {} from {} clusters".format(clu,len(self.clusterids)))
+            raise ValueError("invalid cluster: {} from {} clusters".format(c,len(self.clusterids)))
         
         s_ind = np.where(self.sc==c) # get spikes associated to that cluster $c
         s_templates = self.st[s_ind] # get templates associated to these spikes
