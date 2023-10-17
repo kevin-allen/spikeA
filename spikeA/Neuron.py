@@ -1,11 +1,13 @@
 import numpy as np
+import spikeA
 from spikeA.Spike_train import Spike_train
 from spikeA.Animal_pose import Animal_pose
 from spikeA.Session import Session
+from spikeA.Session import Kilosort_session
 from spikeA.Spatial_properties import Spatial_properties
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Spike_waveform import Spike_waveform
-
+#from spikeA.Session import Session #
 from scipy.stats import multivariate_normal
 from scipy.stats import poisson
 from scipy.interpolate import interp1d
@@ -112,8 +114,18 @@ class Neuron:
             raise TypeError("self.spike_train.st should not be None")
         if session.n_channels is None:
             raise TypeError("ses.n_channels is None, run ses.load_parameter_files()")
-        if not isinstance(session, Session):
+        
+        ##################################
+        ### Rase value error depending on the class names 
+        ##################################
+        if not session.__class__ == spikeA.Session.Kilosort_session or session.__class__ == Session:
             raise TypeError("session is not an instance of the Session class")
+            
+        ###############
+        ##### commented for now ## maryam 
+        #########
+        #if not isinstance(session, Session) or isinstance(session,spikeA.Session.Kilosort_session): ## or was added by maryam 
+        #    raise TypeError("session is not an instance of the Session class")
         
         if dat_file_reader is None:
             dat_file_reader= Dat_file_reader(session.dat_file_names,session.n_channels)
