@@ -6,6 +6,8 @@ from datetime import datetime
 from spikeA.Dat_file_reader import Dat_file_reader
 from spikeA.Intervals import Intervals
 import pickle
+import warnings
+
 
 class Session:
     """
@@ -27,7 +29,7 @@ class Session:
     """
     def __init__(self,name, path):
         self.set_name_and_directories(name, path)
-        self.find_session_data_type()
+#        self.find_session_data_type()
         
     def set_name_and_directories(self,name,path):
         """
@@ -38,6 +40,10 @@ class Session:
         self.subject = self.name.split("-")[0]
         self.session_dat_time = datetime.strptime(self.name.split("-")[1]+self.name.split("-")[2], '%d%m%Y%H%M')
         self.fileBase = self.path+"/"+name
+        
+        if not os.path.isdir(self.path):
+            raise IOError("{} is not a directory".format(self.path))
+        
         return
     
     def get_name(self):
@@ -46,46 +52,7 @@ class Session:
         """
         return self.path.strip('/').split('/')[-1]
     
-    def find_session_data_type(self):
-        """
-        Method to determine the data type of recording session
-        Current possible data types are klustakwik or kilosort
-        """
-        
-        if os.path.isfile(self.fileBase + ".clu"):
-            self.data_type = "klustakwik"
-        elif os.path.isfile(self.path +"/params.py"):
-            self.data_type = "kilosort"
-        else:
-            raise ValueError("{}, unknown session data_type".format(self.name))
-    
-    def return_child_class(self):
-        """
-        Method that will return a Klustakwik_session or a Kilosort_session object depending on self.data_type
-        
-        This can be used to get the appropriate child object without having to figure it out during data analysis
-        
-        Example 1, single session
-                
-        from spikeA.Session import Session
-        # create a Session object
-        ses = Session(name="mn8578-30112021-0107",path="/adata/projects/autopi_mec/mn8578/mn8578-30112021-0107")
-        # get a Kilosort_session object in this case
-        ses = ses.return_child_class()
-        
-        Example 2, several sessions, here myProject.sessionList was an autopipy.Project object
-        from spikeA.Session import Session
-        # first create a list of spikeA.Sessions objects
-        sSessions = [ Session(ses.name,ses.path) for ses in myProject.sessionList ] # spikeA.Session object
-        # then get the right child object (Kilosort_session or Klustakwik_session) for each spikeA.Session object
-        sSessions = [ ses.return_child_class() for sSes in sSessions ] # spikeA session object
-        """
-        
-        if self.data_type == "klustakwik":
-            return Klustakwik_session(self.name,self.path)
-        elif self.data_type == "kilosort":
-            return Kilosort_session(self.name,self.path)
-    
+
     def session_environment_trial_data_frame(self):
         """
         Method to get the trial time as a pandas DataFrame. 
@@ -317,7 +284,7 @@ class Kilosort_session(Session):
                             "amplitudes": self.path +"/amplitudes.npy",
                             "channel_map": self.path +"/channel_map.npy",
                            "channel_positions": self.path +"/channel_positions.npy",
-                           #"pc_features": self.path +"/pc_features.npy",
+                           "pc_features": self.path +"/pc_features.npy",
                            "pc_feature_ind": self.path +"/pc_feature_ind.npy",
                            "spike_templates": self.path +"/spike_templates.npy",
                            "templates": self.path +"/templates.npy",
@@ -330,6 +297,9 @@ class Kilosort_session(Session):
         Function to read session parameters from configuration files.
         
         The names of the files are in the self.file_names dictionary.
+        
+        Arguments:
+        ignore_params: If True, it will not get information from the self.file_names["params"]. This can be used if the session is not clustered yet.
         """
         
         ## check that the directory exists
@@ -429,7 +399,11 @@ class Kilosort_session(Session):
         if len(self.desel) != self.n_shanks:
             raise ValueError("{}: Length of desel is not matching the number of shanks".format(self.name))
         
-        
+
+        # dat file
+        self.file_names["dat"] = [self.path+"/"+t+".dat" for t in self.trial_names]
+        # self.dat_file_names is depreciated, use self.file_names["dat"] instead
+
         # we need to get the time offset of each trial of the session
         # if we already have a file for it, use the file, otherwise get it from the .dat files.
         fn = os.path.join(self.path, "sessionIntervals.npy")
@@ -442,13 +416,14 @@ class Kilosort_session(Session):
             #print(type(inter))
             
         else: # the file is not there
+
+            self.dat_file_names = [self.path+"/"+t+".dat" for t in self.trial_names]
+
             df = Dat_file_reader(file_names=self.dat_file_names,n_channels = self.n_channels)
             inter = df.get_file_intervals_in_seconds()
             np.save(fn, inter) # save into a file for next time
-            self.trial_intervals = Intervals(inter)
         # set the trial intervals    
         self.trial_intervals = Intervals(inter)
-        
         
         # load times collected externally
         times_fn = self.fileBase + ".times.npy"
@@ -546,7 +521,7 @@ class Kilosort_session(Session):
         Returns: templates with its weights (proportion of number of spikes)
         """
         if not c in self.clusterids:
-            raise ValueError("invalid cluster: {} from {} clusters".format(clu,len(self.clusterids)))
+            raise ValueError("invalid cluster: {} from {} clusters".format(c,len(self.clusterids)))
         
         s_ind = np.where(self.sc==c) # get spikes associated to that cluster $c
         s_templates = self.st[s_ind] # get templates associated to these spikes

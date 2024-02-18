@@ -96,6 +96,8 @@ class Spatial_properties:
         spike_posi[:,0] = fx(self.st.st)
         spike_posi[:,1] = fy(self.st.st)
         
+        self.spike_posi = spike_posi
+        
         return spike_posi
     
     def spike_head_direction(self):
@@ -125,7 +127,9 @@ class Spatial_properties:
         ihds = fhds(self.st.st)
         
         # get radians from sin and cos
-        self.spike_hd = np.arctan2(ihds,ihdc) 
+        self.spike_hd = np.arctan2(ihds,ihdc)
+        
+        return self.spike_hd
         
         
         

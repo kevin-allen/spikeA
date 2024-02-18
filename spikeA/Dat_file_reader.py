@@ -220,7 +220,7 @@ class Dat_file_reader:
             raise ValueError("end_index is larger than the number of samples in the Dat_file_reader object")
         
         # get the starting point of reading operation in dat files (start_file_no,start_index_within_file)
-        start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <self.files_last_sample))[0].item()
+        start_file_no = np.where((start_index >=self.files_first_sample) & (start_index <= self.files_last_sample))[0].item()
         start_index_within_file = int(start_index - self.files_first_sample[start_file_no])
         
         # get the ending point of reading operation in dat files

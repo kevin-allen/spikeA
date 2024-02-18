@@ -231,6 +231,7 @@ class Simulated_grid_cell(Neuron):
     orientation: np.array of shape (3,). Orientation in radian of the 3 components
     period: np.array of shape (3,). Period in cm for the 3 components. This is not the grid spacing.   period = grid spacing * np.cos(np.pi/6)
     peak_rate: firing field peak firing rate in Hz
+    applyReLuToRate: whether or not we should pass the rate array into a relu function. See self.grid_cell_firing_rate() for more details. 
     
     sampling_rate: sampling rate of the spike train
     ap: Animal_pose object used to build the spike train
@@ -242,7 +243,8 @@ class Simulated_grid_cell(Neuron):
                  period = np.array([30,30,30]),
                  peak_rate=20, 
                  sampling_rate=20000, 
-                 ap=None):
+                 ap=None,
+                 applyReLuToRate=True):
         super(Simulated_grid_cell,self).__init__(name=name)
     
         # variable defining a grid cell
@@ -253,6 +255,7 @@ class Simulated_grid_cell(Neuron):
         if period.shape[0] != 3:
             raise ValueError("period should be of shape (3,)")
             
+        self.applyReLuToRate = applyReLuToRate
         self.offset=offset
         self.orientation=orientation
         self.period = period        
@@ -298,21 +301,20 @@ class Simulated_grid_cell(Neuron):
         
         """
                 
-        
         Rx0 = np.array([[np.cos(-self.orientation[0])],[-np.sin(-self.orientation[0])]]) # minus sign because we want to rotate the inverse of the angle to bring it back to 1,0 
         Rx1 = np.array([[np.cos(-self.orientation[1])],[-np.sin(-self.orientation[1])]])
         Rx2 = np.array([[np.cos(-self.orientation[2])],[-np.sin(-self.orientation[2])]])
                 
-        d0 = self.pose @ Rx0
+        d0 = self.pose @ Rx0 # distance along axis 0
         d1 = self.pose @ Rx1
         d2 = self.pose @ Rx2
 
-        self.c0 = (d0 % self.period[0])/self.period[0] * np.pi*2 
+        self.c0 = (d0 % self.period[0])/self.period[0] * np.pi*2 # get angle from distance along axis. The new range is from 0 to 2*pi
         self.c1 = (d1 % self.period[1])/self.period[1] * np.pi*2 
         self.c2 = (d2 % self.period[2])/self.period[2] * np.pi*2 
 
         # set range to -np.pi to np.pi
-        self.c0 = np.arctan2(np.sin(self.c0),np.cos(self.c0))
+        self.c0 = np.arctan2(np.sin(self.c0),np.cos(self.c0)) 
         self.c1 = np.arctan2(np.sin(self.c1),np.cos(self.c1))
         self.c2 = np.arctan2(np.sin(self.c2),np.cos(self.c2))
         
@@ -356,9 +358,12 @@ class Simulated_grid_cell(Neuron):
         self.ap.pose[:,0] = np.arange(start=tStepSize,stop = maxT,step=tStepSize)
         self.ap.pose_ori = self.ap.pose
         
-        
-        
-        
+    def relu_rate(self):
+        """
+        ReLU function to ensure there are no negative values in x. Negative numbers are set to 0.
+        """
+        self.rate = self.rate * (self.rate > 0) 
+         
     def grid_cell_firing_rate(self):
         """
         Get the firing rate of grid cells
@@ -387,8 +392,17 @@ class Simulated_grid_cell(Neuron):
         self.rateC1 = np.cos(self.c1-self.phase[1])
         self.rateC2 = np.cos(self.c2-self.phase[2])
         
-        # the sum of 3 components ranges from -1.5 to 3.0
+        # The sum of 3 components ranges from -1.5 to 3.0 when the angles are at 60 degrees of each other and the 3 axis have the same period. In this case, the (c0+c1+c2+1.5)/4.5 gives a range of 0 to 1.
+        # If the axes are not at multiple of 60 degrees or periods are not equal, then the range is -3.0 to 3.0, the (c0+c1+c2+1.5)/4.5 gives a range from -1.5/4.5 to 1.
+        # The consequence is that for axes that are not perfectly at 60 degrees of each other or where the 3 periods are not equal, we get some negative firing rate values.
+        # We can apply a ReLu function to get rid of the negative data. This is a differentiable function.
+        
         self.rate =  np.squeeze(((self.rateC0+self.rateC1+self.rateC2+1.5)/4.5*self.peak_rate))
+        
+        if self.applyReLuToRate:
+            self.relu_rate()
+        
+    
         
 #Simulate a HD cell
 class Simulated_HD_Cell(Neuron):
