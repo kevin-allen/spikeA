@@ -1956,5 +1956,5 @@ class Spatial_properties:
         ## set to entire session
         # n.spike_train.set_intervals(ses.trial_intervals.inter)
         # ap.set_intervals(ses.trial_intervals.inter)
-    
+        
         

@@ -335,8 +335,7 @@ class Theta:
         For example, cycles[3] you have a 2D array containint the cycles detected on channel 3, one cycle per row
 
         """
-        if "dat" not in self.session.file_names :
-            self.session.load_parameters_from_files()
+        self.session.load_parameters_from_files()
             
         if channel_list is None:
             channel_list = list(range(self.session.n_channels-1))
