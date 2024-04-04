@@ -97,28 +97,33 @@ class Intervals:
         
         
 
-    def is_within_intervals(self,time,include_ties = True):
+    def is_within_intervals(self,time,include_ties = True, include_ties_nostrict=False):
         """
         Return a 1D numpy array containing True or False indicating whether the values in time are within the intervals
         
         The time point
         
-        Artument
+        Argument
         time: 1D numpy array containing times
+        include_ties: allow at the margin of bin
+        include_ties_nostrict: allow at the margin of bins within epsilon range
         
         Return
         1D numpy array of boolean indicating whether the time points were within the intervals
         """
+        epsilon = 1e-5
         within = np.zeros((time.shape[0],self.inter.shape[0]))
         
         for i in range(self.inter.shape[0]):
             s=self.inter[i,0]
             e=self.inter[i,1]
-            if include_ties :
+            if include_ties_nostrict:
+                within[:,i]=np.logical_and(time>=s-epsilon, time<=e+epsilon)
+            elif include_ties:
                 within[:,i]=np.logical_and(time>=s, time<=e)
             else:
                 within[:,i]=np.logical_and(time>s, time<e)
         
         
-        return np.sum(within,axis=1)>0
+        return np.any(within, axis=1)
         

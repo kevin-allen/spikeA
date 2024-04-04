@@ -387,6 +387,10 @@ class Spike_train:
         self.ifr is a tupple containing the ifr, the count, and mid point of the bin.
         """    
         
+        # call like from pose
+        # n.spike_train.instantaneous_firing_rate(bin_size_sec = bin_size_sec, sigma= sigma_ifr, time_start=min(time)-bin_size_sec/2, time_end=max(time), outside_interval_solution="remove")
+        # and check pose's time and IFR'mid time match: pose_time = ap.pose[:,0], ifr_mid_time = n.spike_train.ifr[2]
+
         if not(time_start is None or time_end is None):
             bins = np.arange(time_start, time_end+bin_size_sec, bin_size_sec)
         else:
@@ -406,8 +410,8 @@ class Spike_train:
         # we need to remove the time bins that are not in the intervals
         mid = self.mid_point_from_edges(edges)
 
-        keep=self.intervals.is_within_intervals(mid,include_ties=True)
-                
+        keep=self.intervals.is_within_intervals(mid, include_ties_nostrict=True)
+               
 
         if outside_interval_solution == "remove":    
             self.ifr = ifr[keep],count[keep],mid[keep]    
