@@ -492,3 +492,267 @@ class Simulated_HD_Cell(Neuron):
         
         self.ap.pose[:,0] = np.arange(start=tStepSize,stop = maxT,step=tStepSize)
         self.ap.pose_ori = self.ap.pose
+        
+        
+class Simulated_conjunctive_grid_cell(Neuron):
+    """
+    Class to simulate the spike train of a grid cell.
+
+    The firing rate in 2D space is simulated with cos function
+
+    Arguments
+    name: name of the simulated grid cell
+    offset: np.array of shape (2,). Offset from 0,0 where the 3 component meets.
+    orientation: np.array of shape (3,). Orientation in radian of the 3 components
+    period: np.array of shape (3,). Period in cm for the 3 components. This is not the grid spacing.   period = grid spacing * np.cos(np.pi/6)
+    peak_rate: firing field peak firing rate in Hz
+
+    sampling_rate: sampling rate of the spike train
+    ap: Animal_pose object used to build the spike train
+
+    """
+
+    def __init__(
+        self,
+        name,
+        offset=np.array([0, 0]),
+        orientation=np.array([0.0, np.pi / 3, np.pi / 3 * 2]),
+        period=np.array([30, 30, 30]),
+        peak_rate=20,
+        peakAngle=0,
+        sharpness=0.5,
+        peakRate=10,
+        sampling_rate=20000,
+        ap=None,
+        applyReLuToRate=True,
+        proportionOfGrid=0.1,
+    ):
+        super().__init__(name=name)
+
+        # variable defining a grid cell
+        if offset.shape[0] != 2:
+            raise ValueError("offset should be of shape (2,)")
+        if orientation.shape[0] != 3:
+            raise ValueError("orientation should be of shape (3,)")
+        if period.shape[0] != 3:
+            raise ValueError("period should be of shape (3,)")
+
+        self.offset = offset
+        self.orientation = orientation
+        self.period = period
+        self.peak_rate = peak_rate
+        self.applyReLuToRate = applyReLuToRate
+
+        # NOTE Features for the HD component
+        self.peakAngle = peakAngle
+        self.sharpness = sharpness
+        self.peakRate = peakRate
+        self.proportionOfGrid = proportionOfGrid
+
+        self.sampling_rate = sampling_rate
+        self.ap = ap
+
+        self.spike_train = Spike_train(name=self.name, sampling_rate=self.sampling_rate)
+
+        self.remove_nan_from_ap()
+
+        self.grid_cell_firing_rate()
+
+        self.simulate_spike_train()
+
+        self.spatial_properties = Spatial_properties(
+            animal_pose=self.ap, spike_train=self.spike_train
+        )
+
+        self.spike_train.set_intervals(self.inter)
+        self.ap.set_intervals(self.inter)
+
+    def approxMolulo(self, x, maxValue):
+        y = np.arctan(-1.0 / (np.tan(x / maxValue * np.pi))) + (0.5 * np.pi)
+        y = y * maxValue / np.pi
+        return
+
+    def pose_to_grid_cell_coordinate(self):
+        """
+        Function to transfrom the x,y position of the mouse to
+        a position within the internal representation of grid cells.
+
+        The internal representation is 3 angles (x,y,z) which represents the distance along 3 axes
+        The 3 axes should be at approximately 60 degrees of each other.
+
+        To get from distance to angle, we get the modulo of the distance and the underlying spacing.
+
+        Set the angle in c0, c1, and c2. The range is -np.pi to pi.
+
+        """
+
+        Rx0 = np.array(
+            [[np.cos(-self.orientation[0])], [-np.sin(-self.orientation[0])]]
+        )  # minus sign because we want to rotate the inverse of the angle to bring it back to 1,0
+        Rx1 = np.array(
+            [[np.cos(-self.orientation[1])], [-np.sin(-self.orientation[1])]]
+        )
+        Rx2 = np.array(
+            [[np.cos(-self.orientation[2])], [-np.sin(-self.orientation[2])]]
+        )
+
+        d0 = self.pose @ Rx0
+        d1 = self.pose @ Rx1
+        d2 = self.pose @ Rx2
+
+        self.c0 = (d0 % self.period[0]) / self.period[0] * np.pi * 2
+        self.c1 = (d1 % self.period[1]) / self.period[1] * np.pi * 2
+        self.c2 = (d2 % self.period[2]) / self.period[2] * np.pi * 2
+
+        # set range to -np.pi to np.pi
+        self.c0 = np.arctan2(np.sin(self.c0), np.cos(self.c0))
+        self.c1 = np.arctan2(np.sin(self.c1), np.cos(self.c1))
+        self.c2 = np.arctan2(np.sin(self.c2), np.cos(self.c2))
+
+    def normalize(self, data):
+        return (data - np.nanmin(data)) / (np.nanmax(data) - np.nanmin(data))
+
+    def normalize_log(self, data):
+        # Log-Cosine-Power Transformation
+        output = np.log(data + 0.001)  # Add a small value to avoid log(0)
+        return self.normalize(output)
+
+    def simulate_spike_train(self):
+        """
+        Get a spike train that is based on the spatial selectivity of the neuron
+        """
+        # higher sampling rate
+        newTime = np.arange(
+            start=self.ap.pose[0, 0],
+            stop=self.inter[0, 1] - 1,
+            step=1 / self.sampling_rate,
+        )
+
+        # to interpolate the rate at a higher sampling rate
+        fx = interp1d(self.ap.pose[:, 0], self.rate)
+
+        mu1 = fx(newTime)  # interpolate the rate
+        mu1 = self.normalize(mu1)
+
+        # NOTE FUNCTION TO GET A HEAD DIRECTION CONJUNCTIVE FEATURE
+        fHD = interp1d(
+            self.ap.pose[:, 0], self.ap.pose[:, 4]
+        )  # create function that will interpolate the Head Direction
+
+        hdNew = fHD(newTime)  # interpolate from new time
+
+        # Get the rate at each sampling data point using the vonmises probability density function
+        mu2 = (
+            vonmises.pdf(x=hdNew, loc=self.peakAngle, kappa=self.sharpness)
+            * self.peakRate
+        )
+
+        # mu2 = self.normalize(mu2)
+        mu2 = self.normalize_log(mu2)
+
+        mu = (
+            (self.proportionOfGrid + mu2)
+            * mu1
+            * self.peak_rate
+            * (3 - np.log2(1 + self.proportionOfGrid))
+        ) / (
+            1 + self.proportionOfGrid
+        )  # combine the two features
+
+        self.spike_train.generate_poisson_spike_train_from_rate_vector(
+            mu, sampling_rate=self.sampling_rate
+        )
+
+    def remove_nan_from_ap(self):
+        """
+        Remove the nan from the ap.pose.
+        Only x,y and hd values are considered
+
+        The ap object will be permenantly modified.
+        If ap does not have np.nan value, this should not have any effect.
+        """
+
+        # print("Removing invalid values from ap")
+        tStepSize = self.ap.pose[1, 0] - self.ap.pose[0, 0]
+        pose = np.stack(
+            [
+                self.ap.pose[:, 0],
+                self.ap.pose[:, 1],
+                self.ap.pose[:, 2],
+                self.ap.pose[:, 4],
+            ]
+        ).T  # only consider the data that we will be using
+        keepIndices = ~np.isnan(pose).any(axis=1)
+        maxT = np.sum(keepIndices) * tStepSize + tStepSize / 2
+
+        self.ap.pose = self.ap.pose[keepIndices]
+
+        self.inter = np.array([[0, maxT]])
+
+        self.ap.pose[:, 0] = np.arange(start=tStepSize, stop=maxT, step=tStepSize)
+
+        self.ap.pose_ori = self.ap.pose
+
+    def calculate_hd_feature(self):
+        oldTime = self.ap.pose[:, 0]
+        fHD = interp1d(self.ap.pose[:, 0], self.ap.pose[:, 4])
+        hdOld = fHD(oldTime)
+
+        mu2_hd_tuning = vonmises.pdf(x=hdOld, loc=self.peakAngle, kappa=self.sharpness)
+        mu2_hd_tuning = self.normalize(mu2_hd_tuning)
+        self.mu2_hd_tuning = mu2_hd_tuning  # [:, np.newaxis]
+
+    def grid_cell_firing_rate(self):
+        """
+        Get the firing rate of grid cells
+        """
+
+        # we get the rate for all position
+        self.pose = np.stack([self.ap.pose[:, 1], self.ap.pose[:, 2]]).T
+        self.pose_to_grid_cell_coordinate()  # now have self.c0, self.c1, self.c2
+
+        self.offset = np.expand_dims(self.offset, 0)  # shift in cm
+        # now we need to know the projection of the vector onto the 3 components
+        # Changed on April 21th. This is because when the orientation changes, the location of the grid cell on the torus also changes
+        # This would mean that even when the grid cells rotate, their relative position on the torus might remain the same
+        Rx0 = np.array([[np.cos(0)], [-np.sin(0)]])
+        Rx1 = np.array([[np.cos(-np.pi / 3)], [-np.sin(-np.pi / 3)]])
+        Rx2 = np.array([[np.cos(-np.pi / 3 * 2)], [-np.sin(-np.pi / 3 * 2)]])
+
+        d0 = self.offset @ Rx0
+        d1 = self.offset @ Rx1
+        d2 = self.offset @ Rx2
+        self.phase = np.squeeze(
+            np.array(
+                [
+                    (d0 % self.period[0]) / self.period[0] * np.pi * 2,
+                    (d1 % self.period[1]) / self.period[1] * np.pi * 2,
+                    (d2 % self.period[2]) / self.period[2] * np.pi * 2,
+                ]
+            )
+        )
+        # from -np.pi to np.pi
+        self.phase = np.arctan2(np.sin(self.phase), np.cos(self.phase))
+
+        self.rateC0 = np.cos(self.c0 - self.phase[0])
+        self.rateC1 = np.cos(self.c1 - self.phase[1])
+        self.rateC2 = np.cos(self.c2 - self.phase[2])
+
+        # NOTE: Add HD tuning to the firing rate by multiplying the animal position with a normalized HD score.
+        self.rateC0 = np.cos(self.c0 - self.phase[0])
+        self.rateC1 = np.cos(self.c1 - self.phase[1])
+        self.rateC2 = np.cos(self.c2 - self.phase[2])
+
+        # the sum of 3 components ranges from -1.5 to 3.0
+        self.rate = np.squeeze(
+            ((self.rateC0 + self.rateC1 + self.rateC2 + 1.5) / 4.5 * self.peak_rate)
+        )
+
+        if self.applyReLuToRate:
+            self.relu_rate()
+
+    def relu_rate(self):
+        """
+        ReLU function to ensure there are no negative values in x. Negative numbers are set to 0.
+        """
+        self.rate = self.rate * (self.rate > 0)
